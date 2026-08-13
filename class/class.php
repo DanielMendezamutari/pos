@@ -1,4 +1,8 @@
 <?php
+// Configurar duración de sesión a 8 horas (28800 segundos)
+ini_set('session.gc_maxlifetime', 28800);
+ini_set('session.cookie_lifetime', 28800);
+session_set_cookie_params(28800);
 session_start();
 require_once("classconexion.php");
 include_once('funciones_basicas.php');
@@ -49,7 +53,7 @@ public function ExpiraSession()
 	}
 
    //Verifico el tiempo si esta seteado, caso contrario lo seteo.
-   $inactividad = 7200; //(1 hora de cierre sesion )600 equivale a 10 minutos
+   $inactividad = 28800; //8 horas de inactividad antes de cerrar sesión
    $actual      = time();
    $tiempo = (isset($_SESSION['time']) ? $_SESSION['time'] : strtotime(date("Y-m-d H:i:s")));
 
