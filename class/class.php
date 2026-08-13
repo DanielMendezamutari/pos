@@ -36935,6 +36935,477 @@ public function ContarRegistros()
 ########################## FUNCION PARA GRAFICOS #################################
 
 
+######################## FUNCION LISTAR PRODUCTOS POR SUCURSAL ###########################
+public function ListarProductosSucursal($codsucursal)
+{
+	self::SetNames();
+	$sql = "SELECT
+	productos.idproducto,
+	productos.codproducto,
+	productos.producto,
+	productos.descripcion,
+	productos.imei,
+	productos.condicion,
+	productos.fabricante,
+	productos.codfamilia,
+	productos.codsubfamilia,
+	productos.codmarca,
+	productos.codmodelo,
+	productos.codpresentacion,
+	productos.codcolor,
+	productos.codorigen,
+	productos.year,
+	productos.nroparte,
+	productos.lote,
+	productos.peso,
+	productos.preciocompra,
+	productos.precioxmayor,
+	productos.precioxmenor,
+	productos.precioxpublico,
+	productos.existencia,
+	productos.stockoptimo,
+	productos.stockmedio,
+	productos.stockminimo,
+	productos.ivaproducto,
+	productos.descproducto,
+	productos.codigobarra,
+	productos.fechaelaboracion,
+	productos.fechaoptimo,
+	productos.fechamedio,
+	productos.fechaminimo,
+	productos.codproveedor,
+	productos.stockteorico,
+	productos.motivoajuste,
+	productos.codsucursal,
+	marcas.nommarca,
+	modelos.nommodelo
+	FROM productos
+	LEFT JOIN marcas ON productos.codmarca = marcas.codmarca
+	LEFT JOIN modelos ON productos.codmodelo = modelos.codmodelo
+	WHERE productos.codsucursal = ?
+	ORDER BY productos.producto ASC";
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($codsucursal));
+	$num = $stmt->rowCount();
+	if($num == 0)
+	{
+		return "";
+	}
+	else
+	{
+		while($row = $stmt->fetch(PDO::FETCH_ASSOC))
+		{
+			$data[] = $row;
+		}
+		return $data;
+	}
+}
+######################## FUNCION LISTAR PRODUCTOS POR SUCURSAL ###########################
+
+######################## FUNCION VERIFICAR PRODUCTO EN SUCURSAL ###########################
+public function ProductoExisteSucursal($codproducto, $codsucursal)
+{
+	self::SetNames();
+	$sql = "SELECT idproducto FROM productos WHERE codproducto = ? AND codsucursal = ?";
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($codproducto, $codsucursal));
+	$num = $stmt->rowCount();
+	if($num == 0)
+	{
+		return false;
+	}
+	else
+	{
+		return true;
+	}
+}
+######################## FUNCION VERIFICAR PRODUCTO EN SUCURSAL ###########################
+
+######################## FUNCION COPIAR PRODUCTO A SUCURSAL ###########################
+public function CopiarProductoSucursal()
+{
+	self::SetNames();
+	if($_SESSION['acceso'] != "administradorG")
+	{
+		echo "5";
+		exit;
+	}
+
+	if(empty($_POST["idproducto"]) || empty($_POST["codsucursaldestino"]))
+	{
+		echo "1";
+		exit;
+	}
+
+	$idproducto = limpiar(decrypt($_POST["idproducto"]));
+	$codsucursaldestino = limpiar(decrypt($_POST["codsucursaldestino"]));
+
+	############## OBTENGO PRODUCTO ORIGEN #################
+	$sql = "SELECT * FROM productos WHERE idproducto = ?";
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($idproducto));
+	$num = $stmt->rowCount();
+	if($num == 0)
+	{
+		echo "2";
+		exit;
+	}
+
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+	############## VERIFICO SI YA EXISTE EN DESTINO #################
+	if($this->ProductoExisteSucursal($row["codproducto"], $codsucursaldestino))
+	{
+		echo "3";
+		exit;
+	}
+
+	############## REGISTRO PRODUCTO EN SUCURSAL DESTINO CON STOCK 0 #################
+	$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	$stmt = $this->dbh->prepare($query);
+	$stmt->bindParam(1, $codproducto);
+	$stmt->bindParam(2, $producto);
+	$stmt->bindParam(3, $descripcion);
+	$stmt->bindParam(4, $imei);
+	$stmt->bindParam(5, $condicion);
+	$stmt->bindParam(6, $fabricante);
+	$stmt->bindParam(7, $codfamilia);
+	$stmt->bindParam(8, $codsubfamilia);
+	$stmt->bindParam(9, $codmarca);
+	$stmt->bindParam(10, $codmodelo);
+	$stmt->bindParam(11, $codpresentacion);
+	$stmt->bindParam(12, $codcolor);
+	$stmt->bindParam(13, $codorigen);
+	$stmt->bindParam(14, $year);
+	$stmt->bindParam(15, $nroparte);
+	$stmt->bindParam(16, $lote);
+	$stmt->bindParam(17, $peso);
+	$stmt->bindParam(18, $preciocompra);
+	$stmt->bindParam(19, $precioxmayor);
+	$stmt->bindParam(20, $precioxmenor);
+	$stmt->bindParam(21, $precioxpublico);
+	$stmt->bindParam(22, $existencia);
+	$stmt->bindParam(23, $stockoptimo);
+	$stmt->bindParam(24, $stockmedio);
+	$stmt->bindParam(25, $stockminimo);
+	$stmt->bindParam(26, $ivaproducto);
+	$stmt->bindParam(27, $descproducto);
+	$stmt->bindParam(28, $codigobarra);
+	$stmt->bindParam(29, $fechaelaboracion);
+	$stmt->bindParam(30, $fechaoptimo);
+	$stmt->bindParam(31, $fechamedio);
+	$stmt->bindParam(32, $fechaminimo);
+	$stmt->bindParam(33, $codproveedor);
+	$stmt->bindParam(34, $stockteorico);
+	$stmt->bindParam(35, $motivoajuste);
+	$stmt->bindParam(36, $codsucursal);
+
+	$codproducto = limpiar($row["codproducto"]);
+	$producto = limpiar($row["producto"]);
+	$descripcion = limpiar($row["descripcion"]);
+	$imei = limpiar($row["imei"]);
+	$condicion = limpiar($row["condicion"]);
+	$fabricante = limpiar($row["fabricante"]);
+	$codfamilia = limpiar($row["codfamilia"]);
+	$codsubfamilia = limpiar($row["codsubfamilia"]);
+	$codmarca = limpiar($row["codmarca"]);
+	$codmodelo = limpiar($row["codmodelo"]);
+	$codpresentacion = limpiar($row["codpresentacion"]);
+	$codcolor = limpiar($row["codcolor"]);
+	$codorigen = limpiar($row["codorigen"]);
+	$year = limpiar($row["year"]);
+	$nroparte = limpiar($row["nroparte"]);
+	$lote = limpiar($row["lote"]);
+	$peso = limpiar($row["peso"]);
+	$preciocompra = limpiar($row["preciocompra"]);
+	$precioxmayor = limpiar($row["precioxmayor"]);
+	$precioxmenor = limpiar($row["precioxmenor"]);
+	$precioxpublico = limpiar($row["precioxpublico"]);
+	$existencia = limpiar("0.00");
+	$stockoptimo = limpiar($row["stockoptimo"]);
+	$stockmedio = limpiar($row["stockmedio"]);
+	$stockminimo = limpiar($row["stockminimo"]);
+	$ivaproducto = limpiar($row["ivaproducto"]);
+	$descproducto = limpiar($row["descproducto"]);
+	$codigobarra = limpiar($row["codigobarra"]);
+	$fechaelaboracion = limpiar($row["fechaelaboracion"]);
+	$fechaoptimo = limpiar($row["fechaoptimo"]);
+	$fechamedio = limpiar($row["fechamedio"]);
+	$fechaminimo = limpiar($row["fechaminimo"]);
+	$codproveedor = limpiar($row["codproveedor"]);
+	$stockteorico = limpiar("0.00");
+	$motivoajuste = limpiar("NINGUNO");
+	$codsucursal = limpiar($codsucursaldestino);
+	$stmt->execute();
+	##################### REGISTRO DE PRODUCTO #####################
+
+	echo "<span class='fa fa-check-square-o'></span> EL PRODUCTO HA SIDO COPIADO EXITOSAMENTE CON STOCK 0";
+	exit;
+}
+######################## FUNCION COPIAR PRODUCTO A SUCURSAL ###########################
+
+######################## FUNCION COPIAR TODOS LOS PRODUCTOS A SUCURSAL ###########################
+public function CopiarTodosProductosSucursal()
+{
+	self::SetNames();
+	if($_SESSION['acceso'] != "administradorG")
+	{
+		echo "5";
+		exit;
+	}
+
+	if(empty($_POST["codsucursalorigen"]) || empty($_POST["codsucursaldestino"]))
+	{
+		echo "1";
+		exit;
+	}
+
+	$codsucursalorigen = limpiar(decrypt($_POST["codsucursalorigen"]));
+	$codsucursaldestino = limpiar(decrypt($_POST["codsucursaldestino"]));
+
+	if($codsucursalorigen == $codsucursaldestino)
+	{
+		echo "2";
+		exit;
+	}
+
+	############## OBTENGO PRODUCTOS ORIGEN #################
+	$sql = "SELECT * FROM productos WHERE codsucursal = ?";
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($codsucursalorigen));
+	$num = $stmt->rowCount();
+	if($num == 0)
+	{
+		echo "4";
+		exit;
+	}
+
+	$copiados = 0;
+	$existentes = 0;
+
+	while($row = $stmt->fetch(PDO::FETCH_ASSOC))
+	{
+		if($this->ProductoExisteSucursal($row["codproducto"], $codsucursaldestino))
+		{
+			$existentes++;
+			continue;
+		}
+
+		$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		$stmt2 = $this->dbh->prepare($query);
+		$stmt2->bindParam(1, $codproducto);
+		$stmt2->bindParam(2, $producto);
+		$stmt2->bindParam(3, $descripcion);
+		$stmt2->bindParam(4, $imei);
+		$stmt2->bindParam(5, $condicion);
+		$stmt2->bindParam(6, $fabricante);
+		$stmt2->bindParam(7, $codfamilia);
+		$stmt2->bindParam(8, $codsubfamilia);
+		$stmt2->bindParam(9, $codmarca);
+		$stmt2->bindParam(10, $codmodelo);
+		$stmt2->bindParam(11, $codpresentacion);
+		$stmt2->bindParam(12, $codcolor);
+		$stmt2->bindParam(13, $codorigen);
+		$stmt2->bindParam(14, $year);
+		$stmt2->bindParam(15, $nroparte);
+		$stmt2->bindParam(16, $lote);
+		$stmt2->bindParam(17, $peso);
+		$stmt2->bindParam(18, $preciocompra);
+		$stmt2->bindParam(19, $precioxmayor);
+		$stmt2->bindParam(20, $precioxmenor);
+		$stmt2->bindParam(21, $precioxpublico);
+		$stmt2->bindParam(22, $existencia);
+		$stmt2->bindParam(23, $stockoptimo);
+		$stmt2->bindParam(24, $stockmedio);
+		$stmt2->bindParam(25, $stockminimo);
+		$stmt2->bindParam(26, $ivaproducto);
+		$stmt2->bindParam(27, $descproducto);
+		$stmt2->bindParam(28, $codigobarra);
+		$stmt2->bindParam(29, $fechaelaboracion);
+		$stmt2->bindParam(30, $fechaoptimo);
+		$stmt2->bindParam(31, $fechamedio);
+		$stmt2->bindParam(32, $fechaminimo);
+		$stmt2->bindParam(33, $codproveedor);
+		$stmt2->bindParam(34, $stockteorico);
+		$stmt2->bindParam(35, $motivoajuste);
+		$stmt2->bindParam(36, $codsucursal);
+
+		$codproducto = limpiar($row["codproducto"]);
+		$producto = limpiar($row["producto"]);
+		$descripcion = limpiar($row["descripcion"]);
+		$imei = limpiar($row["imei"]);
+		$condicion = limpiar($row["condicion"]);
+		$fabricante = limpiar($row["fabricante"]);
+		$codfamilia = limpiar($row["codfamilia"]);
+		$codsubfamilia = limpiar($row["codsubfamilia"]);
+		$codmarca = limpiar($row["codmarca"]);
+		$codmodelo = limpiar($row["codmodelo"]);
+		$codpresentacion = limpiar($row["codpresentacion"]);
+		$codcolor = limpiar($row["codcolor"]);
+		$codorigen = limpiar($row["codorigen"]);
+		$year = limpiar($row["year"]);
+		$nroparte = limpiar($row["nroparte"]);
+		$lote = limpiar($row["lote"]);
+		$peso = limpiar($row["peso"]);
+		$preciocompra = limpiar($row["preciocompra"]);
+		$precioxmayor = limpiar($row["precioxmayor"]);
+		$precioxmenor = limpiar($row["precioxmenor"]);
+		$precioxpublico = limpiar($row["precioxpublico"]);
+		$existencia = limpiar("0.00");
+		$stockoptimo = limpiar($row["stockoptimo"]);
+		$stockmedio = limpiar($row["stockmedio"]);
+		$stockminimo = limpiar($row["stockminimo"]);
+		$ivaproducto = limpiar($row["ivaproducto"]);
+		$descproducto = limpiar($row["descproducto"]);
+		$codigobarra = limpiar($row["codigobarra"]);
+		$fechaelaboracion = limpiar($row["fechaelaboracion"]);
+		$fechaoptimo = limpiar($row["fechaoptimo"]);
+		$fechamedio = limpiar($row["fechamedio"]);
+		$fechaminimo = limpiar($row["fechaminimo"]);
+		$codproveedor = limpiar($row["codproveedor"]);
+		$stockteorico = limpiar("0.00");
+		$motivoajuste = limpiar("NINGUNO");
+		$codsucursal = limpiar($codsucursaldestino);
+		$stmt2->execute();
+
+		$copiados++;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> SE COPIARON " . $copiados . " PRODUCTOS CON STOCK 0. " . $existentes . " PRODUCTOS YA EXISTÍAN EN LA SUCURSAL DESTINO.";
+	exit;
+}
+######################## FUNCION COPIAR TODOS LOS PRODUCTOS A SUCURSAL ###########################
+
+######################## FUNCION COPIAR LOTE DE PRODUCTOS A SUCURSAL ###########################
+public function CopiarProductoLote()
+{
+	self::SetNames();
+	header('Content-Type: application/json');
+
+	if($_SESSION['acceso'] != "administradorG")
+	{
+		echo json_encode(["status" => "error", "message" => "NO TIENE PERMISOS PARA REALIZAR ESTA ACCIÓN"]);
+		exit;
+	}
+
+	if(empty($_POST["idproducto"]) || !is_array($_POST["idproducto"]) || empty($_POST["codsucursaldestino"]))
+	{
+		echo json_encode(["status" => "error", "message" => "DATOS INCOMPLETOS"]);
+		exit;
+	}
+
+	$codsucursaldestino = limpiar(decrypt($_POST["codsucursaldestino"]));
+	$procesados = 0;
+	$existentes = 0;
+	$errores = [];
+
+	foreach($_POST["idproducto"] as $idenc)
+	{
+		$idproducto = limpiar(decrypt($idenc));
+
+		$sql = "SELECT * FROM productos WHERE idproducto = ?";
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($idproducto));
+		if($stmt->rowCount() == 0)
+		{
+			$errores[] = "Producto no encontrado: " . $idproducto;
+			continue;
+		}
+
+		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+		if($this->ProductoExisteSucursal($row["codproducto"], $codsucursaldestino))
+		{
+			$existentes++;
+			continue;
+		}
+
+		$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		$stmt2 = $this->dbh->prepare($query);
+		$stmt2->bindParam(1, $codproducto);
+		$stmt2->bindParam(2, $producto);
+		$stmt2->bindParam(3, $descripcion);
+		$stmt2->bindParam(4, $imei);
+		$stmt2->bindParam(5, $condicion);
+		$stmt2->bindParam(6, $fabricante);
+		$stmt2->bindParam(7, $codfamilia);
+		$stmt2->bindParam(8, $codsubfamilia);
+		$stmt2->bindParam(9, $codmarca);
+		$stmt2->bindParam(10, $codmodelo);
+		$stmt2->bindParam(11, $codpresentacion);
+		$stmt2->bindParam(12, $codcolor);
+		$stmt2->bindParam(13, $codorigen);
+		$stmt2->bindParam(14, $year);
+		$stmt2->bindParam(15, $nroparte);
+		$stmt2->bindParam(16, $lote);
+		$stmt2->bindParam(17, $peso);
+		$stmt2->bindParam(18, $preciocompra);
+		$stmt2->bindParam(19, $precioxmayor);
+		$stmt2->bindParam(20, $precioxmenor);
+		$stmt2->bindParam(21, $precioxpublico);
+		$stmt2->bindParam(22, $existencia);
+		$stmt2->bindParam(23, $stockoptimo);
+		$stmt2->bindParam(24, $stockmedio);
+		$stmt2->bindParam(25, $stockminimo);
+		$stmt2->bindParam(26, $ivaproducto);
+		$stmt2->bindParam(27, $descproducto);
+		$stmt2->bindParam(28, $codigobarra);
+		$stmt2->bindParam(29, $fechaelaboracion);
+		$stmt2->bindParam(30, $fechaoptimo);
+		$stmt2->bindParam(31, $fechamedio);
+		$stmt2->bindParam(32, $fechaminimo);
+		$stmt2->bindParam(33, $codproveedor);
+		$stmt2->bindParam(34, $stockteorico);
+		$stmt2->bindParam(35, $motivoajuste);
+		$stmt2->bindParam(36, $codsucursal);
+
+		$codproducto = limpiar($row["codproducto"]);
+		$producto = limpiar($row["producto"]);
+		$descripcion = limpiar($row["descripcion"]);
+		$imei = limpiar($row["imei"]);
+		$condicion = limpiar($row["condicion"]);
+		$fabricante = limpiar($row["fabricante"]);
+		$codfamilia = limpiar($row["codfamilia"]);
+		$codsubfamilia = limpiar($row["codsubfamilia"]);
+		$codmarca = limpiar($row["codmarca"]);
+		$codmodelo = limpiar($row["codmodelo"]);
+		$codpresentacion = limpiar($row["codpresentacion"]);
+		$codcolor = limpiar($row["codcolor"]);
+		$codorigen = limpiar($row["codorigen"]);
+		$year = limpiar($row["year"]);
+		$nroparte = limpiar($row["nroparte"]);
+		$lote = limpiar($row["lote"]);
+		$peso = limpiar($row["peso"]);
+		$preciocompra = limpiar($row["preciocompra"]);
+		$precioxmayor = limpiar($row["precioxmayor"]);
+		$precioxmenor = limpiar($row["precioxmenor"]);
+		$precioxpublico = limpiar($row["precioxpublico"]);
+		$existencia = limpiar("0.00");
+		$stockoptimo = limpiar($row["stockoptimo"]);
+		$stockmedio = limpiar($row["stockmedio"]);
+		$stockminimo = limpiar($row["stockminimo"]);
+		$ivaproducto = limpiar($row["ivaproducto"]);
+		$descproducto = limpiar($row["descproducto"]);
+		$codigobarra = limpiar($row["codigobarra"]);
+		$fechaelaboracion = limpiar($row["fechaelaboracion"]);
+		$fechaoptimo = limpiar($row["fechaoptimo"]);
+		$fechamedio = limpiar($row["fechamedio"]);
+		$fechaminimo = limpiar($row["fechaminimo"]);
+		$codproveedor = limpiar($row["codproveedor"]);
+		$stockteorico = limpiar("0.00");
+		$motivoajuste = limpiar("NINGUNO");
+		$codsucursal = limpiar($codsucursaldestino);
+		$stmt2->execute();
+
+		$procesados++;
+	}
+
+	echo json_encode(["status" => "ok", "procesados" => $procesados, "existentes" => $existentes, "errores" => $errores]);
+	exit;
+}
+######################## FUNCION COPIAR LOTE DE PRODUCTOS A SUCURSAL ###########################
+
+
 }
 ############## TERMINA LA CLASE LOGIN ######################
 ?>

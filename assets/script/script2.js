@@ -7302,3 +7302,251 @@ $.ajax({
              }
       });
 }
+
+// FUNCION PARA ABRIR MODAL DE COPIAR PRODUCTOS
+function AbrirModalCopiarProductos(){
+    $("#copiarproductos")[0].reset();
+    $("#copiar-resultados").empty();
+    $("#copiar-progreso-row").hide();
+    $("#copiar-progreso-bar").css("width", "0%").text("0%").attr("aria-valuenow", 0);
+    $("#copiar-progreso-texto").html('<i class="fa fa-spin fa-spinner"></i> Preparando copia...');
+    $("#btn-copiar-todos, #btn-buscar-copiar, #btn-cerrar-copiar").prop("disabled", false);
+    $("#myModalCopiar").modal({
+        backdrop: 'static',
+        keyboard: false
+    });
+}
+
+// FUNCION PARA BUSCAR PRODUCTOS A COPIAR ENTRE SUCURSALES
+function BuscaProductosCopiar(){
+
+$('#copiar-resultados').html('<center><i class="fa fa-spin fa-spinner"></i> Procesando información, por favor espere....</center>');
+$("#copiar-progreso-row").hide();
+
+var codsucursalorigen = $("#codsucursalorigen").val();
+var codsucursaldestino = $("#codsucursaldestino").val();
+
+if(codsucursalorigen === "" || codsucursaldestino === ""){
+    $('#copiar-resultados').html("<div class='alert alert-danger'><center><span class='fa fa-info-circle'></span> POR FAVOR SELECCIONE AMBAS SUCURSALES</center></div>");
+    return false;
+}
+
+if(codsucursalorigen === codsucursaldestino){
+    $('#copiar-resultados').html("<div class='alert alert-warning'><center><span class='fa fa-info-circle'></span> LA SUCURSAL ORIGEN Y DESTINO NO PUEDEN SER LA MISMA</center></div>");
+    return false;
+}
+
+var dataString = "CopiarProductosxSucursal=si&codsucursalorigen="+codsucursalorigen+"&codsucursaldestino="+codsucursaldestino;
+var url = 'consultas.php';
+
+$.ajax({
+    type: "GET",
+    url: url,
+    data: dataString,
+    success: function(response) {
+        $('#copiar-resultados').empty();
+        $('#copiar-resultados').append(''+response+'').fadeIn("slow");
+    }
+});
+}
+
+// FUNCION PARA COPIAR UN PRODUCTO A SUCURSAL DESTINO
+$(document).on("click", ".btn-copiar-producto", function(){
+
+var idproducto = $(this).data("idproducto");
+var codsucursaldestino = $("#codsucursaldestino").val();
+
+if(codsucursaldestino === ""){
+    var n = noty({
+        text: "<span class='fa fa-warning'></span> POR FAVOR SELECCIONE LA SUCURSAL DESTINO",
+        theme: 'defaultTheme',
+        layout: 'center',
+        type: 'warning',
+        timeout: 5000
+    });
+    return false;
+}
+
+var boton = $(this);
+boton.html('<i class="fa fa-spin fa-spinner"></i>');
+boton.prop("disabled", true);
+
+var dataString = "proceso=copiarproducto&idproducto="+idproducto+"&codsucursaldestino="+codsucursaldestino;
+
+$.ajax({
+    type: "POST",
+    url: "productos.php",
+    data: dataString,
+    success: function(data){
+        if(data==="1"){
+            var n = noty({
+                text: "<span class='fa fa-warning'></span> POR FAVOR COMPLETE LOS DATOS REQUERIDOS",
+                theme: 'defaultTheme',
+                layout: 'center',
+                type: 'warning',
+                timeout: 5000
+            });
+            boton.html('<i class="fa fa-copy"></i>');
+            boton.prop("disabled", false);
+        } else if(data==="2"){
+            var n = noty({
+                text: "<span class='fa fa-warning'></span> EL PRODUCTO ORIGEN NO FUE ENCONTRADO",
+                theme: 'defaultTheme',
+                layout: 'center',
+                type: 'warning',
+                timeout: 5000
+            });
+            boton.html('<i class="fa fa-copy"></i>');
+            boton.prop("disabled", false);
+        } else if(data==="3"){
+            var n = noty({
+                text: "<span class='fa fa-warning'></span> EL PRODUCTO YA EXISTE EN LA SUCURSAL DESTINO",
+                theme: 'defaultTheme',
+                layout: 'center',
+                type: 'warning',
+                timeout: 5000
+            });
+            boton.html('<i class="fa fa-copy"></i>');
+            boton.prop("disabled", false);
+        } else if(data==="5"){
+            var n = noty({
+                text: "<span class='fa fa-warning'></span> NO TIENE PERMISOS PARA REALIZAR ESTA ACCIÓN",
+                theme: 'defaultTheme',
+                layout: 'center',
+                type: 'warning',
+                timeout: 5000
+            });
+            boton.html('<i class="fa fa-copy"></i>');
+            boton.prop("disabled", false);
+        } else {
+            var n = noty({
+                text: "<center>"+data+"</center>",
+                theme: 'defaultTheme',
+                layout: 'center',
+                type: 'information',
+                timeout: 5000
+            });
+            boton.replaceWith("<span class='badge badge-success'><i class='fa fa-check'></i> COPIADO</span>");
+        }
+    }
+});
+});
+
+// FUNCION PARA COPIAR TODOS LOS PRODUCTOS A SUCURSAL DESTINO
+function CopiarTodosProductos(){
+
+var codsucursalorigen = $("#codsucursalorigen").val();
+var codsucursaldestino = $("#codsucursaldestino").val();
+
+if(codsucursalorigen === "" || codsucursaldestino === ""){
+    var n = noty({
+        text: "<span class='fa fa-warning'></span> POR FAVOR SELECCIONE AMBAS SUCURSALES",
+        theme: 'defaultTheme',
+        layout: 'center',
+        type: 'warning',
+        timeout: 5000
+    });
+    return false;
+}
+
+if(codsucursalorigen === codsucursaldestino){
+    var n = noty({
+        text: "<span class='fa fa-warning'></span> LA SUCURSAL ORIGEN Y DESTINO NO PUEDEN SER LA MISMA",
+        theme: 'defaultTheme',
+        layout: 'center',
+        type: 'warning',
+        timeout: 5000
+    });
+    return false;
+}
+
+swal({
+    title: "¿Estás seguro?",
+    text: "¿Estás seguro de Copiar Todos los Productos de la Sucursal Origen a la Sucursal Destino con Stock 0?",
+    type: "warning",
+    showCancelButton: true,
+    cancelButtonText: "Cancelar",
+    cancelButtonColor: '#d33',
+    closeOnConfirm: false,
+    confirmButtonText: "Copiar Todos",
+    confirmButtonColor: "#3085d6"
+}, function(isConfirm) {
+    if (isConfirm) {
+        swal.close();
+        $("#copiar-resultados").empty();
+        $("#copiar-progreso-row").show();
+        $("#copiar-progreso-bar").css("width", "0%").text("0%").attr("aria-valuenow", 0);
+        $("#copiar-progreso-texto").html('<i class="fa fa-spin fa-spinner"></i> Cargando lista de productos...');
+        $("#btn-copiar-todos, #btn-buscar-copiar, #btn-cerrar-copiar").prop("disabled", true);
+
+        $.ajax({
+            type: "GET",
+            url: "consultas.php",
+            data: "ObtenerProductosCopiar=si&codsucursalorigen="+codsucursalorigen+"&codsucursaldestino="+codsucursaldestino,
+            dataType: "json",
+            success: function(respuesta){
+                if(respuesta.status !== "ok" || respuesta.total === 0){
+                    $("#copiar-progreso-texto").html("<span class='fa fa-info-circle'></span> NO HAY PRODUCTOS PARA COPIAR");
+                    $("#btn-copiar-todos, #btn-buscar-copiar, #btn-cerrar-copiar").prop("disabled", false);
+                    return false;
+                }
+
+                var ids = respuesta.ids;
+                var total = ids.length;
+                var procesados = 0;
+                var exitosos = 0;
+                var existentes = 0;
+                var tamañoLote = 5;
+
+                $("#copiar-progreso-texto").html('<i class="fa fa-spin fa-spinner"></i> Copiando 0 de ' + total + ' productos...');
+
+                function enviarLote(inicio){
+                    var lote = ids.slice(inicio, inicio + tamañoLote);
+                    if(lote.length === 0){
+                        $("#copiar-progreso-bar").removeClass("progress-bar-animated").addClass("bg-success");
+                        $("#copiar-progreso-texto").html('<span class="fa fa-check-square-o"></span> COPIA FINALIZADA: ' + exitosos + ' COPIADOS, ' + existentes + ' YA EXISTÍAN');
+                        $("#btn-copiar-todos, #btn-buscar-copiar, #btn-cerrar-copiar").prop("disabled", false);
+                        return false;
+                    }
+
+                    var data = { proceso: "copiarproductolote", codsucursaldestino: codsucursaldestino };
+                    for(var i=0; i<lote.length; i++){
+                        data["idproducto["+i+"]"] = lote[i];
+                    }
+
+                    $.ajax({
+                        type: "POST",
+                        url: "productos.php",
+                        data: data,
+                        dataType: "json",
+                        success: function(res){
+                            if(res.status === "ok"){
+                                exitosos += parseInt(res.procesados);
+                                existentes += parseInt(res.existentes);
+                            }
+                            procesados += lote.length;
+                            var porcentaje = Math.round((procesados / total) * 100);
+                            $("#copiar-progreso-bar").css("width", porcentaje + "%").text(porcentaje + "%").attr("aria-valuenow", porcentaje);
+                            $("#copiar-progreso-texto").html('<i class="fa fa-spin fa-spinner"></i> Copiando ' + procesados + ' de ' + total + ' productos...');
+                            enviarLote(procesados);
+                        },
+                        error: function(){
+                            procesados += lote.length;
+                            var porcentaje = Math.round((procesados / total) * 100);
+                            $("#copiar-progreso-bar").css("width", porcentaje + "%").text(porcentaje + "%").attr("aria-valuenow", porcentaje);
+                            $("#copiar-progreso-texto").html('<i class="fa fa-spin fa-spinner"></i> Copiando ' + procesados + ' de ' + total + ' productos...');
+                            enviarLote(procesados);
+                        }
+                    });
+                }
+
+                enviarLote(0);
+            },
+            error: function(){
+                $("#copiar-progreso-texto").html("<span class='fa fa-warning'></span> ERROR AL OBTENER PRODUCTOS");
+                $("#btn-copiar-todos, #btn-buscar-copiar, #btn-cerrar-copiar").prop("disabled", false);
+            }
+        });
+    }
+});
+}

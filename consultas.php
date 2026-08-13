@@ -2803,6 +2803,136 @@ $color_fecha  = "******";
 ?>
 
 <?php
+############################# COPIAR PRODUCTOS X SUCURSAL ############################
+if (isset($_GET['CopiarProductosxSucursal']) && isset($_GET['codsucursalorigen']) && isset($_GET['codsucursaldestino'])) {
+
+if ($_SESSION['acceso'] != "administradorG") {
+  echo "<div class='alert alert-danger'>";
+  echo "<button type='button' class='close' data-dismiss='alert' aria-text='true'>&times;</button>";
+  echo "<center><span class='fa fa-info-circle'></span> NO TIENE PERMISOS PARA REALIZAR ESTA ACCIÓN</center>";
+  echo "</div>";
+  exit;
+}
+
+$codsucursalorigen = limpiar(decrypt($_GET['codsucursalorigen']));
+$codsucursaldestino = limpiar(decrypt($_GET['codsucursaldestino']));
+
+if($codsucursalorigen==="" || $codsucursaldestino==="") {
+
+  echo "<div class='alert alert-danger'>";
+  echo "<button type='button' class='close' data-dismiss='alert' aria-text='true'>&times;</button>";
+  echo "<center><span class='fa fa-info-circle'></span> POR FAVOR SELECCIONE AMBAS SUCURSALES</center>";
+  echo "</div>";
+  exit;
+
+} elseif($codsucursalorigen == $codsucursaldestino) {
+
+  echo "<div class='alert alert-warning'>";
+  echo "<button type='button' class='close' data-dismiss='alert' aria-text='true'>&times;</button>";
+  echo "<center><span class='fa fa-info-circle'></span> LA SUCURSAL ORIGEN Y DESTINO NO PUEDEN SER LA MISMA</center>";
+  echo "</div>";
+  exit;
+
+} else {
+
+$pro = new Login();
+$reg = $pro->ListarProductosSucursal($codsucursalorigen);
+
+if($reg===""){
+
+    echo "<div class='alert alert-danger'>";
+    echo "<button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>";
+    echo "<center><span class='fa fa-info-circle'></span> NO SE ENCONTRARON PRODUCTOS EN LA SUCURSAL ORIGEN SELECCIONADA</center>";
+    echo "</div>";
+
+} else {
+
+?>
+
+<div class="table-responsive"><table id="default_order_copiar" class="table table-striped table-bordered border display">
+             <thead>
+             <tr role="row">
+                <th>N°</th>
+                <th>Código</th>
+                <th>Nombre de Producto</th>
+                <th>Stock Origen</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Acción</th>
+             </tr>
+             </thead>
+             <tbody class="BusquedaRapida">
+
+<?php
+$a=1;
+for($i=0;$i<sizeof($reg);$i++){
+$yaexiste = $pro->ProductoExisteSucursal($reg[$i]['codproducto'], $codsucursaldestino);
+?>
+    <tr role="row" class="odd">
+    <td><?php echo $a++; ?></td>
+    <td><?php echo $reg[$i]['codproducto']; ?></td>
+    <td><?php echo $reg[$i]['producto']; ?></td>
+    <td><?php echo number_format($reg[$i]['existencia'], 0, '.', ','); ?></td>
+    <td><?php echo $reg[$i]['nommarca']; ?></td>
+    <td><?php echo $reg[$i]['nommodelo'] == '' ? "*****" : $reg[$i]['nommodelo']; ?></td>
+    <td>
+    <?php if($yaexiste) { ?>
+    <span class="badge badge-success"><i class="fa fa-check"></i> YA EXISTE</span>
+    <?php } else { ?>
+    <button type="button" class="btn btn-info btn-rounded btn-copiar-producto" data-idproducto="<?php echo encrypt($reg[$i]['idproducto']); ?>" title="Copiar a Sucursal Destino"><i class="fa fa-copy"></i></button>
+    <?php } ?>
+    </td>
+    </tr>
+<?php } ?>
+    </tbody>
+    </table>
+</div>
+
+<?php
+   }
+  }
+}
+############################# COPIAR PRODUCTOS X SUCURSAL ############################
+?>
+
+<?php
+############################# OBTENER PRODUCTOS PARA COPIAR ############################
+if (isset($_GET['ObtenerProductosCopiar']) && isset($_GET['codsucursalorigen']) && isset($_GET['codsucursaldestino'])) {
+
+if ($_SESSION['acceso'] != "administradorG") {
+  echo json_encode(["status" => "error", "message" => "NO TIENE PERMISOS"]);
+  exit;
+}
+
+header('Content-Type: application/json');
+
+$codsucursalorigen = limpiar(decrypt($_GET['codsucursalorigen']));
+$codsucursaldestino = limpiar(decrypt($_GET['codsucursaldestino']));
+
+if($codsucursalorigen==="" || $codsucursaldestino==="" || $codsucursalorigen == $codsucursaldestino) {
+  echo json_encode(["status" => "error", "message" => "SUCURSALES INVALIDAS"]);
+  exit;
+}
+
+$pro = new Login();
+$reg = $pro->ListarProductosSucursal($codsucursalorigen);
+
+$ids = [];
+if($reg!==""){
+  for($i=0;$i<sizeof($reg);$i++){
+    if(!$pro->ProductoExisteSucursal($reg[$i]['codproducto'], $codsucursaldestino)){
+      $ids[] = encrypt($reg[$i]['idproducto']);
+    }
+  }
+}
+
+echo json_encode(["status" => "ok", "total" => sizeof($ids), "ids" => $ids]);
+exit;
+}
+############################# OBTENER PRODUCTOS PARA COPIAR ############################
+?>
+
+<?php
 ############################# CARGAR PRODUCTOS ############################
 if (isset($_GET['CargaProductos'])) { 
 

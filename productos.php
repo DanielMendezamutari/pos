@@ -10,7 +10,22 @@ if(isset($_POST["proceso"]) and $_POST["proceso"]=="cargaproducto")
 {
 $reg = $tra->CargarProductos();
 exit;
-} 
+}
+elseif(isset($_POST["proceso"]) and $_POST["proceso"]=="copiarproducto")
+{
+$reg = $tra->CopiarProductoSucursal();
+exit;
+}
+elseif(isset($_POST["proceso"]) and $_POST["proceso"]=="copiartodosproductos")
+{
+$reg = $tra->CopiarTodosProductosSucursal();
+exit;
+}
+elseif(isset($_POST["proceso"]) and $_POST["proceso"]=="copiarproductolote")
+{
+$reg = $tra->CopiarProductoLote();
+exit;
+}
 ?>
 <!DOCTYPE html>
 <html dir="ltr" lang="en">
@@ -205,6 +220,97 @@ exit;
 </div>
 <!-- /.modal -->
 <!--############################## MODAL PARA CARGA MASIVA DE PRODUCTOS ######################################-->                
+
+<!--############################## MODAL PARA COPIAR PRODUCTOS ENTRE SUCURSALES ######################################-->
+<!-- sample modal content -->
+<div id="myModalCopiar" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h4 class="modal-title text-white" id="myModalLabel"><i class="fa fa-copy"></i> Copiar Productos entre Sucursales</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><img src="assets/images/close.png"/></button>
+            </div>
+            
+            <form class="form form-material" method="post" action="#" name="copiarproductos" id="copiarproductos">
+                
+             <div class="modal-body">
+                
+             <div id="copiar-alert">
+                 <!-- mensajes de respuesta -->
+             </div>
+
+            <div class="row">
+                <div class="col-md-6"> 
+                    <div class="form-group has-feedback"> 
+                        <label class="control-label">Sucursal Origen: <span class="symbol required"></span></label>
+                        <i class="fa fa-bars form-control-feedback"></i>
+                        <select style="color:#000;font-weight:bold;" name="codsucursalorigen" id="codsucursalorigen" class="form-control" required="" aria-required="true">
+                        <option value=""> -- SELECCIONE -- </option>
+                        <?php
+                        $sucursal = new Login();
+                        $sucursal = $sucursal->ListarSucursales();
+                        if($sucursal===""){ 
+                            echo "";
+                        } else {
+                        for($i=0;$i<sizeof($sucursal);$i++){
+                        ?>
+                        <option value="<?php echo encrypt($sucursal[$i]['codsucursal']); ?>"><?php echo $sucursal[$i]['cuitsucursal'].": ".$sucursal[$i]['nomsucursal']; ?></option>       
+                        <?php } } ?>
+                        </select>
+                    </div> 
+                </div>
+
+                <div class="col-md-6"> 
+                    <div class="form-group has-feedback"> 
+                        <label class="control-label">Sucursal Destino: <span class="symbol required"></span></label>
+                        <i class="fa fa-bars form-control-feedback"></i>
+                        <select style="color:#000;font-weight:bold;" name="codsucursaldestino" id="codsucursaldestino" class="form-control" required="" aria-required="true">
+                        <option value=""> -- SELECCIONE -- </option>
+                        <?php
+                        if($sucursal===""){ 
+                            echo "";
+                        } else {
+                        for($i=0;$i<sizeof($sucursal);$i++){
+                        ?>
+                        <option value="<?php echo encrypt($sucursal[$i]['codsucursal']); ?>"><?php echo $sucursal[$i]['cuitsucursal'].": ".$sucursal[$i]['nomsucursal']; ?></option>       
+                        <?php } } ?>
+                        </select>
+                    </div> 
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-12">
+                    <div id="copiar-resultados"></div>
+                </div>
+            </div>
+
+            <div class="row" id="copiar-progreso-row" style="display:none;">
+                <div class="col-md-12">
+                    <label class="control-label">Progreso de Copia:</label>
+                    <div class="progress">
+                        <div id="copiar-progreso-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger" role="progressbar" style="width: 0%" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                    </div>
+                    <div id="copiar-progreso-texto" class="text-center"><i class="fa fa-spin fa-spinner"></i> Preparando copia...</div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" onClick="BuscaProductosCopiar()" class="btn btn-info" id="btn-buscar-copiar"><span class="fa fa-search"></span> Buscar Productos</button>
+            <button type="button" onClick="CopiarTodosProductos()" class="btn btn-danger" id="btn-copiar-todos"><span class="fa fa-copy"></span> Copiar Todos</button>
+            <button type="button" class="btn btn-dark" data-dismiss="modal" id="btn-cerrar-copiar"><span class="fa fa-times-circle"></span> Cerrar</button>
+        </div>
+    </form>
+
+</div>
+<!-- /.modal-content -->
+</div>
+<!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+<!--############################## MODAL PARA COPIAR PRODUCTOS ENTRE SUCURSALES ######################################-->                
                     
     
         <!-- INICIO DE MENU -->
@@ -283,6 +389,7 @@ exit;
 
                 <div class="text-right">
                     <button type="button" id="BotonBusqueda" onClick="BuscaProductosxSucursal()" class="btn btn-danger"><span class="fa fa-search"></span> Realizar Búsqueda</button>
+                    <button type="button" class="btn btn-info" onClick="AbrirModalCopiarProductos()" title="Copiar Productos entre Sucursales"><span class="fa fa-copy"></span> Copiar Productos</button>
                 </div>
 
             </form>
