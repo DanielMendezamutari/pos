@@ -9,6 +9,21 @@ $ses = $tra->ExpiraSession();
 $new = new Login();
 $con = $new->ContarRegistros();
 
+$dash = new Login();
+$resumen = $dash->DashboardResumenGeneral();
+
+$ventashoysuc = new Login();
+$ventashoy = $ventashoysuc->VentasHoyPorSucursal();
+
+$cajasabiertas = new Login();
+$cajas = $cajasabiertas->CajasAbiertasPorSucursal();
+
+$stockbajogen = new Login();
+$stockbajo = $stockbajogen->ProductosStockBajoGeneral();
+
+$creditosgen = new Login();
+$creditos = $creditosgen->CreditosPendientesGeneral();
+
 $imp = new Login();
 $imp = $imp->ImpuestosPorId();
 $impuesto = ($imp == "" ? "Impuesto" : $imp[0]['nomimpuesto']);
@@ -133,73 +148,254 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
             <!-- ============================================================== -->
             <div class="page-content container-fluid">
                 <!-- ============================================================== -->
-                <!-- First Cards Row  -->
+                <!-- Dashboard Administrador General -->
                 <!-- ============================================================== -->
 
     <?php if ($_SESSION['acceso'] == "administradorG") { ?> 
 
-    <!-- Row -->
+    <!-- Row KPIs del Día -->
+    <div class="row" id="kpi-resumen">
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase text-success">Ventas Hoy</h5>
+                    <div class="d-flex align-items-center mb-2 mt-4">
+                        <h2 class="mb-0 display-5"><i class="fa fa-cart-plus text-success"></i></h2>
+                        <div class="ml-auto text-right">
+                            <h2 class="mb-0 display-6"><span class="font-normal" id="kpi-ventas-monto"><?php echo $resumen[0]['ventashoy']; ?></span></h2>
+                            <small class="text-muted"><span id="kpi-ventas-cant"><?php echo $resumen[0]['nventashoy']; ?></span> ventas</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase text-info">Compras Hoy</h5>
+                    <div class="d-flex align-items-center mb-2 mt-4">
+                        <h2 class="mb-0 display-5"><i class="fa fa-cart-arrow-down text-info"></i></h2>
+                        <div class="ml-auto text-right">
+                            <h2 class="mb-0 display-6"><span class="font-normal" id="kpi-compras-monto"><?php echo $resumen[0]['comprashoy']; ?></span></h2>
+                            <small class="text-muted"><span id="kpi-compras-cant"><?php echo $resumen[0]['ncomprashoy']; ?></span> compras</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase text-warning">Créditos por Cobrar</h5>
+                    <div class="d-flex align-items-center mb-2 mt-4">
+                        <h2 class="mb-0 display-5"><i class="fa fa-money text-warning"></i></h2>
+                        <div class="ml-auto">
+                            <h2 class="mb-0 display-6"><span class="font-normal" id="kpi-credito-ventas"><?php echo $resumen[0]['creditoventaspendiente']; ?></span></h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase text-danger">Créditos por Pagar</h5>
+                    <div class="d-flex align-items-center mb-2 mt-4">
+                        <h2 class="mb-0 display-5"><i class="fa fa-credit-card text-danger"></i></h2>
+                        <div class="ml-auto">
+                            <h2 class="mb-0 display-6"><span class="font-normal" id="kpi-credito-compras"><?php echo $resumen[0]['creditocompraspendiente']; ?></span></h2>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Row -->
+
+    <!-- Row Gráfico + Tabla Ventas Hoy por Sucursal -->
     <div class="row">
-        <div class="col-md-6 col-lg-3">
+        <div class="col-md-7 col-lg-8">
             <div class="card">
+                <div class="card-header bg-danger">
+                    <h4 class="card-title text-white"><i class="fa fa-bar-chart"></i> Ventas de Hoy por Sucursal</h4>
+                </div>
                 <div class="card-body">
-                    <h5 class="card-title text-uppercase">Sucursales</h5>
-                    <div class="d-flex align-items-center mb-2 mt-4">
-                        <h2 class="mb-0 display-5"><i class="fa fa-bank text-primary"></i></h2>
-                        <div class="ml-auto">
-                            <h2 class="mb-0 display-6"><span class="font-normal"><?php echo $con[0]['sucursales']; ?></span></h2>
-                        </div>
+                    <div id="chart-container">
+                        <canvas id="barChartVentasHoy" width="400" height="150"></canvas>
                     </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-primary" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                    <script>
+                    $(document).ready(function () {
+                        showGraphVentasHoySucursal();
+                        // Actualizar dashboard cada 5 minutos
+                        setInterval(function(){
+                            updateDashboardKPIs();
+                            showGraphVentasHoySucursal();
+                        }, 300000);
+                    });
+                    </script>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-5 col-lg-4">
+            <div class="card">
+                <div class="card-header bg-danger">
+                    <h4 class="card-title text-white"><i class="fa fa-list"></i> Detalle por Sucursal</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-center">Sucursal</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th class="text-center">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if($ventashoy==""){ ?>
+                                <tr><td colspan="3" class="text-center">NO HAY VENTAS DE HOY</td></tr>
+                                <?php } else { 
+                                $totalventashoy = 0;
+                                for($i=0;$i<sizeof($ventashoy);$i++){
+                                    $totalventashoy += $ventashoy[$i]['total'];
+                                ?>
+                                <tr>
+                                    <td><?php echo $ventashoy[$i]['nomsucursal']; ?></td>
+                                    <td class="text-center"><?php echo $ventashoy[$i]['cantidad']; ?></td>
+                                    <td class="text-right"><?php echo number_format($ventashoy[$i]['total'], 2, '.', ','); ?></td>
+                                </tr>
+                                <?php } ?>
+                                <tr class="bg-light font-weight-bold">
+                                    <td>TOTAL</td>
+                                    <td class="text-center">-</td>
+                                    <td class="text-right"><?php echo number_format($totalventashoy, 2, '.', ','); ?></td>
+                                </tr>
+                                <?php } ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-3">
+    </div>
+    <!-- End Row -->
+
+    <!-- Row Cajas Abiertas + Stock Bajo -->
+    <div class="row">
+        <div class="col-md-6 col-lg-6">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title text-uppercase">Usuarios</h5>
-                    <div class="d-flex align-items-center mb-2 mt-4">
-                        <h2 class="mb-0 display-5"><i class="fa fa-user text-info"></i></h2>
-                        <div class="ml-auto">
-                            <h2 class="mb-0 display-6"><span class="font-normal"><?php echo $con[0]['usuarios']; ?></span></h2>
-                        </div>
-                    </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-info" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                <div class="card-header bg-danger">
+                    <h4 class="card-title text-white"><i class="fa fa-desktop"></i> Cajas Abiertas</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-center">Sucursal</th>
+                                    <th class="text-center">Caja</th>
+                                    <th class="text-center">Cajero</th>
+                                    <th class="text-center">Monto Inicial</th>
+                                    <th class="text-center">Apertura</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if($cajas==""){ ?>
+                                <tr><td colspan="5" class="text-center">NO HAY CAJAS ABIERTAS</td></tr>
+                                <?php } else { for($i=0;$i<sizeof($cajas);$i++){ ?>
+                                <tr>
+                                    <td><?php echo $cajas[$i]['nomsucursal']; ?></td>
+                                    <td class="text-center"><?php echo $cajas[$i]['nomcaja']; ?></td>
+                                    <td><?php echo $cajas[$i]['cajero']; ?></td>
+                                    <td class="text-right"><?php echo number_format($cajas[$i]['montoinicial'], 2, '.', ','); ?></td>
+                                    <td class="text-center"><?php echo date("d-m-Y H:i", strtotime($cajas[$i]['fechaapertura'])); ?></td>
+                                </tr>
+                                <?php } } ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-3">
+        <div class="col-md-6 col-lg-6">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title text-uppercase">Clientes</h5>
-                    <div class="d-flex align-items-center mb-2 mt-4">
-                        <h2 class="mb-0 display-5"><i class="fa fa-users text-danger"></i></h2>
-                        <div class="ml-auto">
-                            <h2 class="mb-0 display-6"><span class="font-normal"><?php echo $con[0]['clientes']; ?></span></h2>
-                        </div>
-                    </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-danger" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                <div class="card-header bg-danger">
+                    <h4 class="card-title text-white"><i class="fa fa-cubes"></i> Productos con Stock Bajo</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-center">Producto</th>
+                                    <th class="text-center">Sucursal</th>
+                                    <th class="text-center">Exist.</th>
+                                    <th class="text-center">Mín.</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if($stockbajo==""){ ?>
+                                <tr><td colspan="4" class="text-center">NO HAY PRODUCTOS CON STOCK BAJO</td></tr>
+                                <?php } else { for($i=0;$i<sizeof($stockbajo);$i++){ ?>
+                                <tr>
+                                    <td><?php echo $stockbajo[$i]['producto']; ?></td>
+                                    <td><?php echo $stockbajo[$i]['nomsucursal']; ?></td>
+                                    <td class="text-center text-danger font-weight-bold"><?php echo $stockbajo[$i]['existencia']; ?></td>
+                                    <td class="text-center"><?php echo $stockbajo[$i]['stockminimo']; ?></td>
+                                </tr>
+                                <?php } } ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-3">
+    </div>
+    <!-- End Row -->
+
+    <!-- Row Créditos Pendientes -->
+    <div class="row">
+        <div class="col-md-12 col-lg-12">
             <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title text-uppercase">Proveedores</h5>
-                    <div class="d-flex align-items-center mb-2 mt-4">
-                        <h2 class="mb-0 display-5"><i class="fa fa-truck text-success"></i></h2>
-                        <div class="ml-auto">
-                            <h2 class="mb-0 display-6"><span class="font-normal"><?php echo $con[0]['proveedores']; ?></span></h2>
-                        </div>
-                    </div>
-                    <div class="progress">
-                        <div class="progress-bar bg-success" role="progressbar" style="width: 100%" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100"></div>
+                <div class="card-header bg-danger">
+                    <h4 class="card-title text-white"><i class="fa fa-bell"></i> Créditos Pendientes</h4>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th class="text-center">Tipo</th>
+                                    <th class="text-center">Código</th>
+                                    <th class="text-center">Cliente / Proveedor</th>
+                                    <th class="text-center">Sucursal</th>
+                                    <th class="text-center">Fecha</th>
+                                    <th class="text-center">Vencimiento</th>
+                                    <th class="text-center">Monto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if($creditos==""){ ?>
+                                <tr><td colspan="7" class="text-center">NO HAY CRÉDITOS PENDIENTES</td></tr>
+                                <?php } else { for($i=0;$i<sizeof($creditos);$i++){ ?>
+                                <tr>
+                                    <td>
+                                        <?php if($creditos[$i]['tipo'] == 'DEUDA CLIENTE'){ ?>
+                                        <span class="badge badge-warning">POR COBRAR</span>
+                                        <?php } else { ?>
+                                        <span class="badge badge-danger">POR PAGAR</span>
+                                        <?php } ?>
+                                    </td>
+                                    <td class="text-center"><?php echo $creditos[$i]['codigo']; ?></td>
+                                    <td><?php echo $creditos[$i]['tercero']; ?></td>
+                                    <td><?php echo $creditos[$i]['nomsucursal']; ?></td>
+                                    <td class="text-center"><?php echo $creditos[$i]['fecha']; ?></td>
+                                    <td class="text-center"><?php echo $creditos[$i]['vencimiento']; ?></td>
+                                    <td class="text-right"><?php echo number_format($creditos[$i]['monto'], 2, '.', ','); ?></td>
+                                </tr>
+                                <?php } } ?>
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -208,15 +404,18 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
     <!-- End Row -->
 
     <!-- ============================================================== -->
-    <!-- Grafico por Sucursales -->
+    <!-- Grafico Anual por Sucursales -->
     <!-- ============================================================== -->
     <!-- Row -->
     <div class="row">
         <div class="col-md-12 col-lg-12">
             <div class="card">
+                <div class="card-header bg-danger">
+                    <h4 class="card-title text-white"><i class="fa fa-line-chart"></i> Gráfico Anual por Sucursales</h4>
+                </div>
                 <div class="card-body">
                     <h5 class="card-title text-uppercase mb-0">
-                        Gráficos de Sucursales del Año <?php echo date("Y"); ?>
+                        Comparativo de Sucursales del Año <?php echo date("Y"); ?>
                     </h5>
                     <div id="chart-container">
                         <canvas id="barChart" width="400" height="100"></canvas>
@@ -232,7 +431,7 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
     </div>
     <!-- End Row -->
     <!-- ============================================================== -->
-    <!-- Grafico por Sucursales -->
+    <!-- Grafico Anual por Sucursales -->
     <!-- ============================================================== -->
 
     <?php } elseif ($_SESSION["acceso"]=="administradorS" || $_SESSION["acceso"]=="secretaria" || $_SESSION["acceso"]=="cajero") { ?>

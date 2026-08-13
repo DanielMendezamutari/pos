@@ -9,18 +9,18 @@
     pie
     doughnut
     bubble
- Con pointRadius podrás establecer el radio del punto.
+ Con pointRadius podrï¿½s establecer el radio del punto.
 
-fill: false, –> no aparecerá relleno por debajo de la línea.
+fill: false, ï¿½> no aparecerï¿½ relleno por debajo de la lï¿½nea.
 
-showLine: false, –> no aparecerá la línea.
+showLine: false, ï¿½> no aparecerï¿½ la lï¿½nea.
 
-Es decir, si ponemos fill y showLine a false, tendremos un gráfico de puntos, en lugar de un gráfico
-de líneas. pointStyle: ‘circle’, ‘triangle’, ‘rect’, ‘rectRounded’, ‘rectRot’, ‘cross’, ‘crossRot’, ‘star’,
-‘line’, and ‘dash’ Podría ser incluso una imagen.
+Es decir, si ponemos fill y showLine a false, tendremos un grï¿½fico de puntos, en lugar de un grï¿½fico
+de lï¿½neas. pointStyle: ï¿½circleï¿½, ï¿½triangleï¿½, ï¿½rectï¿½, ï¿½rectRoundedï¿½, ï¿½rectRotï¿½, ï¿½crossï¿½, ï¿½crossRotï¿½, ï¿½starï¿½,
+ï¿½lineï¿½, and ï¿½dashï¿½ Podrï¿½a ser incluso una imagen.
 
-spanGaps está por defecto a false. Si lo ponemos a true, cuando te falte un valor en la línea, no se 
-romperá la línea.*/
+spanGaps estï¿½ por defecto a false. Si lo ponemos a true, cuando te falte un valor en la lï¿½nea, no se 
+romperï¿½ la lï¿½nea.*/
 
 /* GRAFICO PARA VENTAS POR SUCURSALES ANUAL*/
 function showGraphBarS(){
@@ -212,4 +212,69 @@ function showGraphDoughnutVU(){
             });
         });
     }
+}
+
+/* GRAFICO DE VENTAS DE HOY POR SUCURSAL */
+function showGraphVentasHoySucursal(){
+    {
+        $.post("data.php?VentasHoyPorSucursal=si",
+        function (data)
+        {
+            console.log(data);
+            var name = [];
+            var total = [];
+            var colores = ['#ff7676', '#3e95cd', '#3cba9f', '#f0ad4e', '#987DDB', '#E8AC9E', '#7DA5EA', '#8EE1BC', '#D3E37D', '#E399DA', '#F7BE81', '#FA5858'];
+
+            for (var i in data) {
+                name.push(data[i].nomsucursal);
+                total.push(data[i].total);
+            }
+
+            var chartdata = {
+                labels: name,
+                datasets: [
+                {
+                    label: "Ventas de Hoy",
+                    backgroundColor: colores,
+                    borderWidth: 1,
+                    data: total
+                }
+                ]
+            };
+
+            var graphTarget = $("#barChartVentasHoy");
+
+            if (window.chartVentasHoy) {
+                window.chartVentasHoy.destroy();
+            }
+
+            window.chartVentasHoy = new Chart(graphTarget, {
+                type: 'bar',
+                data: chartdata,
+                responsive : true,
+                animation: true,
+                barValueSpacing : 2,
+                barDatasetSpacing : 1,
+                tooltipFillColor: "rgba(0,0,0,0.8)",
+                multiTooltipTemplate: "<%= datasetLabel %> - <%= value %>"
+            });
+        });
+    }
+}
+
+/* ACTUALIZACION DE KPIs DEL DASHBOARD GENERAL */
+function updateDashboardKPIs(){
+    $.post("data.php?DashboardResumenGeneral=si",
+    function (data)
+    {
+        console.log(data);
+        if(data && data.length > 0){
+            $("#kpi-ventas-monto").html(data[0].ventashoy);
+            $("#kpi-ventas-cant").html(data[0].nventashoy);
+            $("#kpi-compras-monto").html(data[0].comprashoy);
+            $("#kpi-compras-cant").html(data[0].ncomprashoy);
+            $("#kpi-credito-ventas").html(data[0].creditoventaspendiente);
+            $("#kpi-credito-compras").html(data[0].creditocompraspendiente);
+        }
+    }, "json");
 }

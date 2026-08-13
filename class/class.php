@@ -37409,6 +37409,148 @@ public function CopiarProductoLote()
 }
 ######################## FUNCION COPIAR LOTE DE PRODUCTOS A SUCURSAL ###########################
 
+######################## FUNCIONES PARA DASHBOARD DEL ADMINISTRADOR GENERAL ###########################
+
+######################## RESUMEN GENERAL DEL DIA ###########################
+public function DashboardResumenGeneral()
+{
+	self::SetNames();
+	$sql = "SELECT
+	(SELECT ROUND(IFNULL(SUM(totalpago),0),2) FROM ventas WHERE DATE(fechaventa) = CURDATE()) AS ventashoy,
+	(SELECT ROUND(IFNULL(SUM(totalpago),0),2) FROM compras WHERE DATE(fecharecepcion) = CURDATE()) AS comprashoy,
+	(SELECT ROUND(IFNULL(SUM(totalpago),0),2) FROM cotizaciones WHERE DATE(fechacotizacion) = CURDATE()) AS cotizacioneshoy,
+	(SELECT ROUND(IFNULL(SUM(totalpago),0),2) FROM preventas WHERE DATE(fechapreventa) = CURDATE()) AS preventashoy,
+	(SELECT COUNT(*) FROM ventas WHERE DATE(fechaventa) = CURDATE()) AS nventashoy,
+	(SELECT COUNT(*) FROM compras WHERE DATE(fecharecepcion) = CURDATE()) AS ncomprashoy,
+	(SELECT ROUND(IFNULL(SUM(totalpago-creditopagado),0),2) FROM ventas WHERE tipopago = 'CREDITO' AND statusventa = 'PENDIENTE') AS creditoventaspendiente,
+	(SELECT ROUND(IFNULL(SUM(totalpago-creditopagado),0),2) FROM compras WHERE tipocompra = 'CREDITO' AND statuscompra = 'PENDIENTE') AS creditocompraspendiente";
+	foreach ($this->dbh->query($sql) as $row)
+	{
+		$this->p[] = $row;
+	}
+	return $this->p;
+	$this->dbh=null;
+}
+######################## RESUMEN GENERAL DEL DIA ###########################
+
+######################## VENTAS DE HOY POR SUCURSAL ###########################
+public function VentasHoyPorSucursal()
+{
+	self::SetNames();
+	$sql = "SELECT
+	sucursales.codsucursal,
+	sucursales.cuitsucursal,
+	sucursales.nomsucursal,
+	COUNT(ventas.idventa) AS cantidad,
+	ROUND(IFNULL(SUM(ventas.totalpago),0),2) AS total
+	FROM sucursales
+	LEFT JOIN ventas ON ventas.codsucursal = sucursales.codsucursal AND DATE(ventas.fechaventa) = CURDATE()
+	GROUP BY sucursales.codsucursal
+	ORDER BY total DESC";
+	foreach ($this->dbh->query($sql) as $row)
+	{
+		$this->p[] = $row;
+	}
+	return $this->p;
+	$this->dbh=null;
+}
+######################## VENTAS DE HOY POR SUCURSAL ###########################
+
+######################## CAJAS ABIERTAS POR SUCURSAL ###########################
+public function CajasAbiertasPorSucursal()
+{
+	self::SetNames();
+	$sql = "SELECT
+	cajas.codcaja,
+	cajas.nrocaja,
+	cajas.nomcaja,
+	usuarios.nombres AS cajero,
+	sucursales.cuitsucursal,
+	sucursales.nomsucursal,
+	arqueocaja.montoinicial,
+	arqueocaja.fechaapertura
+	FROM arqueocaja
+	INNER JOIN cajas ON cajas.codcaja = arqueocaja.codcaja
+	INNER JOIN usuarios ON usuarios.codigo = cajas.codigo
+	INNER JOIN sucursales ON sucursales.codsucursal = cajas.codsucursal
+	WHERE arqueocaja.statusarqueo = 1
+	ORDER BY arqueocaja.fechaapertura DESC";
+	foreach ($this->dbh->query($sql) as $row)
+	{
+		$this->p[] = $row;
+	}
+	return $this->p;
+	$this->dbh=null;
+}
+######################## CAJAS ABIERTAS POR SUCURSAL ###########################
+
+######################## PRODUCTOS CON STOCK BAJO ###########################
+public function ProductosStockBajoGeneral()
+{
+	self::SetNames();
+	$sql = "SELECT
+	productos.codproducto,
+	productos.producto,
+	productos.existencia,
+	productos.stockminimo,
+	sucursales.cuitsucursal,
+	sucursales.nomsucursal
+	FROM productos
+	INNER JOIN sucursales ON sucursales.codsucursal = productos.codsucursal
+	WHERE CAST(productos.existencia AS DECIMAL(10,2)) <= CAST(productos.stockminimo AS DECIMAL(10,2))
+	ORDER BY productos.existencia ASC
+	LIMIT 20";
+	foreach ($this->dbh->query($sql) as $row)
+	{
+		$this->p[] = $row;
+	}
+	return $this->p;
+	$this->dbh=null;
+}
+######################## PRODUCTOS CON STOCK BAJO ###########################
+
+######################## CREDITOS PENDIENTES GENERAL ###########################
+public function CreditosPendientesGeneral()
+{
+	self::SetNames();
+	$sql = "SELECT
+	'DEUDA CLIENTE' AS tipo,
+	ventas.codventa AS codigo,
+	clientes.nomcliente AS tercero,
+	ventas.fechaventa AS fecha,
+	ventas.fechavencecredito AS vencimiento,
+	ROUND(ventas.totalpago - ventas.creditopagado, 2) AS monto,
+	sucursales.nomsucursal
+	FROM ventas
+	INNER JOIN clientes ON clientes.codcliente = ventas.codcliente
+	INNER JOIN sucursales ON sucursales.codsucursal = ventas.codsucursal
+	WHERE ventas.tipopago = 'CREDITO' AND ventas.statusventa = 'PENDIENTE'
+	UNION ALL
+	SELECT
+	'DEUDA PROVEEDOR' AS tipo,
+	compras.codcompra AS codigo,
+	proveedores.nomproveedor AS tercero,
+	compras.fecharecepcion AS fecha,
+	compras.fechavencecredito AS vencimiento,
+	ROUND(compras.totalpago - compras.creditopagado, 2) AS monto,
+	sucursales.nomsucursal
+	FROM compras
+	INNER JOIN proveedores ON proveedores.codproveedor = compras.codproveedor
+	INNER JOIN sucursales ON sucursales.codsucursal = compras.codsucursal
+	WHERE compras.tipocompra = 'CREDITO' AND compras.statuscompra = 'PENDIENTE'
+	ORDER BY vencimiento ASC
+	LIMIT 20";
+	foreach ($this->dbh->query($sql) as $row)
+	{
+		$this->p[] = $row;
+	}
+	return $this->p;
+	$this->dbh=null;
+}
+######################## CREDITOS PENDIENTES GENERAL ###########################
+
+######################## FUNCIONES PARA DASHBOARD DEL ADMINISTRADOR GENERAL ###########################
+
 
 }
 ############## TERMINA LA CLASE LOGIN ######################
