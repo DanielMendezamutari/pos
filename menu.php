@@ -512,6 +512,8 @@ case 'administradorG':  ?>
                         <li class="sidebar-item"> <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false"><i class="mdi mdi-receipt"></i><span class="hide-menu">Traspasos</span></a>
                             <ul aria-expanded="false" class="collapse second-level">
 
+                                <li class="sidebar-item"><a href="fortraspaso" class="sidebar-link"><i class="mdi mdi-cards-variant"></i><span class="hide-menu"> Nuevo Traspaso </span></a></li>
+
                                 <li class="sidebar-item"><a href="traspasos" class="sidebar-link"><i class="mdi mdi-cart"></i><span class="hide-menu"> Consulta Traspasos </span></a></li>
 
                                 <li class="sidebar-item"><a href="traspasosxfechas" class="sidebar-link"><i class="mdi mdi-rounded-corner"></i><span class="hide-menu"> Traspasos x Fechas</span></a></li>
@@ -528,6 +530,8 @@ case 'administradorG':  ?>
 
                 <li class="sidebar-item"> <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false"><i class="mdi mdi-cart"></i><span class="hide-menu">Compras </span></a>
                     <ul aria-expanded="false" class="collapse first-level">
+
+                        <li class="sidebar-item"><a href="forcompra" class="sidebar-link"><i class="mdi mdi-cards-variant"></i><span class="hide-menu"> Nueva Compra </span></a></li>
 
                         <li class="sidebar-item"><a href="compras" class="sidebar-link"><i class="mdi mdi-cart"></i><span class="hide-menu"> Consulta Compras </span></a></li>
 

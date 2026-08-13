@@ -583,10 +583,36 @@ $reg = $tra->ComprasPorId(); ?>
     <input type="hidden" name="proceso" id="proceso" <?php if (isset($_GET['codcompra']) && decrypt($_GET["proceso"])=="U") { ?> value="update" <?php } elseif (isset($_GET['codcompra']) && decrypt($_GET["proceso"])=="A") { ?> value="agregar" <?php } else { ?> value="save" <?php } ?>>    
     <input type="hidden" name="idcompra" id="idcompra" <?php if (isset($reg[0]['idcompra'])) { ?> value="<?php echo $reg[0]['idcompra']; ?>"<?php } ?>>
      <input type="hidden" name="codcompra" id="codcompra" <?php if (isset($reg[0]['codcompra'])) { ?> value="<?php echo encrypt($reg[0]['codcompra']); ?>"<?php } ?>>
+    <?php if ($_SESSION["acceso"] != "administradorG") { ?>
     <input type="hidden" name="codsucursal" id="codsucursal" <?php if (isset($reg[0]['codsucursal'])) { ?> value="<?php echo encrypt($reg[0]['codsucursal']); ?>" <?php } else { ?> value="<?php echo encrypt($_SESSION["codsucursal"]); ?>"<?php } ?>>
+    <?php } ?>
     <input type="hidden" name="status" id="status" <?php if (isset($reg[0]['idcompra'])) { ?> value="<?php echo decrypt($_GET["status"]); ?>" <?php } ?>>
     
     <h2 class="card-subtitle m-0 text-dark"><i class="font-22 mdi mdi-file-send"></i> Datos de Factura</h2><hr>
+
+    <?php if ($_SESSION["acceso"] == "administradorG") { ?>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="form-group has-feedback">
+                <label class="control-label">Sucursal: <span class="symbol required"></span></label>
+                <i class="fa fa-bars form-control-feedback"></i>
+                <select style="color:#000;font-weight:bold;" name="codsucursal" id="codsucursal" class="form-control" required="" aria-required="true">
+                    <option value=""> -- SELECCIONE -- </option>
+                    <?php
+                    $sucursal = new Login();
+                    $sucursal = $sucursal->ListarSucursales();
+                    if($sucursal==""){
+                        echo "";
+                    } else {
+                    for($i=0;$i<sizeof($sucursal);$i++){
+                    ?>
+                    <option value="<?php echo encrypt($sucursal[$i]['codsucursal']); ?>"<?php if (isset($reg[0]['codsucursal']) && $reg[0]['codsucursal'] == $sucursal[$i]['codsucursal']) { echo "selected=\"selected\""; } ?>><?php echo $sucursal[$i]['cuitsucursal'].": ".$sucursal[$i]['nomsucursal']; ?></option>
+                    <?php } } ?>
+                </select>
+            </div>
+        </div>
+    </div>
+    <?php } ?>
 
     <div class="row"> 
         <div class="col-md-3"> 
