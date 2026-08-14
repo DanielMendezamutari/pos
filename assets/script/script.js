@@ -240,7 +240,7 @@ $('document').ready(function()
 
 
 
-/* FUNCION JQUERY PARA RECUPERAR CONTRASEÑA DE USUARIOS */	 
+/* FUNCION JQUERY PARA RECUPERAR CONTRASEï¿½A DE USUARIOS */	 
 $('document').ready(function()
 { 
      /* validation */
@@ -332,10 +332,10 @@ $('document').ready(function()
 	   /* form submit */
      }); 
 });
-/*  FIN DE FUNCION PARA RECUPERAR CONTRASEÑA DE USUARIOS */
+/*  FIN DE FUNCION PARA RECUPERAR CONTRASEï¿½A DE USUARIOS */
  
  
-/* FUNCION JQUERY PARA VALIDAR ACTUALIZACION DE CONTRASEÑA */	 
+/* FUNCION JQUERY PARA VALIDAR ACTUALIZACION DE CONTRASEï¿½A */	 
 $('document').ready(function()
 { 						
      /* validation */
@@ -418,7 +418,7 @@ $('document').ready(function()
 	   /* form submit */
      }); 
 });
- /* FIN DE  FUNCION JQUERY PARA VALIDAR ACTUALIZACION DE CONTRASEÑA */
+ /* FIN DE  FUNCION JQUERY PARA VALIDAR ACTUALIZACION DE CONTRASEï¿½A */
 
 
 
@@ -551,7 +551,7 @@ $('document').ready(function()
 $('document').ready(function()
 { 
     jQuery.validator.addMethod("lettersonly", function(value, element) {
-      return this.optional(element) || /^[a-zA-ZñÑáéíóúÁÉÍÓÚ,. ]+$/i.test(value);
+      return this.optional(element) || /^[a-zA-Zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,. ]+$/i.test(value);
     });
 
     /* validation */
@@ -1672,7 +1672,7 @@ $('document').ready(function()
 $('document').ready(function()
 { 
     jQuery.validator.addMethod("lettersonly", function(value, element) {
-      return this.optional(element) || /^[a-zA-ZñÑáéíóúÁÉÍÓÚ,. ]+$/i.test(value);
+      return this.optional(element) || /^[a-zA-Zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,. ]+$/i.test(value);
     });
 
     /* validation */
@@ -2778,7 +2778,7 @@ $('document').ready(function()
 $('document').ready(function()
 { 
     jQuery.validator.addMethod("lettersonly", function(value, element) {
-      return this.optional(element) || /^[a-zA-ZñÑáéíóúÁÉÍÓÚ,. ]+$/i.test(value);
+      return this.optional(element) || /^[a-zA-Zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,. ]+$/i.test(value);
     });
 
      /* validation */
@@ -3044,7 +3044,7 @@ $('document').ready(function()
 $('document').ready(function()
 { 
     jQuery.validator.addMethod("lettersonly", function(value, element) {
-      return this.optional(element) || /^[a-zA-ZñÑáéíóúÁÉÍÓÚ,. ]+$/i.test(value);
+      return this.optional(element) || /^[a-zA-Zï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,. ]+$/i.test(value);
     });
 
      /* validation */
@@ -3388,14 +3388,15 @@ $('document').ready(function()
 		var menor = $('#precioxmenor').val();
 		var mayor = $('#precioxmayor').val();
 		var publico = $('#precioxpublico').val();
+		var tipoproducto = $('#tipoproducto').val();
 		cantidad    = parseInt(cant);
 
-          if (publico==0.00 || publico==0) {
+          if ((publico==0.00 || publico==0) && tipoproducto != 'SERVICIO') {
             
 			swal("Oops", "INGRESE UN COSTO VALIDO PARA EL PRECIO DE VENTA DE PRODUCTO!", "error");
                return false;
 
-          } else if (parseFloat(compra) > parseFloat(publico)) {
+          } else if (parseFloat(compra) > parseFloat(publico) && tipoproducto != 'SERVICIO') {
             
 			$("#preciocompra").focus();
 			swal("Oops", "EL PRECIO DE COMPRA NO PUEDE SER MAYOR QUE EL PRECIO DE VENTA PUBLICO DEL PRODUCTO!", "error");
@@ -3707,14 +3708,15 @@ $('document').ready(function()
 		var menor = $('#precioxmenor').val();
 		var mayor = $('#precioxmayor').val();
 		var publico = $('#precioxpublico').val();
+		var tipoproducto = $('#tipoproducto').val();
 		cantidad    = parseInt(cant);
 
-          if (publico==0.00 || publico==0) {
+          if ((publico==0.00 || publico==0) && tipoproducto != 'SERVICIO') {
             
 			swal("Oops", "INGRESE UN COSTO VALIDO PARA EL PRECIO DE VENTA DE PRODUCTO!", "error");
                return false;
 
-          } else if (parseFloat(compra) > parseFloat(publico)) {
+          } else if (parseFloat(compra) > parseFloat(publico) && tipoproducto != 'SERVICIO') {
             
 			$("#preciocompra").focus();
 			swal("Oops", "EL PRECIO DE COMPRA NO PUEDE SER MAYOR QUE EL PRECIO DE VENTA PUBLICO DEL PRODUCTO!", "error");
@@ -6301,7 +6303,7 @@ $('document').ready(function()
 			$("#save").fadeIn(1000, function(){
 							
 		var n = noty({
-          text: "<span class='fa fa-warning'></span> NO HA INGRESADO DETALLES PARA COTIZACIÓN DE PRODUCTOS, VERIFIQUE NUEVAMENTE POR FAVOR ...!",
+          text: "<span class='fa fa-warning'></span> NO HA INGRESADO DETALLES PARA COTIZACIï¿½N DE PRODUCTOS, VERIFIQUE NUEVAMENTE POR FAVOR ...!",
           theme: 'defaultTheme',
           layout: 'center',
           type: 'warning',

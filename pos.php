@@ -207,6 +207,93 @@ exit;
 <!-- /.modal --> 
 <!--############################## MODAL PARA REGISTRO DE ARQUEO ######################################-->   
 
+<!--############################## MODAL PARA COBRO DE BILLAR ######################################-->
+<div id="myModalBillar" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabelBillar" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-danger">
+                <h4 class="modal-title text-white" id="myModalLabelBillar"><i class="fa fa-clock-o"></i> Cobro de Billar - <span id="billarNombreProducto"></span></h4>
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><img src="assets/images/close.png"/></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="billarIdProducto" value="">
+                <input type="hidden" id="billarPrecioHora" value="0.00">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group has-feedback">
+                            <label class="control-label">Horas: <span class="symbol required"></span></label>
+                            <input style="color:#000;font-weight:bold;" class="form-control" type="text" name="billarHoras" id="billarHoras" onKeyUp="CalcularTotalBillar();" onKeyPress="EvaluateText('%d', this);" onBlur="CalcularTotalBillar();" value="1" placeholder="Horas" autocomplete="off">
+                            <i class="fa fa-clock-o form-control-feedback"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group has-feedback">
+                            <label class="control-label">Minutos: <span class="symbol required"></span></label>
+                            <input style="color:#000;font-weight:bold;" class="form-control" type="text" name="billarMinutos" id="billarMinutos" onKeyUp="CalcularTotalBillar();" onKeyPress="EvaluateText('%d', this);" onBlur="CalcularTotalBillar();" value="0" placeholder="Minutos" autocomplete="off">
+                            <i class="fa fa-clock-o form-control-feedback"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group has-feedback">
+                            <label class="control-label">Tiempo Cobrado: </label>
+                            <input style="color:#000;font-weight:bold;" class="form-control" type="text" id="billarTiempoCobrado" readonly="readonly" value="1 Hora 00 Min">
+                            <i class="fa fa-hourglass-half form-control-feedback"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group has-feedback">
+                            <label class="control-label">Total Horas: </label>
+                            <input style="color:#000;font-weight:bold;" class="form-control" type="text" id="billarTotalHora" readonly="readonly" value="0.00">
+                            <i class="fa fa-money form-control-feedback"></i>
+                        </div>
+                    </div>
+                </div>
+                <h5 class="card-subtitle m-0 text-dark"><i class="fa fa-plus-circle"></i> Accesorios de Billar</h5><hr>
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="form-group has-feedback">
+                            <label class="control-label">Accesorio: </label>
+                            <div class="input-group">
+                                <select style="color:#000;font-weight:bold;" name="billarAccesorio" id="billarAccesorio" class="form-control">
+                                    <option value=""> -- SELECCIONE ACCESORIO -- </option>
+                                </select>
+                                <div class="input-group-append">
+                                    <button type="button" class="btn btn-info waves-effect waves-light" onclick="AgregarAccesorioBillar()"><span class="fa fa-plus"></span> Agregar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table id="TablaAccesoriosBillar" class="table table-striped table-bordered border display" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Accesorio</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>Importe</th>
+                                <th>Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        </tbody>
+                    </table>
+                </div>
+                <h3 class="text-right">Total Accesorios: <?php echo $simbolo; ?> <label id="billarTotalAccesorios">0.00</label></h3>
+                <h3 class="text-right text-danger">Total General: <?php echo $simbolo; ?> <label id="billarTotalGeneral">0.00</label></h3>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-success" onclick="ConfirmarBillar()"><span class="fa fa-check"></span> Confirmar Cobro</button>
+                <button class="btn btn-dark" type="button" data-dismiss="modal" aria-hidden="true"><span class="fa fa-trash-o"></span> Cancelar</button>
+            </div>
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+<!--############################## MODAL PARA COBRO DE BILLAR ######################################-->
+
 <!--############################## MODAL PARA REGISTRO DE NUEVO CLIENTE ######################################-->
 <!-- sample modal content -->
 <div id="myModalCliente" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
@@ -633,6 +720,8 @@ exit;
         <input type="hidden" name="cantidad" id="cantidad" value="1">
         <input type="hidden" name="existencia" id="existencia">
         <input type="hidden" name="tipodetalle" id="tipodetalle" value="1">
+        <input type="hidden" name="tipoproducto" id="tipoproducto" value="PRODUCTO">
+        <input type="hidden" name="preciohora" id="preciohora" value="0.00">
 
         <div class="row">
             <div class="col-md-12">
@@ -788,6 +877,8 @@ exit;
         <button type="button" class="btn btn-info waves-effect waves-light" style="cursor: pointer;" title="Productos" onClick="MostrarProductos();"><span class="fa fa-cubes"></span> </button>
                         
         <button type="button" class="btn btn-success waves-effect waves-light" style="cursor: pointer;" title="Combos" onClick="MostrarCombos();"><span class="fa fa-archive"></span> </button>
+
+        <button type="button" class="btn btn-warning waves-effect waves-light" style="cursor: pointer;" title="Billar" onClick="MostrarBillar();"><span class="fa fa-clock-o"></span> </button>
         
         </span>
 
@@ -870,7 +961,7 @@ exit;
     // Role-based POS flags accessible to jspos.js
     var posCanEditPrice = <?php echo ($_SESSION['acceso'] === 'cajero' ? 'false' : 'true'); ?>;
     </script>
-    <script type="text/javascript" src="assets/script/jspos.js"></script>
+    <script type="text/javascript" src="assets/script/jspos.js?v=3"></script>
     <script type="text/javascript" src="assets/script/validation.min.js"></script>
     <script type="text/javascript" src="assets/script/script.js"></script>
     <!-- script jquery -->

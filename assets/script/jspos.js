@@ -2,15 +2,15 @@ function Separador(x) {//SEPARADOR CON DECIMAL
     return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 }
 
-function DoAction(idproducto, codproducto, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle) {
+function DoAction(idproducto, codproducto, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, tipoproducto) {
     
-    addItem(idproducto, codproducto, 1, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, '+=');
+    addItem(idproducto, codproducto, 1, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, '+=', tipoproducto || 'PRODUCTO');
 }
 
 // ####################### FUNCION PARA ASIGNAR PRECIO VENTA A DETALLES #######################
-function DoActionPrecio(idproducto, codproducto, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle) 
+function DoActionPrecio(idproducto, codproducto, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, tipoproducto) 
 {
-    addItem(idproducto, codproducto, 0.00, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, '+=');
+    addItem(idproducto, codproducto, 0.00, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, preciocompra, precioventa, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, '+=', tipoproducto || 'PRODUCTO');
 }
 
 function AsignaPrecio(id, codigo, tipodetalle, producto, cantidad, precio2,descproducto)
@@ -20,6 +20,254 @@ function AsignaPrecio(id, codigo, tipodetalle, producto, cantidad, precio2,descp
   $("#agregaprecio #agrega_detalle_precio").load("detalles_productos?BuscaDetallesProductoxPrecio=si&variable=1&d_id="+id+"&d_codigo="+codigo+"&d_tipo="+tipodetalle+"&d_producto="+producto+"&d_producto="+producto+"&d_cantidad="+cantidad+"&d_precio="+precio2+"&d_descproducto="+descproducto);
 }
 // ####################### FUNCION PARA ASIGNAR PRECIO VENTA A DETALLES #######################
+
+
+function LimpiarTexto() {
+    $("#search_producto").val("");
+    $("#search_producto_barra").val("");
+    $("#idproducto").val("");
+    $("#codproducto").val("");
+    $("#producto").val("");
+    $("#descripcion").val("");
+    $("#imei").val("");
+    $("#condicion").val("");
+    $("#codmarca").val("");
+    $("#marcas").val("");
+    $("#codmodelo").val("");
+    $("#modelos").val("");
+    $("#codpresentacion").val("");
+    $("#presentacion").val("");
+    $("#codcolor").val("");
+    $("#color").val("");
+    $("#preciocompra").val("");
+    $("#precioventa").val("");
+    $("#descproducto").val("");
+    $("#ivaproducto").val("");
+    $("#existencia").val("");
+    $("#precioconiva").val("");
+    $("#cantidad").val("1");
+    $("#tipodetalle").val("1");
+    $("#tipoproducto").val("PRODUCTO");
+    $("#preciohora").val("0.00");
+}
+
+// ####################### FUNCIONES BILLAR #######################
+var accesoriosBillar = [];
+var accesoriosDisponibles = [];
+
+function AbrirModalBillar() {
+    accesoriosBillar = [];
+    accesoriosDisponibles = [];
+    $("#billarIdProducto").val($('input#idproducto').val());
+    $("#billarPrecioHora").val($('input#preciohora').val());
+    $("#billarNombreProducto").text($('input#producto').val());
+    $("#billarHoras").val("1");
+    $("#billarMinutos").val("0");
+    $("#TablaAccesoriosBillar tbody").html("");
+    CargarAccesoriosBillar();
+    CalcularTotalBillar();
+    $("#myModalBillar").modal({backdrop: 'static', keyboard: false});
+}
+
+function CargarAccesoriosBillar() {
+    $.ajax({
+        type: "GET",
+        url: "data.php",
+        data: "AccesoriosBillar=si",
+        dataType: "json",
+        success: function(response) {
+            accesoriosDisponibles = response || [];
+            var options = "<option value=''> -- SELECCIONE ACCESORIO -- </option>";
+            for(var i = 0; i < accesoriosDisponibles.length; i++) {
+                options += "<option value='" + accesoriosDisponibles[i].idproducto + "'>" + accesoriosDisponibles[i].producto + " - " + accesoriosDisponibles[i].precioxpublico + "</option>";
+            }
+            $("#billarAccesorio").html(options);
+        }
+    });
+}
+
+function EsExentoBillar(ivaproducto) {
+    if(ivaproducto == "NO" || ivaproducto == "" || ivaproducto == "0" || ivaproducto == "(E)")
+        return "(E)";
+    return ivaproducto;
+}
+
+function RedondearMinutosBillar(totalMinutos) {
+    var bloque = 15;
+    var resto = totalMinutos % bloque;
+    if(resto > 5) {
+        return totalMinutos + (bloque - resto);
+    } else {
+        return totalMinutos - resto;
+    }
+}
+
+function FormatoTiempoBillar(totalMinutos) {
+    var horas = Math.floor(totalMinutos / 60);
+    var minutos = totalMinutos % 60;
+    var txtHoras = (horas == 1) ? "1 Hora" : horas + " Horas";
+    var txtMinutos = (minutos < 10) ? "0" + minutos : minutos;
+    return txtHoras + " " + txtMinutos + " Min";
+}
+
+function CalcularTotalBillar() {
+    var precioHora = parseFloat($("#billarPrecioHora").val()) || 0;
+    var horas = parseInt($("#billarHoras").val()) || 0;
+    var minutos = parseInt($("#billarMinutos").val()) || 0;
+    if(horas < 0) horas = 0;
+    if(minutos < 0) minutos = 0;
+    if(minutos > 59) {
+        horas += Math.floor(minutos / 60);
+        minutos = minutos % 60;
+        $("#billarHoras").val(horas);
+        $("#billarMinutos").val(minutos);
+    }
+    var totalMinutos = (horas * 60) + minutos;
+    var minutosCobrados = RedondearMinutosBillar(totalMinutos);
+    var totalHora = (precioHora / 60) * minutosCobrados;
+
+    $("#billarTiempoCobrado").val(FormatoTiempoBillar(minutosCobrados));
+    $("#billarTotalHora").val(totalHora.toFixed(2));
+
+    var totalAccesorios = 0;
+    for(var i = 0; i < accesoriosBillar.length; i++) {
+        totalAccesorios += parseFloat(accesoriosBillar[i].importe) || 0;
+    }
+    $("#billarTotalAccesorios").text(Separador(totalAccesorios.toFixed(2)));
+    $("#billarTotalGeneral").text(Separador((totalHora + totalAccesorios).toFixed(2)));
+}
+
+function AgregarAccesorioBillar() {
+    var id = $("#billarAccesorio").val();
+    if(id === "") {
+        swal("Oops", "POR FAVOR SELECCIONE UN ACCESORIO!", "warning");
+        return false;
+    }
+    var accesorio = accesoriosDisponibles.find(function(a) { return a.idproducto == id; });
+    if(!accesorio) return false;
+
+    // Los accesorios de billar no descontarán stock; se cobran como servicio
+    // if(parseFloat(accesorio.existencia) <= 0) {
+    //     swal("SIN STOCK", "El accesorio '" + accesorio.producto + "' no tiene stock disponible. No puede ser vendido!", "warning");
+    //     return false;
+    // }
+
+    var existe = accesoriosBillar.find(function(a) { return a.idproducto == id; });
+    if(existe) {
+        existe.cantidad = parseFloat(existe.cantidad) + 1;
+        existe.importe = parseFloat(existe.cantidad) * parseFloat(existe.precio);
+    } else {
+        accesoriosBillar.push({
+            idproducto: accesorio.idproducto,
+            codproducto: accesorio.codproducto,
+            producto: accesorio.producto,
+            descripcion: (typeof accesorio.descripcion !== "undefined") ? accesorio.descripcion : "",
+            precio: parseFloat(accesorio.precioxpublico).toFixed(2),
+            descproducto: (typeof accesorio.descproducto !== "undefined") ? accesorio.descproducto : "0",
+            ivaproducto: (typeof accesorio.ivaproducto !== "undefined") ? accesorio.ivaproducto : "NO",
+            existencia: (typeof accesorio.existencia !== "undefined") ? accesorio.existencia : "0",
+            cantidad: 1,
+            importe: parseFloat(accesorio.precioxpublico).toFixed(2)
+        });
+    }
+    RenderizarAccesoriosBillar();
+    CalcularTotalBillar();
+}
+
+function RenderizarAccesoriosBillar() {
+    var html = "";
+    for(var i = 0; i < accesoriosBillar.length; i++) {
+        html += "<tr align='center'>" +
+            "<td class='text-left'>" + accesoriosBillar[i].producto + "</td>" +
+            "<td>" + accesoriosBillar[i].cantidad + "</td>" +
+            "<td>" + Separador(parseFloat(accesoriosBillar[i].precio).toFixed(2)) + "</td>" +
+            "<td>" + Separador(parseFloat(accesoriosBillar[i].importe).toFixed(2)) + "</td>" +
+            "<td><button class='btn btn-dark btn-sm' type='button' onclick='EliminarAccesorioBillar(" + i + ")'><span class='fa fa-trash-o'></span></button></td>" +
+            "</tr>";
+    }
+    $("#TablaAccesoriosBillar tbody").html(html);
+}
+
+function EliminarAccesorioBillar(index) {
+    accesoriosBillar.splice(index, 1);
+    RenderizarAccesoriosBillar();
+    CalcularTotalBillar();
+}
+
+function ConfirmarBillar() {
+    var totalHora = parseFloat($("#billarTotalHora").val()) || 0;
+    var horas = parseInt($("#billarHoras").val()) || 0;
+    var minutos = parseInt($("#billarMinutos").val()) || 0;
+    var totalMinutos = (horas * 60) + minutos;
+    var minutosCobrados = RedondearMinutosBillar(totalMinutos);
+    if(minutosCobrados <= 0) {
+        swal("Oops", "POR FAVOR INGRESE TIEMPO VÁLIDO!", "warning");
+        return false;
+    }
+
+    // Linea de servicio de billar
+    addItem(
+        $('input#idproducto').val(),
+        $('input#codproducto').val(),
+        "1",
+        $('input#producto').val().replace(/[ '"]+/g, ' '),
+        "SERVICIO BILLAR - " + FormatoTiempoBillar(minutosCobrados),
+        "0",
+        "0",
+        $('input#codmarca').val(),
+        $('input#marcas').val(),
+        $('input#codmodelo').val(),
+        $('input#modelos').val(),
+        $('input#codpresentacion').val(),
+        $('input#presentacion').val(),
+        $('input#codcolor').val(),
+        $('input#codcolor').val(),
+        $('input#preciocompra').val(),
+        totalHora.toFixed(2),
+        $('input#descproducto').val(),
+        ($('input#ivaproducto').val() == "SI" ? $('input#iva').val() : "(E)"),
+        $('input#existencia').val(),
+        $('input#precioconiva').val(),
+        "1",
+        '+=',
+        'SERVICIO'
+    );
+
+    // Agregar accesorios (no descuentan stock, van como servicio)
+    for(var i = 0; i < accesoriosBillar.length; i++) {
+        var acc = accesoriosBillar[i];
+        addItem(
+            acc.idproducto,
+            acc.codproducto,
+            acc.cantidad,
+            acc.producto.replace(/[ '"]+/g, ' '),
+            (acc.descripcion && acc.descripcion != "0") ? acc.descripcion.replace(/[ '"]+/g, ' ') : "ACCESORIO BILLAR",
+            "0",
+            "0",
+            "0",
+            "*****",
+            "0",
+            "*****",
+            "0",
+            "*****",
+            "0",
+            "*****",
+            acc.precio,
+            acc.precio,
+            acc.descproducto || "0",
+            EsExentoBillar(acc.ivaproducto),
+            acc.existencia || "0",
+            (EsExentoBillar(acc.ivaproducto) != "(E)" ? acc.precio : "0.00"),
+            "1",
+            '+=',
+            'SERVICIO'
+        );
+    }
+
+    $("#myModalBillar").modal("hide");
+    LimpiarTexto();
+}
+// ####################### FIN FUNCIONES BILLAR #######################
 
 
 function pulsar(e, valor) {
@@ -83,7 +331,11 @@ $(document).ready(function() {
         if (code == "") {
             $("#search_producto").focus();
             //$("#search_producto").css('border-color', '#ff7676');
-            //swal("Oops", "POR FAVOR REALICE LA BÚSQUEDA DEL PRODUCTO/SERVICIO CORRECTAMENTE!", "error");
+            //swal("Oops", "POR FAVOR REALICE LA BUSQUEDA DEL PRODUCTO/SERVICIO CORRECTAMENTE!", "error");
+            return false;
+
+        } else if($('input#tipoproducto').val() == "SERVICIO"){
+            AbrirModalBillar();
             return false;
             
         } else if(prec2=="" || prec2=="0" || prec2=="0"){
@@ -464,7 +716,8 @@ $(document).ready(function(){
                     $('#search_producto_barra').val('');
                     return;
                 }
-                if (parseInt(json[0].existencia) <= 0) {
+                var tipoproductoBarra = (typeof json[0].tipoproducto !== "undefined") ? json[0].tipoproducto : "PRODUCTO";
+                if (tipoproductoBarra != "SERVICIO" && parseInt(json[0].existencia) <= 0) {
                     swal("SIN STOCK", "El producto '" + json[0].producto + "' no tiene stock disponible. No puede ser vendido!", "warning");
                     $('#search_producto_barra').val('');
                     return;
@@ -489,6 +742,8 @@ $(document).ready(function(){
                 $('#ivaproducto').val(json[0].ivaproducto);
                 $('#existencia').val(json[0].existencia);
                 $('#precioconiva').val((json[0].ivaproducto == "SI") ? json[0].precioxpublico : "0");
+                $('#tipoproducto').val((typeof json[0].tipoproducto !== "undefined") ? json[0].tipoproducto : "PRODUCTO");
+                $('#preciohora').val((typeof json[0].preciohora !== "undefined") ? json[0].preciohora : "0.00");
                 $("#cantidad").val("1");
                 $("#search_producto_barra").focus();
                 //asigno tiempo de agregar detalle
@@ -601,32 +856,6 @@ $(document).ready(function(){
     });                    
 });
 
-function LimpiarTexto() {
-    $("#search_producto").val("");
-    $("#search_producto_barra").val("");
-    $("#idproducto").val("");
-    $("#codproducto").val("");
-    $("#producto").val("");
-    $("#descripcion").val("");
-    $("#imei").val("");
-    $("#condicion").val("");
-    $("#codmarca").val("");
-    $("#marcas").val("");
-    $("#codmodelo").val("");
-    $("#modelos").val("");
-    $("#codpresentacion").val("");
-    $("#presentacion").val("");
-    $("#codcolor").val("");
-    $("#color").val("");
-    $("#preciocompra").val("");
-    $("#precioventa").val("");
-    $("#descproducto").val("");
-    $("#ivaproducto").val("");
-    $("#existencia").val("");
-    $("#precioconiva").val("");
-    $("#cantidad").val("1");
-    $("#tipodetalle").val("1");
-}
 
 $("#carrito tbody").on('blur', 'input', function(e) {
     var element = $(this);
@@ -764,7 +993,7 @@ var dataString = 'BuscaCondicionesPagos=si&tipopago='+tipopago+"&txtTotal="+mont
     });
 }
 
-function addItem(id, codigo, cantidad, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, precio, precio2, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, opCantidad) {
+function addItem(id, codigo, cantidad, producto, descripcion, imei, condicion, codmarca, marcas, codmodelo, modelos, codpresentacion, presentacion, codcolor, color, precio, precio2, descproducto, ivaproducto, existencia, precioconiva, tipodetalle, opCantidad, tipoproducto) {
 
     var Carrito = new Object();
     Carrito.Id = id;
@@ -788,6 +1017,7 @@ function addItem(id, codigo, cantidad, producto, descripcion, imei, condicion, c
     Carrito.Existencia = existencia;
     Carrito.Precioconiva      = precioconiva;
     Carrito.TipoDetalle      = tipodetalle;
+    Carrito.TipoProducto      = tipoproducto || 'PRODUCTO';
     Carrito.Cantidad = cantidad;
     Carrito.opCantidad = opCantidad;
     var DatosJson = JSON.stringify(Carrito);

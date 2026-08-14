@@ -226,7 +226,8 @@ $(function() {
         source: "class/busqueda_autocompleto.php?Busqueda_Productos=si",
         minLength: 1,
         select: function(event, ui) {
-            if (parseInt(ui.item.existencia) <= 0) {
+            var tipoproducto = (typeof ui.item.tipoproducto !== "undefined") ? ui.item.tipoproducto : "PRODUCTO";
+            if (tipoproducto != "SERVICIO" && parseInt(ui.item.existencia) <= 0) {
                 swal("SIN STOCK", "El producto '" + ui.item.producto + "' no tiene stock disponible. No puede ser vendido!", "warning");
                 $("#search_producto").val('');
                 return false;
@@ -253,6 +254,8 @@ $(function() {
             $('#ivaproducto').val(ui.item.ivaproducto);
             $('#descproducto').val(ui.item.descproducto);
             $('#existencia').val(ui.item.existencia);
+            $('#tipoproducto').val((typeof ui.item.tipoproducto !== "undefined") ? ui.item.tipoproducto : "PRODUCTO");
+            $('#preciohora').val((typeof ui.item.preciohora !== "undefined") ? ui.item.preciohora : "0.00");
             $("#search_busqueda_pos").focus();
             setTimeout(function() {
                 var e = jQuery.Event("keypress");

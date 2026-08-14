@@ -7790,50 +7790,56 @@ public function CargarProductos()
    }
 
       //Insertamos los datos con los valores...
-      $query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+      $query = "INSERT INTO productos (codproducto, producto, descripcion, imei, condicion, tipoproducto, fabricante, codfamilia, codsubfamilia, codmarca, codmodelo, codpresentacion, codcolor, codorigen, year, nroparte, lote, peso, preciocompra, precioxmayor, precioxmenor, precioxpublico, preciohora, esaccesoriobillar, existencia, stockoptimo, stockmedio, stockminimo, ivaproducto, descproducto, codigobarra, fechaelaboracion, fechaoptimo, fechamedio, fechaminimo, codproveedor, stockteorico, motivoajuste, codsucursal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     	$stmt = $this->dbh->prepare($query);
     	$stmt->bindParam(1, $codproducto);
     	$stmt->bindParam(2, $producto);
     	$stmt->bindParam(3, $descripcion);
     	$stmt->bindParam(4, $imei);
     	$stmt->bindParam(5, $condicion);
-    	$stmt->bindParam(6, $fabricante);
-    	$stmt->bindParam(7, $codfamilia);
-    	$stmt->bindParam(8, $codsubfamilia);
-    	$stmt->bindParam(9, $codmarca);
-    	$stmt->bindParam(10, $codmodelo);
-    	$stmt->bindParam(11, $codpresentacion);
-    	$stmt->bindParam(12, $codcolor);
-    	$stmt->bindParam(13, $codorigen);
-    	$stmt->bindParam(14, $year);
-    	$stmt->bindParam(15, $nroparte);
-    	$stmt->bindParam(16, $lote);
-    	$stmt->bindParam(17, $peso);
-    	$stmt->bindParam(18, $preciocompra);
-    	$stmt->bindParam(19, $precioxmayor);
-    	$stmt->bindParam(20, $precioxmenor);
-    	$stmt->bindParam(21, $precioxpublico);
-    	$stmt->bindParam(22, $existencia);
-    	$stmt->bindParam(23, $stockoptimo);
-    	$stmt->bindParam(24, $stockmedio);
-    	$stmt->bindParam(25, $stockminimo);
-    	$stmt->bindParam(26, $ivaproducto);
-    	$stmt->bindParam(27, $descproducto);
-    	$stmt->bindParam(28, $codigobarra);
-    	$stmt->bindParam(29, $fechaelaboracion);
-    	$stmt->bindParam(30, $fechaoptimo);
-    	$stmt->bindParam(31, $fechamedio);
-    	$stmt->bindParam(32, $fechaminimo);
-    	$stmt->bindParam(33, $codproveedor);
-    	$stmt->bindParam(34, $stockteorico);
-    	$stmt->bindParam(35, $motivoajuste);
-    	$stmt->bindParam(36, $codsucursal);
+    	$stmt->bindParam(6, $tipoproducto);
+    	$stmt->bindParam(7, $fabricante);
+    	$stmt->bindParam(8, $codfamilia);
+    	$stmt->bindParam(9, $codsubfamilia);
+    	$stmt->bindParam(10, $codmarca);
+    	$stmt->bindParam(11, $codmodelo);
+    	$stmt->bindParam(12, $codpresentacion);
+    	$stmt->bindParam(13, $codcolor);
+    	$stmt->bindParam(14, $codorigen);
+    	$stmt->bindParam(15, $year);
+    	$stmt->bindParam(16, $nroparte);
+    	$stmt->bindParam(17, $lote);
+    	$stmt->bindParam(18, $peso);
+    	$stmt->bindParam(19, $preciocompra);
+    	$stmt->bindParam(20, $precioxmayor);
+    	$stmt->bindParam(21, $precioxmenor);
+    	$stmt->bindParam(22, $precioxpublico);
+    	$stmt->bindParam(23, $preciohora);
+    	$stmt->bindParam(24, $esaccesoriobillar);
+    	$stmt->bindParam(25, $existencia);
+    	$stmt->bindParam(26, $stockoptimo);
+    	$stmt->bindParam(27, $stockmedio);
+    	$stmt->bindParam(28, $stockminimo);
+    	$stmt->bindParam(29, $ivaproducto);
+    	$stmt->bindParam(30, $descproducto);
+    	$stmt->bindParam(31, $codigobarra);
+    	$stmt->bindParam(32, $fechaelaboracion);
+    	$stmt->bindParam(33, $fechaoptimo);
+    	$stmt->bindParam(34, $fechamedio);
+    	$stmt->bindParam(35, $fechaminimo);
+    	$stmt->bindParam(36, $codproveedor);
+    	$stmt->bindParam(37, $stockteorico);
+    	$stmt->bindParam(38, $motivoajuste);
+    	$stmt->bindParam(39, $codsucursal);
 
     	$codproducto = limpiar($data[0]);
     	$producto = utf8_encode($data[1]);
     	$descripcion = limpiar($data[2]);
     	$imei = limpiar($data[3]);
     	$condicion = limpiar($data[4]);
+    	$tipoproducto = limpiar("PRODUCTO");
+    	$preciohora = limpiar("0.00");
+    	$esaccesoriobillar = limpiar("NO");
     	$fabricante = utf8_encode($data[5]);
     	$codfamilia = limpiar($data[6]);
     	$codsubfamilia = limpiar($data[7]);
@@ -7955,50 +7961,56 @@ public function RegistrarProductos()
 	if($num == 0)
 	{
 	   ##################### REGISTRO DE PRODUCTO #####################
-	   $query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	   $query = "INSERT INTO productos (codproducto, producto, descripcion, imei, condicion, tipoproducto, fabricante, codfamilia, codsubfamilia, codmarca, codmodelo, codpresentacion, codcolor, codorigen, year, nroparte, lote, peso, preciocompra, precioxmayor, precioxmenor, precioxpublico, preciohora, esaccesoriobillar, existencia, stockoptimo, stockmedio, stockminimo, ivaproducto, descproducto, codigobarra, fechaelaboracion, fechaoptimo, fechamedio, fechaminimo, codproveedor, stockteorico, motivoajuste, codsucursal) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
     	$stmt = $this->dbh->prepare($query);
     	$stmt->bindParam(1, $codproducto);
     	$stmt->bindParam(2, $producto);
     	$stmt->bindParam(3, $descripcion);
     	$stmt->bindParam(4, $imei);
     	$stmt->bindParam(5, $condicion);
-    	$stmt->bindParam(6, $fabricante);
-    	$stmt->bindParam(7, $codfamilia);
-    	$stmt->bindParam(8, $codsubfamilia);
-    	$stmt->bindParam(9, $codmarca);
-    	$stmt->bindParam(10, $codmodelo);
-    	$stmt->bindParam(11, $codpresentacion);
-    	$stmt->bindParam(12, $codcolor);
-    	$stmt->bindParam(13, $codorigen);
-    	$stmt->bindParam(14, $year);
-    	$stmt->bindParam(15, $nroparte);
-    	$stmt->bindParam(16, $lote);
-    	$stmt->bindParam(17, $peso);
-    	$stmt->bindParam(18, $preciocompra);
-    	$stmt->bindParam(19, $precioxmayor);
-    	$stmt->bindParam(20, $precioxmenor);
-    	$stmt->bindParam(21, $precioxpublico);
-    	$stmt->bindParam(22, $existencia);
-    	$stmt->bindParam(23, $stockoptimo);
-    	$stmt->bindParam(24, $stockmedio);
-    	$stmt->bindParam(25, $stockminimo);
-    	$stmt->bindParam(26, $ivaproducto);
-    	$stmt->bindParam(27, $descproducto);
-    	$stmt->bindParam(28, $codigobarra);
-    	$stmt->bindParam(29, $fechaelaboracion);
-    	$stmt->bindParam(30, $fechaoptimo);
-    	$stmt->bindParam(31, $fechamedio);
-    	$stmt->bindParam(32, $fechaminimo);
-    	$stmt->bindParam(33, $codproveedor);
-    	$stmt->bindParam(34, $stockteorico);
-    	$stmt->bindParam(35, $motivoajuste);
-    	$stmt->bindParam(36, $codsucursal);
+    	$stmt->bindParam(6, $tipoproducto);
+    	$stmt->bindParam(7, $fabricante);
+    	$stmt->bindParam(8, $codfamilia);
+    	$stmt->bindParam(9, $codsubfamilia);
+    	$stmt->bindParam(10, $codmarca);
+    	$stmt->bindParam(11, $codmodelo);
+    	$stmt->bindParam(12, $codpresentacion);
+    	$stmt->bindParam(13, $codcolor);
+    	$stmt->bindParam(14, $codorigen);
+    	$stmt->bindParam(15, $year);
+    	$stmt->bindParam(16, $nroparte);
+    	$stmt->bindParam(17, $lote);
+    	$stmt->bindParam(18, $peso);
+    	$stmt->bindParam(19, $preciocompra);
+    	$stmt->bindParam(20, $precioxmayor);
+    	$stmt->bindParam(21, $precioxmenor);
+    	$stmt->bindParam(22, $precioxpublico);
+    	$stmt->bindParam(23, $preciohora);
+    	$stmt->bindParam(24, $esaccesoriobillar);
+    	$stmt->bindParam(25, $existencia);
+    	$stmt->bindParam(26, $stockoptimo);
+    	$stmt->bindParam(27, $stockmedio);
+    	$stmt->bindParam(28, $stockminimo);
+    	$stmt->bindParam(29, $ivaproducto);
+    	$stmt->bindParam(30, $descproducto);
+    	$stmt->bindParam(31, $codigobarra);
+    	$stmt->bindParam(32, $fechaelaboracion);
+    	$stmt->bindParam(33, $fechaoptimo);
+    	$stmt->bindParam(34, $fechamedio);
+    	$stmt->bindParam(35, $fechaminimo);
+    	$stmt->bindParam(36, $codproveedor);
+    	$stmt->bindParam(37, $stockteorico);
+    	$stmt->bindParam(38, $motivoajuste);
+    	$stmt->bindParam(39, $codsucursal);
 
 		$codproducto = limpiar($_POST["codproducto"]);
 		$producto = limpiar($_POST["producto"]);
 		$descripcion = limpiar($_POST["descripcion"]);
 		$imei = limpiar($_POST["imei"]);
 		$condicion = limpiar($_POST["condicion"]);
+		$tipoproducto = limpiar($_POST["tipoproducto"] == '' ? "PRODUCTO" : $_POST["tipoproducto"]);
+		$preciohora = limpiar($_POST["preciohora"] == '' ? "0.00" : $_POST["preciohora"]);
+		$esaccesoriobillar = limpiar($_POST["esaccesoriobillar"] == '' ? "NO" : $_POST["esaccesoriobillar"]);
 		$fabricante = limpiar($_POST["modulo"] == 1 ? $_POST["fabricante"] : "");
 		$codfamilia = limpiar(decrypt($_POST["codfamilia"]));
 		
@@ -9635,6 +9647,57 @@ public function ListarProductosModal()
 }
 ########################## FUNCION LISTAR PRODUCTOS EN VENTANA MODAL ################################
 
+########################## FUNCION LISTAR PRODUCTOS DE BILLAR EN VENTANA MODAL ################################
+public function ListarProductosBillarModal()
+{
+	self::SetNames();
+	$sql = "SELECT 
+	productos.idproducto,
+	productos.codproducto,
+	productos.producto,
+	productos.descripcion,
+	productos.imei,
+	productos.condicion,
+	productos.codmarca,
+	productos.codmodelo,
+	productos.codpresentacion,
+	productos.codcolor,
+	productos.preciocompra,
+	productos.precioxpublico,
+	productos.preciohora,
+	productos.tipoproducto,
+	productos.existencia,
+	productos.ivaproducto,
+	productos.descproducto,
+	productos.codigobarra,
+	productos.codsucursal,
+	familias.nomfamilia,
+	marcas.nommarca,
+	modelos.nommodelo,
+	presentaciones.nompresentacion,
+	colores.nomcolor,
+	sucursales.codmoneda,
+	tiposmoneda.moneda,
+	tiposmoneda.siglas,
+	tiposmoneda.simbolo
+	FROM (productos INNER JOIN sucursales ON productos.codsucursal = sucursales.codsucursal)
+	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
+    LEFT JOIN familias ON productos.codfamilia=familias.codfamilia
+    LEFT JOIN marcas ON productos.codmarca=marcas.codmarca 
+    LEFT JOIN modelos ON productos.codmodelo = modelos.codmodelo
+    LEFT JOIN presentaciones ON productos.codpresentacion = presentaciones.codpresentacion 
+    LEFT JOIN colores ON productos.codcolor = colores.codcolor
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."'
+    AND productos.tipoproducto = 'SERVICIO'";
+	foreach ($this->dbh->query($sql) as $row)
+	{
+		$this->p[] = $row;
+	}
+	return $this->p;
+	$this->dbh=null;
+}
+########################## FUNCION LISTAR PRODUCTOS DE BILLAR EN VENTANA MODAL ################################
+
 ########################## FUNCION LISTAR CODIGO DE BARRAS #########################
 public function ListarCodigoBarra()
 {
@@ -9702,6 +9765,7 @@ public function ProductosPorId()
 	productos.descripcion,
 	productos.imei,
 	productos.condicion,
+	productos.tipoproducto,
 	productos.fabricante,
 	productos.codfamilia,
 	productos.codsubfamilia,
@@ -9718,6 +9782,8 @@ public function ProductosPorId()
 	productos.precioxmayor,
 	productos.precioxmenor,
 	productos.precioxpublico,
+	productos.preciohora,
+	productos.esaccesoriobillar,
 	productos.existencia,
 	productos.stockoptimo,
 	productos.stockmedio,
@@ -9801,6 +9867,46 @@ public function ProductosPorId()
 	}
 }
 ############################ FUNCION ID PRODUCTOS #################################
+
+############################ FUNCION ACCESORIOS DE BILLAR #################################
+public function ListarAccesoriosBillar()
+{
+	self::SetNames();
+	$sql = "SELECT 
+	idproducto, 
+	codproducto, 
+	producto, 
+	descripcion, 
+	preciocompra, 
+	precioxpublico, 
+	existencia, 
+	ivaproducto, 
+	descproducto,
+	tipoproducto,
+	preciohora,
+	esaccesoriobillar 
+	FROM productos 
+	WHERE esaccesoriobillar = 'SI' 
+	AND codsucursal = ? 
+	ORDER BY producto ASC";
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($_SESSION["codsucursal"]));
+	$num = $stmt->rowCount();
+	if($num==0)
+	{
+		echo "";
+	}
+	else
+	{
+		while($row = $stmt->fetch(PDO::FETCH_ASSOC))
+		{
+			$this->p[] = $row;
+		}
+		return $this->p;
+		$this->dbh=null;
+	}
+}
+############################ FUNCION ACCESORIOS DE BILLAR #################################
 
 ############################ FUNCION ID PRODUCTOS PARA VERIFICADOR #################################
 public function VerificadorProductosPorId()
@@ -10029,6 +10135,7 @@ public function ActualizarProductos()
 		." descripcion = ?, "
 		." imei = ?, "
 		." condicion = ?, "
+		." tipoproducto = ?, "
 		." fabricante = ?, "
 		." codfamilia = ?, "
 		." codsubfamilia = ?, "
@@ -10045,6 +10152,8 @@ public function ActualizarProductos()
 		." precioxmenor = ?, "
 		." precioxmayor = ?, "
 		." precioxpublico = ?, "
+		." preciohora = ?, "
+		." esaccesoriobillar = ?, "
 		." existencia = ?, "
 		." stockoptimo = ?, "
 		." stockmedio = ?, "
@@ -10065,40 +10174,46 @@ public function ActualizarProductos()
 		$stmt->bindParam(2, $descripcion);
 		$stmt->bindParam(3, $imei);
 		$stmt->bindParam(4, $condicion);
-		$stmt->bindParam(5, $fabricante);
-		$stmt->bindParam(6, $codfamilia);
-		$stmt->bindParam(7, $codsubfamilia);
-		$stmt->bindParam(8, $codmarca);
-		$stmt->bindParam(9, $codmodelo);
-		$stmt->bindParam(10, $codpresentacion);
-		$stmt->bindParam(11, $codcolor);
-		$stmt->bindParam(12, $codorigen);
-		$stmt->bindParam(13, $year);
-		$stmt->bindParam(14, $nroparte);
-		$stmt->bindParam(15, $lote);
-		$stmt->bindParam(16, $peso);
-		$stmt->bindParam(17, $preciocompra);
-		$stmt->bindParam(18, $precioxmenor);
-		$stmt->bindParam(19, $precioxmayor);
-		$stmt->bindParam(20, $precioxpublico);
-		$stmt->bindParam(21, $existencia);
-		$stmt->bindParam(22, $stockoptimo);
-		$stmt->bindParam(23, $stockmedio);
-		$stmt->bindParam(24, $stockminimo);
-		$stmt->bindParam(25, $ivaproducto);
-		$stmt->bindParam(26, $descproducto);
-		$stmt->bindParam(27, $codigobarra);
-		$stmt->bindParam(28, $fechaelaboracion);
-		$stmt->bindParam(29, $fechaoptimo);
-		$stmt->bindParam(30, $fechamedio);
-		$stmt->bindParam(31, $fechaminimo);
-		$stmt->bindParam(32, $codproveedor);
-		$stmt->bindParam(33, $idproducto);
+		$stmt->bindParam(5, $tipoproducto);
+		$stmt->bindParam(6, $fabricante);
+		$stmt->bindParam(7, $codfamilia);
+		$stmt->bindParam(8, $codsubfamilia);
+		$stmt->bindParam(9, $codmarca);
+		$stmt->bindParam(10, $codmodelo);
+		$stmt->bindParam(11, $codpresentacion);
+		$stmt->bindParam(12, $codcolor);
+		$stmt->bindParam(13, $codorigen);
+		$stmt->bindParam(14, $year);
+		$stmt->bindParam(15, $nroparte);
+		$stmt->bindParam(16, $lote);
+		$stmt->bindParam(17, $peso);
+		$stmt->bindParam(18, $preciocompra);
+		$stmt->bindParam(19, $precioxmenor);
+		$stmt->bindParam(20, $precioxmayor);
+		$stmt->bindParam(21, $precioxpublico);
+		$stmt->bindParam(22, $preciohora);
+		$stmt->bindParam(23, $esaccesoriobillar);
+		$stmt->bindParam(24, $existencia);
+		$stmt->bindParam(25, $stockoptimo);
+		$stmt->bindParam(26, $stockmedio);
+		$stmt->bindParam(27, $stockminimo);
+		$stmt->bindParam(28, $ivaproducto);
+		$stmt->bindParam(29, $descproducto);
+		$stmt->bindParam(30, $codigobarra);
+		$stmt->bindParam(31, $fechaelaboracion);
+		$stmt->bindParam(32, $fechaoptimo);
+		$stmt->bindParam(33, $fechamedio);
+		$stmt->bindParam(34, $fechaminimo);
+		$stmt->bindParam(35, $codproveedor);
+		$stmt->bindParam(36, $idproducto);
 
 		$producto = limpiar($_POST["producto"]);
 		$descripcion = limpiar($_POST["descripcion"]);
 		$imei = limpiar($_POST["imei"]);
 		$condicion = limpiar($_POST["condicion"]);
+		$tipoproducto = limpiar($_POST["tipoproducto"] == '' ? "PRODUCTO" : $_POST["tipoproducto"]);
+		$preciohora = limpiar($_POST["preciohora"] == '' ? "0.00" : $_POST["preciohora"]);
+		$esaccesoriobillar = limpiar($_POST["esaccesoriobillar"] == '' ? "NO" : $_POST["esaccesoriobillar"]);
 		$fabricante = limpiar($_POST["fabricante"]);
 		$codfamilia = limpiar(decrypt($_POST["codfamilia"]));
 		$codsubfamilia = limpiar($_POST['codsubfamilia'] == '' ? "0" : decrypt($_POST['codsubfamilia']));
@@ -27218,20 +27333,23 @@ public function RegistrarVentas()
 		if(limpiar($v[$i]['tipodetalle'])==1){
 
 			$sql = "SELECT 
-			existencia 
+			existencia,
+			tipoproducto 
 			FROM productos 
 			WHERE idproducto = '".limpiar($v[$i]['id'])."' 
 			AND codproducto = '".limpiar($v[$i]['txtCodigo'])."' 
 			AND codsucursal = '".limpiar(decrypt($_POST['codsucursal']))."'";
-			foreach ($this->dbh->query($sql) as $row)
+			$row = null;
+			foreach ($this->dbh->query($sql) as $r)
 			{
-				$this->p[] = $row;
+				$row = $r;
 			}
 			
-			$existenciabd = $row['existencia'];
+			$existenciabd = ($row ? $row['existencia'] : 0);
+			$tipoproducto = (isset($v[$i]['tipoproducto']) && limpiar($v[$i]['tipoproducto']) == 'SERVICIO') ? 'SERVICIO' : ($row ? $row['tipoproducto'] : 'PRODUCTO');
 			$cantidad = $v[$i]['cantidad'];
 
-			if ($cantidad > $existenciabd) 
+			if ($tipoproducto != 'SERVICIO' && $cantidad > $existenciabd) 
 			{ 
 				echo "4";
 				exit;
@@ -27734,12 +27852,16 @@ public function RegistrarVentas()
 		WHERE idproducto = '".limpiar($detalle[$i]['id'])."'
 		AND codproducto = '".limpiar($detalle[$i]['txtCodigo'])."'
 		AND codsucursal = '".limpiar(decrypt($_POST['codsucursal']))."'";
-		foreach ($this->dbh->query($sql) as $row)
+		$row = null;
+		foreach ($this->dbh->query($sql) as $r)
 		{
-			$this->p[] = $row;
+			$row = $r;
 		}
-		$existenciabd = $row['existencia'];
+		$existenciabd = ($row ? $row['existencia'] : 0);
+		$tipoproducto = (isset($detalle[$i]['tipoproducto']) && limpiar($detalle[$i]['tipoproducto']) == 'SERVICIO') ? 'SERVICIO' : ($row ? $row['tipoproducto'] : 'PRODUCTO');
 	   ################ VERIFICO LA EXISTENCIA DEL PRODUCTO EN ALMACEN ################
+
+	   if($tipoproducto != 'SERVICIO'){
 
 		##################### ACTUALIZO LA EXISTENCIA DEL ALMACEN ####################
 		$sql = " UPDATE productos set "
@@ -27794,6 +27916,47 @@ public function RegistrarVentas()
     	$codigo = limpiar($_SESSION["codigo"]);
 		$stmt->execute();
 		############### REGISTRAMOS LOS DATOS DE PRODUCTOS EN KARDEX ###############
+
+	   } else {
+		############### REGISTRAMOS KARDEX SIN MOVIMIENTO DE STOCK PARA SERVICIOS ################
+		$query = "INSERT INTO kardex values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		$stmt = $this->dbh->prepare($query);
+		$stmt->bindParam(1, $codventa);
+		$stmt->bindParam(2, $codcliente);
+		$stmt->bindParam(3, $codproducto);
+		$stmt->bindParam(4, $movimiento);
+		$stmt->bindParam(5, $entradas);
+		$stmt->bindParam(6, $salidas);
+		$stmt->bindParam(7, $devolucion);
+		$stmt->bindParam(8, $stockactual);
+		$stmt->bindParam(9, $ivaproducto);
+		$stmt->bindParam(10, $descproducto);
+		$stmt->bindParam(11, $precio);
+		$stmt->bindParam(12, $documento);
+		$stmt->bindParam(13, $fechakardex);	
+	   $stmt->bindParam(14, $tipokardex);
+	   $stmt->bindParam(15, $procedimiento);			
+		$stmt->bindParam(16, $codsucursal);
+		$stmt->bindParam(17, $codigo);
+
+		$codproducto = limpiar($detalle[$i]['txtCodigo']);
+		$movimiento = limpiar("SALIDAS");
+		$entradas = limpiar("0.00");
+		$salidas = limpiar("0.00");
+		$devolucion = limpiar("0.00");
+		$stockactual = limpiar("0.00");
+		$ivaproducto = limpiar($detalle[$i]['ivaproducto'] == "(E)" ? "0.00" : $detalle[$i]['ivaproducto']);
+		$descproducto = number_format($detalle[$i]['descproducto'], 2, '.', '');
+		$precio = number_format($detalle[$i]["precio2"], 2, '.', '');
+		$documento = limpiar("VENTA: ".$codfactura);
+		$fechakardex = limpiar(date("Y-m-d"));
+	   $tipokardex = limpiar($detalle[$i]['tipodetalle']);
+	   $procedimiento = limpiar("1");
+		$codsucursal = limpiar(decrypt($_POST['codsucursal']));
+    	$codigo = limpiar($_SESSION["codigo"]);
+		$stmt->execute();
+		############### REGISTRAMOS KARDEX SIN MOVIMIENTO DE STOCK PARA SERVICIOS ################
+	   } //fin if tipoproducto != SERVICIO
 
    } elseif(limpiar($detalle[$i]['tipodetalle']) == 2){ // SI EL DETALLE ES UN COMBO
 
@@ -37408,6 +37571,122 @@ public function CopiarProductoLote()
 	exit;
 }
 ######################## FUNCION COPIAR LOTE DE PRODUCTOS A SUCURSAL ###########################
+
+######################## FUNCIONES PARA MIGRACIONES DE BASE DE DATOS ###########################
+
+public function CrearTablaMigraciones()
+{
+	try {
+		$sql = "CREATE TABLE IF NOT EXISTS migraciones_ejecutadas (
+		id int(11) NOT NULL AUTO_INCREMENT,
+		archivo varchar(100) NOT NULL,
+		fecha datetime NOT NULL,
+		PRIMARY KEY (id),
+		UNIQUE KEY archivo (archivo)
+		) ENGINE=InnoDB DEFAULT CHARSET=utf8";
+		$this->dbh->exec($sql);
+	} catch (PDOException $e) {
+		// La tabla ya puede existir
+	}
+}
+
+public function ListarMigracionesPendientes()
+{
+	self::SetNames();
+	$this->CrearTablaMigraciones();
+
+	$ruta = "migrations/";
+	$archivos = array();
+	if (is_dir($ruta)) {
+		if ($dh = opendir($ruta)) {
+			while (($file = readdir($dh)) !== false) {
+				if ($file != "." && $file != ".." && strtolower(substr($file, -4)) == ".sql") {
+					$archivos[] = $file;
+				}
+			}
+			closedir($dh);
+		}
+	}
+	sort($archivos);
+
+	$sql = "SELECT archivo, fecha FROM migraciones_ejecutadas";
+	$ejecutadas = array();
+	foreach ($this->dbh->query($sql) as $row) {
+		$ejecutadas[$row['archivo']] = $row['fecha'];
+	}
+
+	$resultado = array();
+	foreach ($archivos as $archivo) {
+		$resultado[] = array(
+			"archivo" => $archivo,
+			"ejecutada" => isset($ejecutadas[$archivo]) ? 1 : 0,
+			"fecha" => isset($ejecutadas[$archivo]) ? $ejecutadas[$archivo] : ""
+		);
+	}
+	return $resultado;
+}
+
+public function EjecutarMigracionesPendientes()
+{
+	self::SetNames();
+	$this->CrearTablaMigraciones();
+
+	$migraciones = $this->ListarMigracionesPendientes();
+	$pendientes = array();
+	foreach ($migraciones as $m) {
+		if ($m['ejecutada'] == 0) {
+			$pendientes[] = $m['archivo'];
+		}
+	}
+
+	if (empty($pendientes)) {
+		echo "2";
+		exit;
+	}
+
+	$errores = array();
+	$exitos = array();
+
+	foreach ($pendientes as $archivo) {
+		$ruta = "migrations/" . $archivo;
+		if (!file_exists($ruta)) {
+			$errores[] = "No se encontró el archivo: " . $archivo;
+			continue;
+		}
+
+		$sql = file_get_contents($ruta);
+		if ($sql === false) {
+			$errores[] = "No se pudo leer: " . $archivo;
+			continue;
+		}
+
+		try {
+			// Las sentencias DDL (ALTER, CREATE) provocan commit implícito en MySQL,
+			// por lo que no se utiliza transacción explícita para las migraciones.
+			$this->dbh->exec($sql);
+
+			$stmt = $this->dbh->prepare("INSERT INTO migraciones_ejecutadas (archivo, fecha) VALUES (?, ?)");
+			$stmt->execute(array($archivo, date("Y-m-d H:i:s")));
+
+			$exitos[] = $archivo;
+		} catch (PDOException $e) {
+			$errores[] = $archivo . ": " . $e->getMessage();
+		}
+	}
+
+	if (!empty($errores)) {
+		echo "<span class='fa fa-warning'></span> ALGUNAS MIGRACIONES PRESENTARON ERRORES:<br>" . implode("<br>", $errores);
+		if (!empty($exitos)) {
+			echo "<br><br><span class='fa fa-check-square-o'></span> MIGRACIONES EXITOSAS:<br>" . implode("<br>", $exitos);
+		}
+		exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> SE EJECUTARON " . count($exitos) . " MIGRACION(ES) EXITOSAMENTE:<br>" . implode("<br>", $exitos);
+	exit;
+}
+
+######################## FUNCIONES PARA MIGRACIONES DE BASE DE DATOS ###########################
 
 ######################## FUNCIONES PARA DASHBOARD DEL ADMINISTRADOR GENERAL ###########################
 

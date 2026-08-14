@@ -50,6 +50,46 @@ function Refrescar() {
 
 
 
+/////////////////////////////////// FUNCIONES DE MIGRACIONES //////////////////////////////////////
+
+// FUNCION PARA EJECUTAR MIGRACIONES PENDIENTES
+function EjecutarMigraciones(){
+    swal({
+        title: "¿Estás seguro?",
+        text: "¿Estás seguro de Ejecutar las Actualizaciones Pendientes de la Base de Datos?\nSe recomienda tener un respaldo antes de continuar.",
+        type: "warning",
+        showCancelButton: true,
+        cancelButtonText: "Cancelar",
+        cancelButtonColor: '#d33',
+        closeOnConfirm: false,
+        confirmButtonText: "Ejecutar",
+        confirmButtonColor: "#3085d6"
+    }, function() {
+        $("#btn-ejecutar-migraciones").html('<i class="fa fa-spin fa-spinner"></i> Ejecutando...').prop("disabled", true);
+        $.ajax({
+            type: "POST",
+            url: "migraciones.php",
+            data: "proceso=ejecutar",
+            success: function(data){
+                $("#btn-ejecutar-migraciones").html('<i class="fa fa-play"></i> Ejecutar Actualizaciones Pendientes').prop("disabled", false);
+                if(data=="2"){
+                    swal("Información", "No hay actualizaciones pendientes", "info");
+                } else {
+                    $("#save").html('<div class="alert alert-info">'+data+'</div>');
+                    swal("Proceso Completado", "Revise el detalle en la parte superior", "success");
+                    setTimeout(function(){
+                        location.reload();
+                    }, 3000);
+                }
+            },
+            error: function(){
+                $("#btn-ejecutar-migraciones").html('<i class="fa fa-play"></i> Ejecutar Actualizaciones Pendientes').prop("disabled", false);
+                swal("Error", "No se pudieron ejecutar las actualizaciones", "error");
+            }
+        });
+    });
+}
+
 /////////////////////////////////// FUNCIONES DE USUARIOS //////////////////////////////////////
 
 // FUNCION PARA MOSTRAR USUARIOS EN VENTANA MODAL
@@ -3180,6 +3220,11 @@ $.ajax({
 function MostrarCombos(){
   
   $('#loading').load("familias_productos?CargarCombos=si");
+}
+
+function MostrarBillar(){
+  
+  $('#loading').load("familias_productos?CargarBillar=si");
 }
 
 // FUNCION PARA MOSTRAR FOTO DE COMBO EN VENTANA MODAL

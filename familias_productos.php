@@ -247,6 +247,111 @@ $familia = $familia->ListarFamilias();
 <?php endif; ?>
 <!--######################### LISTAR COMBOS ########################-->
 
+
+<!--######################### LISTAR PRODUCTOS DE BILLAR ########################-->
+<?php if (isset($_GET['CargarBillar'])): ?>
+
+<h3 class="card-subtitle m-0 text-dark"><i class='font-20 fa fa-clock-o'></i> Monitor de Billar</h3><hr>
+
+    <div class="col-md-12">
+        <div id="searchContaner"> 
+            <div class="form-group has-feedback2"> 
+                <label class="control-label"></label>
+                <input style="color:#000;font-weight:bold;" type="text" class="form-control" name="busquedaproducto" id="busquedaproducto" onKeyUp="this.value=this.value.toUpperCase();" autocomplete="off" placeholder="Ingrese Criterio para tu Búsqueda">
+                  <i class="fa fa-search form-control-feedback2"></i> 
+            </div> 
+        </div>
+    </div>
+
+    <div id="productList2">
+        
+      <div class="tab-content w-100" style="padding: 5px; overflow: visible;">
+        <div class="slimScrollDiv" style="position: relative; overflow: visible hidden; width: auto; height: 100%;">
+
+        <!-- column -->
+        <div>
+          <?php
+          $producto = new Login();
+          $producto = $producto->ListarProductosBillarModal();
+
+          if($producto==""){
+
+            echo "<div class='alert alert-danger'>";
+            echo "<button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>";
+            echo "<center><span class='fa fa-info-circle'></span> NO EXISTEN PRODUCTOS DE BILLAR REGISTRADOS ACTUALMENTE</center>";
+            echo "</div>";  
+
+          } else { ?>
+
+          <div class="row-vertical">
+            <?php 
+            $x=1;
+            for ($ii = 0; $ii < sizeof($producto); $ii++) {
+            ?>
+
+            <article class="product p-w-t animated fadeIn" OnClick="
+            $('#idproducto').val('<?php echo encrypt($producto[$ii]['idproducto']); ?>');
+            $('#codproducto').val('<?php echo $producto[$ii]['codproducto']; ?>');
+            $('#producto').val('<?php echo str_replace($stringReplace, '', $producto[$ii]['producto']); ?>');
+            $('#descripcion').val('<?php echo str_replace($stringReplace, '', $producto[$ii]['descripcion'] == '' ? '0' : $producto[$ii]['descripcion']); ?>');
+            $('#imei').val('<?php echo $producto[$ii]['imei'] == '' ? '0' : $producto[$ii]['imei']; ?>');
+            $('#condicion').val('<?php echo $producto[$ii]['condicion'] == '' ? '******' : $producto[$ii]['condicion']; ?>');
+            $('#codmarca').val('<?php echo $producto[$ii]['codmarca']; ?>');
+            $('#marcas').val('<?php echo $producto[$ii]['codmarca'] == 0 ? '******' : $producto[$ii]['nommarca']; ?>');
+            $('#codmodelo').val('<?php echo $producto[$ii]['codmodelo']; ?>');
+            $('#modelos').val('<?php echo $producto[$ii]['codmodelo'] == 0 ? '******' : $producto[$ii]['nommodelo']; ?>');
+            $('#codpresentacion').val('<?php echo $producto[$ii]['codpresentacion']; ?>');
+            $('#presentacion').val('<?php echo $producto[$ii]['codpresentacion'] == 0 ? '******' : $producto[$ii]['nompresentacion']; ?>');
+            $('#codcolor').val('<?php echo $producto[$ii]['codcolor']; ?>');
+            $('#color').val('<?php echo $producto[$ii]['codcolor'] == 0 ? '******' : $producto[$ii]['nomcolor']; ?>');
+            $('#preciocompra').val('<?php echo number_format($producto[$ii]['preciocompra'], 2, '.', ''); ?>');
+            $('#precioventa').val('<?php echo number_format($producto[$ii]['precioxpublico'], 2, '.', ''); ?>');
+            $('#precioconiva').val('<?php echo $producto[$ii]['ivaproducto'] == 'SI' ? number_format($producto[$ii]['precioxpublico'], 2, '.', '') : '0.00'; ?>');
+            $('#ivaproducto').val('<?php echo $producto[$ii]['ivaproducto']; ?>');
+            $('#descproducto').val('<?php echo number_format($producto[$ii]['descproducto'], 2, '.', ''); ?>');
+            $('#existencia').val('<?php echo $producto[$ii]['existencia']; ?>');
+            $('#tipoproducto').val('<?php echo $producto[$ii]['tipoproducto']; ?>');
+            $('#preciohora').val('<?php echo number_format($producto[$ii]['preciohora'], 2, '.', ''); ?>');
+            AbrirModalBillar();"
+            title="<?php echo $producto[$ii]['producto'].' | ('.$producto[$ii]['nomfamilia'].')';?>">
+            <div>
+            <div id="<?php echo $producto[$ii]['codproducto']; ?>">
+            <div class="product-img">
+              <?php
+                if (file_exists("fotos/productos/".$producto[$ii]["codsucursal"]."_".$producto[$ii]["codproducto"].".jpg")){
+                echo "<img src='fotos/productos/".$producto[$ii]["codsucursal"]."_".$producto[$ii]['codproducto'].".jpg?'>";
+                } else if (file_exists("fotos/productos/".$producto[$ii]["codsucursal"]."_".$producto[$ii]["codproducto"].".jpeg")){
+                echo "<img src='fotos/productos/".$producto[$ii]["codsucursal"]."_".$producto[$ii]['codproducto'].".jpeg?'>";
+                } else if (file_exists("fotos/productos/".$producto[$ii]["codsucursal"]."_".$producto[$ii]["codproducto"].".png")){
+                echo "<img src='fotos/productos/".$producto[$ii]["codsucursal"]."_".$producto[$ii]['codproducto'].".png?'>";
+                } else {
+                echo "<img src='fotos/default.png'>";  
+              } ?>
+              <span class="price-tag"><?php echo $simbolo.number_format($producto[$ii]['preciohora'], 2, '.', ','); ?>/Hr</span><span class="pres-tag"><?php echo getSubString($producto[$ii]['producto'],18);?> </span>
+            </div>
+              <input type="hidden" id="proname" name="proname" value="<?php echo $producto[$ii]['codproducto'].', '.$producto[$ii]['producto']; ?>">
+              <input type="hidden" id="category" name="category" value="<?php echo $producto[$ii]['nomfamilia']; ?>">
+              <div class="product-nam text-dark alert-link"><?php echo getSubString($producto[$ii]['nomfamilia'],22);?></div>
+            </div>
+            </div>
+            </article>
+                
+            <?php } // fin for ?>
+          </div>
+
+        <?php } // fin if ?>
+               
+        </div>
+        <!-- column -->
+
+        </div> 
+
+        </div> 
+    </div>
+ 
+<?php endif; ?>
+<!--######################### LISTAR PRODUCTOS DE BILLAR ########################-->
+
 <script type="text/javascript">
 $(document).ready(function() {
   

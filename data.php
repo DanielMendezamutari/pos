@@ -88,6 +88,23 @@ echo json_encode($data);
 
 endif;
 
+################ ACCESORIOS DE BILLAR ########################
+if (isset($_GET['AccesoriosBillar'])):
+
+$accesorios = new Login();
+$reg = $accesorios->ListarAccesoriosBillar();
+
+$data = array();
+if (is_array($reg)) {
+	foreach ($reg as $row) {
+		$data[] = $row;
+	}
+}
+
+echo json_encode($data);
+
+endif;
+
 ################ GRAFICO POR SUCURSALES ########################
 if (isset($_GET['ProcesosxSucursales'])):
 

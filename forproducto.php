@@ -233,6 +233,39 @@ exit;
 
             <div class="col-md-3">
                 <div class="form-group has-feedback">
+                    <label class="control-label">Tipo de Producto: <span class="symbol required"></span></label>
+                    <i class="fa fa-bars form-control-feedback"></i>
+                    <select style="color:#000;font-weight:bold;" name="tipoproducto" id="tipoproducto" class="form-control" required="" aria-required="true">
+                    <option value="PRODUCTO"<?php if (isset($reg[0]['tipoproducto']) && !(strcmp('PRODUCTO', $reg[0]['tipoproducto']))) {echo "selected=\"selected\"";} ?>>PRODUCTO</option>
+                    <option value="SERVICIO"<?php if (isset($reg[0]['tipoproducto']) && !(strcmp('SERVICIO', $reg[0]['tipoproducto']))) {echo "selected=\"selected\"";} ?>>SERVICIO (BILLAR)</option>
+                    <option value="ALQUILER"<?php if (isset($reg[0]['tipoproducto']) && !(strcmp('ALQUILER', $reg[0]['tipoproducto']))) {echo "selected=\"selected\"";} ?>>ALQUILER</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="form-group has-feedback">
+                    <label class="control-label">Precio por Hora: </label>
+                    <input type="text" class="form-control" name="preciohora" id="preciohora" onKeyUp="this.value=this.value.toUpperCase();" onKeyPress="EvaluateText('%f', this);" onBlur="this.value = NumberFormat(this.value, '2', '.', '')" placeholder="Ingrese Precio por Hora" autocomplete="off" <?php if (isset($reg[0]['preciohora'])) { ?> value="<?php echo number_format($reg[0]['preciohora'], 2, '.', ''); ?>" <?php } else { ?> value="0.00" <?php } ?> required="" aria-required="true"/>  
+                    <i class="fa fa-tint form-control-feedback"></i>
+                </div>
+            </div>
+
+            <div class="col-md-3">
+                <div class="form-group has-feedback">
+                    <label class="control-label">Es Accesorio de Billar: </label>
+                    <i class="fa fa-bars form-control-feedback"></i>
+                    <select style="color:#000;font-weight:bold;" name="esaccesoriobillar" id="esaccesoriobillar" class="form-control" required="" aria-required="true">
+                    <option value="NO"<?php if (isset($reg[0]['esaccesoriobillar']) && !(strcmp('NO', $reg[0]['esaccesoriobillar']))) {echo "selected=\"selected\"";} ?>>NO</option>
+                    <option value="SI"<?php if (isset($reg[0]['esaccesoriobillar']) && !(strcmp('SI', $reg[0]['esaccesoriobillar']))) {echo "selected=\"selected\"";} ?>>SI</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-3">
+                <div class="form-group has-feedback">
                     <label class="control-label">Nombre de Fabricante: </label>
                     <input type="text" class="form-control" name="fabricante" id="fabricante" onKeyUp="this.value=this.value.toUpperCase();" placeholder="Ingrese Nombre de Fabricante" autocomplete="off" <?php if (isset($reg[0]['fabricante'])) { ?> value="<?php echo $reg[0]['fabricante']; ?>" <?php } ?> required="" aria-required="true"/>  
                     <i class="fa fa-pencil form-control-feedback"></i>
@@ -804,7 +837,7 @@ exit;
     <script type="text/javascript" src="assets/script/titulos.js"></script>
     <script type="text/javascript" src="assets/script/script2.js"></script>
     <script type="text/javascript" src="assets/script/validation.min.js"></script>
-    <script type="text/javascript" src="assets/script/script.js"></script>
+    <script type="text/javascript" src="assets/script/script.js?v=2"></script>
     <!-- script jquery -->
 
     <!-- Calendario -->

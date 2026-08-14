@@ -437,6 +437,8 @@ case 'administradorG':  ?>
 
                                 <li class="sidebar-item"><a href="restore" class="sidebar-link"><i class="mdi mdi-rounded-corner"></i><span class="hide-menu"> Restore</span></a></li>
 
+                                <li class="sidebar-item"><a href="migraciones" class="sidebar-link"><i class="mdi mdi-database-plus"></i><span class="hide-menu"> Actualizaciones</span></a></li>
+
                             </ul>
                         </li>
 

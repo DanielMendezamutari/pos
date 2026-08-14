@@ -30,6 +30,7 @@ if ($ObjetoCarrito->Codigo=="vaciar") {
             $existencia = $ObjetoCarrito->Existencia;
             $precioconiva = $ObjetoCarrito->Precioconiva;
             $tipodetalle = $ObjetoCarrito->TipoDetalle;
+            $tipoproducto = isset($ObjetoCarrito->TipoProducto) ? $ObjetoCarrito->TipoProducto : 'PRODUCTO';
             $cantidad = $ObjetoCarrito->Cantidad;
             $opCantidad = $ObjetoCarrito->opCantidad;
 
@@ -77,6 +78,7 @@ if ($ObjetoCarrito->Codigo=="vaciar") {
                     "existencia"=>$existencia,
                     "precioconiva"=>$precioconiva,
                     "tipodetalle"=>$tipodetalle,
+                    "tipoproducto"=>$tipoproducto,
                     "cantidad"=>$cuanto
                 );
             } else {
@@ -102,6 +104,7 @@ if ($ObjetoCarrito->Codigo=="vaciar") {
                     "existencia"=>$existencia,
                     "precioconiva"=>$precioconiva,
                     "tipodetalle"=>$tipodetalle,
+                    "tipoproducto"=>$tipoproducto,
                     "cantidad"=>$cantidad
                 );
             }
@@ -128,6 +131,7 @@ if ($ObjetoCarrito->Codigo=="vaciar") {
         $existencia = $ObjetoCarrito->Existencia;
         $precioconiva = $ObjetoCarrito->Precioconiva;
         $tipodetalle = $ObjetoCarrito->TipoDetalle;
+        $tipoproducto = isset($ObjetoCarrito->TipoProducto) ? $ObjetoCarrito->TipoProducto : 'PRODUCTO';
         $cantidad = $ObjetoCarrito->Cantidad;
         $carrito[] = array(
             "id"=>$id,
@@ -151,6 +155,7 @@ if ($ObjetoCarrito->Codigo=="vaciar") {
             "existencia"=>$existencia,
             "precioconiva"=>$precioconiva,
             "tipodetalle"=>$tipodetalle,
+            "tipoproducto"=>$tipoproducto,
             "cantidad"=>$cantidad
         );
     }
