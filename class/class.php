@@ -26229,6 +26229,7 @@ public function ProductosVendidosxArqueo()
 	SUM(dv.cantventa) AS cantidad,
 	dv.precioventa,
 	SUM(dv.valortotal) AS subtotal,
+	IFNULL(p.tipoproducto, 'PRODUCTO') AS tipoproducto,
 	tiposmoneda.simbolo
 	FROM detalleventas dv
 	INNER JOIN (
@@ -26237,8 +26238,12 @@ public function ProductosVendidosxArqueo()
 	INNER JOIN ventas v ON dv.codventa = v.codventa
 	INNER JOIN sucursales ON v.codsucursal = sucursales.codsucursal
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
+	LEFT JOIN productos p ON (
+		(dv.idproducto > 0 AND dv.idproducto = p.idproducto)
+		OR dv.idproducto = 0
+	) AND dv.codproducto = p.codproducto AND dv.codsucursal = p.codsucursal
 	WHERE v.statusventa != 'ANULADA'
-	GROUP BY dv.idproducto, dv.descripcion, dv.precioventa
+	GROUP BY dv.idproducto, dv.descripcion, dv.precioventa, p.tipoproducto
 	ORDER BY cantidad DESC";
 	$stmt = $this->dbh->prepare($sql);
 	$stmt->execute(array(decrypt($_GET["codarqueo"])));
@@ -26268,9 +26273,13 @@ public function VentasxFamiliaArqueo()
 	INNER JOIN ventas v ON dv.codventa = v.codventa
 	INNER JOIN sucursales ON v.codsucursal = sucursales.codsucursal
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
-	LEFT JOIN productos p ON dv.idproducto = p.idproducto
+	LEFT JOIN productos p ON (
+		(dv.idproducto > 0 AND dv.idproducto = p.idproducto)
+		OR dv.idproducto = 0
+	) AND dv.codproducto = p.codproducto AND dv.codsucursal = p.codsucursal
 	LEFT JOIN familias ON p.codfamilia = familias.codfamilia
 	WHERE v.statusventa != 'ANULADA'
+	AND IFNULL(p.tipoproducto, 'PRODUCTO') != 'SERVICIO'
 	GROUP BY familias.codfamilia
 	ORDER BY subtotal DESC";
 	$stmt = $this->dbh->prepare($sql);
@@ -26299,10 +26308,14 @@ public function VentasxCategoriaArqueo()
 	INNER JOIN ventas v ON dv.codventa = v.codventa
 	INNER JOIN sucursales ON v.codsucursal = sucursales.codsucursal
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
-	LEFT JOIN productos p ON dv.idproducto = p.idproducto
+	LEFT JOIN productos p ON (
+		(dv.idproducto > 0 AND dv.idproducto = p.idproducto)
+		OR dv.idproducto = 0
+	) AND dv.codproducto = p.codproducto AND dv.codsucursal = p.codsucursal
 	LEFT JOIN subfamilias ON p.codsubfamilia = subfamilias.codsubfamilia
 	LEFT JOIN familias ON subfamilias.codfamilia = familias.codfamilia
 	WHERE v.statusventa != 'ANULADA'
+	AND IFNULL(p.tipoproducto, 'PRODUCTO') != 'SERVICIO'
 	GROUP BY subfamilias.codsubfamilia
 	ORDER BY subtotal DESC";
 	$stmt = $this->dbh->prepare($sql);
@@ -37188,6 +37201,228 @@ public function ProductoExisteSucursal($codproducto, $codsucursal)
 }
 ######################## FUNCION VERIFICAR PRODUCTO EN SUCURSAL ###########################
 
+######################## FUNCIONES AUXILIARES PARA COPIAR CATALOGOS DE PRODUCTOS ###########################
+public function ObtenerOCrearFamilia($codfamilia, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codfamilia) || $codfamilia == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nomfamilia FROM familias WHERE codfamilia = ? AND codsucursal = ?");
+	$stmt->execute(array($codfamilia, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nomfamilia = $row["nomfamilia"];
+
+	$stmt = $this->dbh->prepare("SELECT codfamilia FROM familias WHERE nomfamilia = ? AND codsucursal = ?");
+	$stmt->execute(array($nomfamilia, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codfamilia"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO familias VALUES (null, ?, ?)");
+	$stmt->execute(array($nomfamilia, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearSubfamilia($codsubfamilia, $codfamiliaDestino, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codsubfamilia) || $codsubfamilia == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nomsubfamilia FROM subfamilias WHERE codsubfamilia = ? AND codsucursal = ?");
+	$stmt->execute(array($codsubfamilia, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nomsubfamilia = $row["nomsubfamilia"];
+
+	$stmt = $this->dbh->prepare("SELECT codsubfamilia FROM subfamilias WHERE nomsubfamilia = ? AND codfamilia = ? AND codsucursal = ?");
+	$stmt->execute(array($nomsubfamilia, $codfamiliaDestino, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codsubfamilia"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO subfamilias VALUES (null, ?, ?, ?)");
+	$stmt->execute(array($nomsubfamilia, $codfamiliaDestino, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearMarca($codmarca, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codmarca) || $codmarca == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nommarca FROM marcas WHERE codmarca = ? AND codsucursal = ?");
+	$stmt->execute(array($codmarca, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nommarca = $row["nommarca"];
+
+	$stmt = $this->dbh->prepare("SELECT codmarca FROM marcas WHERE nommarca = ? AND codsucursal = ?");
+	$stmt->execute(array($nommarca, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codmarca"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO marcas VALUES (null, ?, ?)");
+	$stmt->execute(array($nommarca, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearModelo($codmodelo, $codmarcaDestino, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codmodelo) || $codmodelo == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nommodelo FROM modelos WHERE codmodelo = ? AND codsucursal = ?");
+	$stmt->execute(array($codmodelo, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nommodelo = $row["nommodelo"];
+
+	$stmt = $this->dbh->prepare("SELECT codmodelo FROM modelos WHERE nommodelo = ? AND codmarca = ? AND codsucursal = ?");
+	$stmt->execute(array($nommodelo, $codmarcaDestino, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codmodelo"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO modelos VALUES (null, ?, ?, ?)");
+	$stmt->execute(array($nommodelo, $codmarcaDestino, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearPresentacion($codpresentacion, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codpresentacion) || $codpresentacion == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nompresentacion FROM presentaciones WHERE codpresentacion = ? AND codsucursal = ?");
+	$stmt->execute(array($codpresentacion, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nompresentacion = $row["nompresentacion"];
+
+	$stmt = $this->dbh->prepare("SELECT codpresentacion FROM presentaciones WHERE nompresentacion = ? AND codsucursal = ?");
+	$stmt->execute(array($nompresentacion, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codpresentacion"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO presentaciones VALUES (null, ?, ?)");
+	$stmt->execute(array($nompresentacion, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearColor($codcolor, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codcolor) || $codcolor == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nomcolor FROM colores WHERE codcolor = ? AND codsucursal = ?");
+	$stmt->execute(array($codcolor, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nomcolor = $row["nomcolor"];
+
+	$stmt = $this->dbh->prepare("SELECT codcolor FROM colores WHERE nomcolor = ? AND codsucursal = ?");
+	$stmt->execute(array($nomcolor, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codcolor"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO colores VALUES (null, ?, ?)");
+	$stmt->execute(array($nomcolor, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearOrigen($codorigen, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codorigen) || $codorigen == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT nomorigen FROM origenes WHERE codorigen = ? AND codsucursal = ?");
+	$stmt->execute(array($codorigen, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$nomorigen = $row["nomorigen"];
+
+	$stmt = $this->dbh->prepare("SELECT codorigen FROM origenes WHERE nomorigen = ? AND codsucursal = ?");
+	$stmt->execute(array($nomorigen, $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codorigen"];
+	}
+
+	$stmt = $this->dbh->prepare("INSERT INTO origenes VALUES (null, ?, ?)");
+	$stmt->execute(array($nomorigen, $codsucursaldestino));
+	return $this->dbh->lastInsertId();
+}
+
+public function ObtenerOCrearProveedor($codproveedor, $codsucursalorigen, $codsucursaldestino)
+{
+	if(empty($codproveedor) || $codproveedor == "0") return "0";
+	$stmt = $this->dbh->prepare("SELECT * FROM proveedores WHERE codproveedor = ? AND codsucursal = ?");
+	$stmt->execute(array($codproveedor, $codsucursalorigen));
+	if($stmt->rowCount() == 0) return "0";
+	$proveedor = $stmt->fetch(PDO::FETCH_ASSOC);
+
+	$stmt = $this->dbh->prepare("SELECT codproveedor FROM proveedores WHERE cuitproveedor = ? AND codsucursal = ?");
+	$stmt->execute(array($proveedor["cuitproveedor"], $codsucursaldestino));
+	if($stmt->rowCount() > 0)
+	{
+		$r = $stmt->fetch(PDO::FETCH_ASSOC);
+		return $r["codproveedor"];
+	}
+
+	############## CREO CODIGO DE PROVEEDOR EN DESTINO #################
+	$ultimo = "";
+	foreach ($this->dbh->query("SELECT codproveedor FROM proveedores ORDER BY idproveedor DESC LIMIT 1") as $row){
+		$ultimo = $row["codproveedor"];
+	}
+	$nuevoCodproveedor = limpiar(empty($ultimo) ? "1" : $ultimo + 1);
+	############## CREO CODIGO DE PROVEEDOR EN DESTINO #################
+
+	$stmt = $this->dbh->prepare("INSERT INTO proveedores VALUES (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+	$stmt->execute(array(
+		$nuevoCodproveedor,
+		$proveedor["documproveedor"],
+		$proveedor["cuitproveedor"],
+		$proveedor["nomproveedor"],
+		$proveedor["tlfproveedor"],
+		$proveedor["id_provincia"],
+		$proveedor["id_departamento"],
+		$proveedor["direcproveedor"],
+		$proveedor["emailproveedor"],
+		$proveedor["vendedor"],
+		$proveedor["tlfvendedor"],
+		date("Y-m-d"),
+		$codsucursaldestino
+	));
+	return $nuevoCodproveedor;
+}
+
+public function NormalizarIdsCatalogosProducto($row, $codsucursalorigen, $codsucursaldestino)
+{
+	$codfamilia = $this->ObtenerOCrearFamilia($row["codfamilia"], $codsucursalorigen, $codsucursaldestino);
+	$codsubfamilia = $this->ObtenerOCrearSubfamilia($row["codsubfamilia"], $codfamilia, $codsucursalorigen, $codsucursaldestino);
+	$codmarca = $this->ObtenerOCrearMarca($row["codmarca"], $codsucursalorigen, $codsucursaldestino);
+	$codmodelo = $this->ObtenerOCrearModelo($row["codmodelo"], $codmarca, $codsucursalorigen, $codsucursaldestino);
+	$codpresentacion = $this->ObtenerOCrearPresentacion($row["codpresentacion"], $codsucursalorigen, $codsucursaldestino);
+	$codcolor = $this->ObtenerOCrearColor($row["codcolor"], $codsucursalorigen, $codsucursaldestino);
+	$codorigen = $this->ObtenerOCrearOrigen($row["codorigen"], $codsucursalorigen, $codsucursaldestino);
+	$codproveedor = $this->ObtenerOCrearProveedor($row["codproveedor"], $codsucursalorigen, $codsucursaldestino);
+
+	return array(
+		"codfamilia" => $codfamilia,
+		"codsubfamilia" => $codsubfamilia,
+		"codmarca" => $codmarca,
+		"codmodelo" => $codmodelo,
+		"codpresentacion" => $codpresentacion,
+		"codcolor" => $codcolor,
+		"codorigen" => $codorigen,
+		"codproveedor" => $codproveedor
+	);
+}
+######################## FUNCIONES AUXILIARES PARA COPIAR CATALOGOS DE PRODUCTOS ###########################
+
 ######################## FUNCION COPIAR PRODUCTO A SUCURSAL ###########################
 public function CopiarProductoSucursal()
 {
@@ -37219,6 +37454,7 @@ public function CopiarProductoSucursal()
 	}
 
 	$row = $stmt->fetch(PDO::FETCH_ASSOC);
+	$codsucursalorigen = $row["codsucursal"];
 
 	############## VERIFICO SI YA EXISTE EN DESTINO #################
 	if($this->ProductoExisteSucursal($row["codproducto"], $codsucursaldestino))
@@ -37227,59 +37463,66 @@ public function CopiarProductoSucursal()
 		exit;
 	}
 
+	############## NORMALIZO CATALOGOS EN DESTINO #################
+	$cat = $this->NormalizarIdsCatalogosProducto($row, $codsucursalorigen, $codsucursaldestino);
+
 	############## REGISTRO PRODUCTO EN SUCURSAL DESTINO CON STOCK 0 #################
-	$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+	$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 	$stmt = $this->dbh->prepare($query);
 	$stmt->bindParam(1, $codproducto);
 	$stmt->bindParam(2, $producto);
 	$stmt->bindParam(3, $descripcion);
 	$stmt->bindParam(4, $imei);
 	$stmt->bindParam(5, $condicion);
-	$stmt->bindParam(6, $fabricante);
-	$stmt->bindParam(7, $codfamilia);
-	$stmt->bindParam(8, $codsubfamilia);
-	$stmt->bindParam(9, $codmarca);
-	$stmt->bindParam(10, $codmodelo);
-	$stmt->bindParam(11, $codpresentacion);
-	$stmt->bindParam(12, $codcolor);
-	$stmt->bindParam(13, $codorigen);
-	$stmt->bindParam(14, $year);
-	$stmt->bindParam(15, $nroparte);
-	$stmt->bindParam(16, $lote);
-	$stmt->bindParam(17, $peso);
-	$stmt->bindParam(18, $preciocompra);
-	$stmt->bindParam(19, $precioxmayor);
-	$stmt->bindParam(20, $precioxmenor);
-	$stmt->bindParam(21, $precioxpublico);
-	$stmt->bindParam(22, $existencia);
-	$stmt->bindParam(23, $stockoptimo);
-	$stmt->bindParam(24, $stockmedio);
-	$stmt->bindParam(25, $stockminimo);
-	$stmt->bindParam(26, $ivaproducto);
-	$stmt->bindParam(27, $descproducto);
-	$stmt->bindParam(28, $codigobarra);
-	$stmt->bindParam(29, $fechaelaboracion);
-	$stmt->bindParam(30, $fechaoptimo);
-	$stmt->bindParam(31, $fechamedio);
-	$stmt->bindParam(32, $fechaminimo);
-	$stmt->bindParam(33, $codproveedor);
-	$stmt->bindParam(34, $stockteorico);
-	$stmt->bindParam(35, $motivoajuste);
-	$stmt->bindParam(36, $codsucursal);
+	$stmt->bindParam(6, $tipoproducto);
+	$stmt->bindParam(7, $fabricante);
+	$stmt->bindParam(8, $codfamilia);
+	$stmt->bindParam(9, $codsubfamilia);
+	$stmt->bindParam(10, $codmarca);
+	$stmt->bindParam(11, $codmodelo);
+	$stmt->bindParam(12, $codpresentacion);
+	$stmt->bindParam(13, $codcolor);
+	$stmt->bindParam(14, $codorigen);
+	$stmt->bindParam(15, $year);
+	$stmt->bindParam(16, $nroparte);
+	$stmt->bindParam(17, $lote);
+	$stmt->bindParam(18, $peso);
+	$stmt->bindParam(19, $preciocompra);
+	$stmt->bindParam(20, $precioxmayor);
+	$stmt->bindParam(21, $precioxmenor);
+	$stmt->bindParam(22, $precioxpublico);
+	$stmt->bindParam(23, $preciohora);
+	$stmt->bindParam(24, $esaccesoriobillar);
+	$stmt->bindParam(25, $existencia);
+	$stmt->bindParam(26, $stockoptimo);
+	$stmt->bindParam(27, $stockmedio);
+	$stmt->bindParam(28, $stockminimo);
+	$stmt->bindParam(29, $ivaproducto);
+	$stmt->bindParam(30, $descproducto);
+	$stmt->bindParam(31, $codigobarra);
+	$stmt->bindParam(32, $fechaelaboracion);
+	$stmt->bindParam(33, $fechaoptimo);
+	$stmt->bindParam(34, $fechamedio);
+	$stmt->bindParam(35, $fechaminimo);
+	$stmt->bindParam(36, $codproveedor);
+	$stmt->bindParam(37, $stockteorico);
+	$stmt->bindParam(38, $motivoajuste);
+	$stmt->bindParam(39, $codsucursal);
 
 	$codproducto = limpiar($row["codproducto"]);
 	$producto = limpiar($row["producto"]);
 	$descripcion = limpiar($row["descripcion"]);
 	$imei = limpiar($row["imei"]);
 	$condicion = limpiar($row["condicion"]);
+	$tipoproducto = limpiar($row["tipoproducto"] == "" ? "PRODUCTO" : $row["tipoproducto"]);
 	$fabricante = limpiar($row["fabricante"]);
-	$codfamilia = limpiar($row["codfamilia"]);
-	$codsubfamilia = limpiar($row["codsubfamilia"]);
-	$codmarca = limpiar($row["codmarca"]);
-	$codmodelo = limpiar($row["codmodelo"]);
-	$codpresentacion = limpiar($row["codpresentacion"]);
-	$codcolor = limpiar($row["codcolor"]);
-	$codorigen = limpiar($row["codorigen"]);
+	$codfamilia = limpiar($cat["codfamilia"]);
+	$codsubfamilia = limpiar($cat["codsubfamilia"]);
+	$codmarca = limpiar($cat["codmarca"]);
+	$codmodelo = limpiar($cat["codmodelo"]);
+	$codpresentacion = limpiar($cat["codpresentacion"]);
+	$codcolor = limpiar($cat["codcolor"]);
+	$codorigen = limpiar($cat["codorigen"]);
 	$year = limpiar($row["year"]);
 	$nroparte = limpiar($row["nroparte"]);
 	$lote = limpiar($row["lote"]);
@@ -37288,6 +37531,8 @@ public function CopiarProductoSucursal()
 	$precioxmayor = limpiar($row["precioxmayor"]);
 	$precioxmenor = limpiar($row["precioxmenor"]);
 	$precioxpublico = limpiar($row["precioxpublico"]);
+	$preciohora = limpiar($row["preciohora"]);
+	$esaccesoriobillar = limpiar($row["esaccesoriobillar"] == "" ? "NO" : $row["esaccesoriobillar"]);
 	$existencia = limpiar("0.00");
 	$stockoptimo = limpiar($row["stockoptimo"]);
 	$stockmedio = limpiar($row["stockmedio"]);
@@ -37299,7 +37544,7 @@ public function CopiarProductoSucursal()
 	$fechaoptimo = limpiar($row["fechaoptimo"]);
 	$fechamedio = limpiar($row["fechamedio"]);
 	$fechaminimo = limpiar($row["fechaminimo"]);
-	$codproveedor = limpiar($row["codproveedor"]);
+	$codproveedor = limpiar($cat["codproveedor"]);
 	$stockteorico = limpiar("0.00");
 	$motivoajuste = limpiar("NINGUNO");
 	$codsucursal = limpiar($codsucursaldestino);
@@ -37358,58 +37603,65 @@ public function CopiarTodosProductosSucursal()
 			continue;
 		}
 
-		$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		############## NORMALIZO CATALOGOS EN DESTINO #################
+		$cat = $this->NormalizarIdsCatalogosProducto($row, $codsucursalorigen, $codsucursaldestino);
+
+		$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 		$stmt2 = $this->dbh->prepare($query);
 		$stmt2->bindParam(1, $codproducto);
 		$stmt2->bindParam(2, $producto);
 		$stmt2->bindParam(3, $descripcion);
 		$stmt2->bindParam(4, $imei);
 		$stmt2->bindParam(5, $condicion);
-		$stmt2->bindParam(6, $fabricante);
-		$stmt2->bindParam(7, $codfamilia);
-		$stmt2->bindParam(8, $codsubfamilia);
-		$stmt2->bindParam(9, $codmarca);
-		$stmt2->bindParam(10, $codmodelo);
-		$stmt2->bindParam(11, $codpresentacion);
-		$stmt2->bindParam(12, $codcolor);
-		$stmt2->bindParam(13, $codorigen);
-		$stmt2->bindParam(14, $year);
-		$stmt2->bindParam(15, $nroparte);
-		$stmt2->bindParam(16, $lote);
-		$stmt2->bindParam(17, $peso);
-		$stmt2->bindParam(18, $preciocompra);
-		$stmt2->bindParam(19, $precioxmayor);
-		$stmt2->bindParam(20, $precioxmenor);
-		$stmt2->bindParam(21, $precioxpublico);
-		$stmt2->bindParam(22, $existencia);
-		$stmt2->bindParam(23, $stockoptimo);
-		$stmt2->bindParam(24, $stockmedio);
-		$stmt2->bindParam(25, $stockminimo);
-		$stmt2->bindParam(26, $ivaproducto);
-		$stmt2->bindParam(27, $descproducto);
-		$stmt2->bindParam(28, $codigobarra);
-		$stmt2->bindParam(29, $fechaelaboracion);
-		$stmt2->bindParam(30, $fechaoptimo);
-		$stmt2->bindParam(31, $fechamedio);
-		$stmt2->bindParam(32, $fechaminimo);
-		$stmt2->bindParam(33, $codproveedor);
-		$stmt2->bindParam(34, $stockteorico);
-		$stmt2->bindParam(35, $motivoajuste);
-		$stmt2->bindParam(36, $codsucursal);
+		$stmt2->bindParam(6, $tipoproducto);
+		$stmt2->bindParam(7, $fabricante);
+		$stmt2->bindParam(8, $codfamilia);
+		$stmt2->bindParam(9, $codsubfamilia);
+		$stmt2->bindParam(10, $codmarca);
+		$stmt2->bindParam(11, $codmodelo);
+		$stmt2->bindParam(12, $codpresentacion);
+		$stmt2->bindParam(13, $codcolor);
+		$stmt2->bindParam(14, $codorigen);
+		$stmt2->bindParam(15, $year);
+		$stmt2->bindParam(16, $nroparte);
+		$stmt2->bindParam(17, $lote);
+		$stmt2->bindParam(18, $peso);
+		$stmt2->bindParam(19, $preciocompra);
+		$stmt2->bindParam(20, $precioxmayor);
+		$stmt2->bindParam(21, $precioxmenor);
+		$stmt2->bindParam(22, $precioxpublico);
+		$stmt2->bindParam(23, $preciohora);
+		$stmt2->bindParam(24, $esaccesoriobillar);
+		$stmt2->bindParam(25, $existencia);
+		$stmt2->bindParam(26, $stockoptimo);
+		$stmt2->bindParam(27, $stockmedio);
+		$stmt2->bindParam(28, $stockminimo);
+		$stmt2->bindParam(29, $ivaproducto);
+		$stmt2->bindParam(30, $descproducto);
+		$stmt2->bindParam(31, $codigobarra);
+		$stmt2->bindParam(32, $fechaelaboracion);
+		$stmt2->bindParam(33, $fechaoptimo);
+		$stmt2->bindParam(34, $fechamedio);
+		$stmt2->bindParam(35, $fechaminimo);
+		$stmt2->bindParam(36, $codproveedor);
+		$stmt2->bindParam(37, $stockteorico);
+		$stmt2->bindParam(38, $motivoajuste);
+		$stmt2->bindParam(39, $codsucursal);
 
 		$codproducto = limpiar($row["codproducto"]);
 		$producto = limpiar($row["producto"]);
 		$descripcion = limpiar($row["descripcion"]);
 		$imei = limpiar($row["imei"]);
 		$condicion = limpiar($row["condicion"]);
+		$tipoproducto = limpiar($row["tipoproducto"] == "" ? "PRODUCTO" : $row["tipoproducto"]);
 		$fabricante = limpiar($row["fabricante"]);
-		$codfamilia = limpiar($row["codfamilia"]);
-		$codsubfamilia = limpiar($row["codsubfamilia"]);
-		$codmarca = limpiar($row["codmarca"]);
-		$codmodelo = limpiar($row["codmodelo"]);
-		$codpresentacion = limpiar($row["codpresentacion"]);
-		$codcolor = limpiar($row["codcolor"]);
-		$codorigen = limpiar($row["codorigen"]);
+		$codfamilia = limpiar($cat["codfamilia"]);
+		$codsubfamilia = limpiar($cat["codsubfamilia"]);
+		$codmarca = limpiar($cat["codmarca"]);
+		$codmodelo = limpiar($cat["codmodelo"]);
+		$codpresentacion = limpiar($cat["codpresentacion"]);
+		$codcolor = limpiar($cat["codcolor"]);
+		$codorigen = limpiar($cat["codorigen"]);
 		$year = limpiar($row["year"]);
 		$nroparte = limpiar($row["nroparte"]);
 		$lote = limpiar($row["lote"]);
@@ -37418,6 +37670,8 @@ public function CopiarTodosProductosSucursal()
 		$precioxmayor = limpiar($row["precioxmayor"]);
 		$precioxmenor = limpiar($row["precioxmenor"]);
 		$precioxpublico = limpiar($row["precioxpublico"]);
+		$preciohora = limpiar($row["preciohora"]);
+		$esaccesoriobillar = limpiar($row["esaccesoriobillar"] == "" ? "NO" : $row["esaccesoriobillar"]);
 		$existencia = limpiar("0.00");
 		$stockoptimo = limpiar($row["stockoptimo"]);
 		$stockmedio = limpiar($row["stockmedio"]);
@@ -37429,7 +37683,7 @@ public function CopiarTodosProductosSucursal()
 		$fechaoptimo = limpiar($row["fechaoptimo"]);
 		$fechamedio = limpiar($row["fechamedio"]);
 		$fechaminimo = limpiar($row["fechaminimo"]);
-		$codproveedor = limpiar($row["codproveedor"]);
+		$codproveedor = limpiar($cat["codproveedor"]);
 		$stockteorico = limpiar("0.00");
 		$motivoajuste = limpiar("NINGUNO");
 		$codsucursal = limpiar($codsucursaldestino);
@@ -37480,6 +37734,7 @@ public function CopiarProductoLote()
 		}
 
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		$codsucursalorigen = $row["codsucursal"];
 
 		if($this->ProductoExisteSucursal($row["codproducto"], $codsucursaldestino))
 		{
@@ -37487,58 +37742,65 @@ public function CopiarProductoLote()
 			continue;
 		}
 
-		$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		############## NORMALIZO CATALOGOS EN DESTINO #################
+		$cat = $this->NormalizarIdsCatalogosProducto($row, $codsucursalorigen, $codsucursaldestino);
+
+		$query = "INSERT INTO productos values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 		$stmt2 = $this->dbh->prepare($query);
 		$stmt2->bindParam(1, $codproducto);
 		$stmt2->bindParam(2, $producto);
 		$stmt2->bindParam(3, $descripcion);
 		$stmt2->bindParam(4, $imei);
 		$stmt2->bindParam(5, $condicion);
-		$stmt2->bindParam(6, $fabricante);
-		$stmt2->bindParam(7, $codfamilia);
-		$stmt2->bindParam(8, $codsubfamilia);
-		$stmt2->bindParam(9, $codmarca);
-		$stmt2->bindParam(10, $codmodelo);
-		$stmt2->bindParam(11, $codpresentacion);
-		$stmt2->bindParam(12, $codcolor);
-		$stmt2->bindParam(13, $codorigen);
-		$stmt2->bindParam(14, $year);
-		$stmt2->bindParam(15, $nroparte);
-		$stmt2->bindParam(16, $lote);
-		$stmt2->bindParam(17, $peso);
-		$stmt2->bindParam(18, $preciocompra);
-		$stmt2->bindParam(19, $precioxmayor);
-		$stmt2->bindParam(20, $precioxmenor);
-		$stmt2->bindParam(21, $precioxpublico);
-		$stmt2->bindParam(22, $existencia);
-		$stmt2->bindParam(23, $stockoptimo);
-		$stmt2->bindParam(24, $stockmedio);
-		$stmt2->bindParam(25, $stockminimo);
-		$stmt2->bindParam(26, $ivaproducto);
-		$stmt2->bindParam(27, $descproducto);
-		$stmt2->bindParam(28, $codigobarra);
-		$stmt2->bindParam(29, $fechaelaboracion);
-		$stmt2->bindParam(30, $fechaoptimo);
-		$stmt2->bindParam(31, $fechamedio);
-		$stmt2->bindParam(32, $fechaminimo);
-		$stmt2->bindParam(33, $codproveedor);
-		$stmt2->bindParam(34, $stockteorico);
-		$stmt2->bindParam(35, $motivoajuste);
-		$stmt2->bindParam(36, $codsucursal);
+		$stmt2->bindParam(6, $tipoproducto);
+		$stmt2->bindParam(7, $fabricante);
+		$stmt2->bindParam(8, $codfamilia);
+		$stmt2->bindParam(9, $codsubfamilia);
+		$stmt2->bindParam(10, $codmarca);
+		$stmt2->bindParam(11, $codmodelo);
+		$stmt2->bindParam(12, $codpresentacion);
+		$stmt2->bindParam(13, $codcolor);
+		$stmt2->bindParam(14, $codorigen);
+		$stmt2->bindParam(15, $year);
+		$stmt2->bindParam(16, $nroparte);
+		$stmt2->bindParam(17, $lote);
+		$stmt2->bindParam(18, $peso);
+		$stmt2->bindParam(19, $preciocompra);
+		$stmt2->bindParam(20, $precioxmayor);
+		$stmt2->bindParam(21, $precioxmenor);
+		$stmt2->bindParam(22, $precioxpublico);
+		$stmt2->bindParam(23, $preciohora);
+		$stmt2->bindParam(24, $esaccesoriobillar);
+		$stmt2->bindParam(25, $existencia);
+		$stmt2->bindParam(26, $stockoptimo);
+		$stmt2->bindParam(27, $stockmedio);
+		$stmt2->bindParam(28, $stockminimo);
+		$stmt2->bindParam(29, $ivaproducto);
+		$stmt2->bindParam(30, $descproducto);
+		$stmt2->bindParam(31, $codigobarra);
+		$stmt2->bindParam(32, $fechaelaboracion);
+		$stmt2->bindParam(33, $fechaoptimo);
+		$stmt2->bindParam(34, $fechamedio);
+		$stmt2->bindParam(35, $fechaminimo);
+		$stmt2->bindParam(36, $codproveedor);
+		$stmt2->bindParam(37, $stockteorico);
+		$stmt2->bindParam(38, $motivoajuste);
+		$stmt2->bindParam(39, $codsucursal);
 
 		$codproducto = limpiar($row["codproducto"]);
 		$producto = limpiar($row["producto"]);
 		$descripcion = limpiar($row["descripcion"]);
 		$imei = limpiar($row["imei"]);
 		$condicion = limpiar($row["condicion"]);
+		$tipoproducto = limpiar($row["tipoproducto"] == "" ? "PRODUCTO" : $row["tipoproducto"]);
 		$fabricante = limpiar($row["fabricante"]);
-		$codfamilia = limpiar($row["codfamilia"]);
-		$codsubfamilia = limpiar($row["codsubfamilia"]);
-		$codmarca = limpiar($row["codmarca"]);
-		$codmodelo = limpiar($row["codmodelo"]);
-		$codpresentacion = limpiar($row["codpresentacion"]);
-		$codcolor = limpiar($row["codcolor"]);
-		$codorigen = limpiar($row["codorigen"]);
+		$codfamilia = limpiar($cat["codfamilia"]);
+		$codsubfamilia = limpiar($cat["codsubfamilia"]);
+		$codmarca = limpiar($cat["codmarca"]);
+		$codmodelo = limpiar($cat["codmodelo"]);
+		$codpresentacion = limpiar($cat["codpresentacion"]);
+		$codcolor = limpiar($cat["codcolor"]);
+		$codorigen = limpiar($cat["codorigen"]);
 		$year = limpiar($row["year"]);
 		$nroparte = limpiar($row["nroparte"]);
 		$lote = limpiar($row["lote"]);
@@ -37547,6 +37809,8 @@ public function CopiarProductoLote()
 		$precioxmayor = limpiar($row["precioxmayor"]);
 		$precioxmenor = limpiar($row["precioxmenor"]);
 		$precioxpublico = limpiar($row["precioxpublico"]);
+		$preciohora = limpiar($row["preciohora"]);
+		$esaccesoriobillar = limpiar($row["esaccesoriobillar"] == "" ? "NO" : $row["esaccesoriobillar"]);
 		$existencia = limpiar("0.00");
 		$stockoptimo = limpiar($row["stockoptimo"]);
 		$stockmedio = limpiar($row["stockmedio"]);
@@ -37558,7 +37822,7 @@ public function CopiarProductoLote()
 		$fechaoptimo = limpiar($row["fechaoptimo"]);
 		$fechamedio = limpiar($row["fechamedio"]);
 		$fechaminimo = limpiar($row["fechaminimo"]);
-		$codproveedor = limpiar($row["codproveedor"]);
+		$codproveedor = limpiar($cat["codproveedor"]);
 		$stockteorico = limpiar("0.00");
 		$motivoajuste = limpiar("NINGUNO");
 		$codsucursal = limpiar($codsucursaldestino);
@@ -37586,7 +37850,8 @@ public function CrearTablaMigraciones()
 		) ENGINE=InnoDB DEFAULT CHARSET=utf8";
 		$this->dbh->exec($sql);
 	} catch (PDOException $e) {
-		// La tabla ya puede existir
+		// La tabla ya puede existir; no detener la ejecución
+		error_log("Error creando tabla migraciones_ejecutadas: " . $e->getMessage());
 	}
 }
 
@@ -37609,14 +37874,21 @@ public function ListarMigracionesPendientes()
 	}
 	sort($archivos);
 
-	$sql = "SELECT archivo, fecha FROM migraciones_ejecutadas";
 	$ejecutadas = array();
-	foreach ($this->dbh->query($sql) as $row) {
-		$ejecutadas[$row['archivo']] = $row['fecha'];
+	try {
+		$sql = "SELECT archivo, fecha FROM migraciones_ejecutadas";
+		foreach ($this->dbh->query($sql) as $row) {
+			$ejecutadas[$row['archivo']] = $row['fecha'];
+		}
+	} catch (PDOException $e) {
+		// Si la consulta falla, asumimos que no hay migraciones ejecutadas
+		$ejecutadas = array();
+		error_log("Error listando migraciones ejecutadas: " . $e->getMessage());
 	}
 
 	$resultado = array();
 	foreach ($archivos as $archivo) {
+		$archivo = limpiar($archivo);
 		$resultado[] = array(
 			"archivo" => $archivo,
 			"ejecutada" => isset($ejecutadas[$archivo]) ? 1 : 0,
@@ -37626,10 +37898,65 @@ public function ListarMigracionesPendientes()
 	return $resultado;
 }
 
+public function DividirSqlMigracion($sql)
+{
+	// Eliminar comentarios de bloque /* ... */
+	$sql = preg_replace('!/\*.*?\*/!s', '', $sql);
+
+	$lineas = explode("\n", $sql);
+	$sentencias = array();
+	$actual = "";
+
+	foreach ($lineas as $linea) {
+		$linea = trim($linea);
+		if ($linea == "" || strpos($linea, "--") === 0) {
+			continue;
+		}
+		$actual .= " " . $linea;
+		if (substr($linea, -1) == ";") {
+			$actual = trim($actual);
+			if ($actual != "") {
+				$sentencias[] = $actual;
+			}
+			$actual = "";
+		}
+	}
+
+	$actual = trim($actual);
+	if ($actual != "") {
+		$sentencias[] = $actual;
+	}
+
+	return $sentencias;
+}
+
+public function EsErrorMigracionIgnorable($e)
+{
+	$codigo = $e->getCode();
+	$mensaje = strtolower($e->getMessage());
+
+	$codigosIgnorables = array('42S01', '42S21', '23000');
+	if (in_array($codigo, $codigosIgnorables)) {
+		return true;
+	}
+
+	$textos = array('already exists', 'duplicate column name', 'duplicate key', 'duplicate entry');
+	foreach ($textos as $texto) {
+		if (strpos($mensaje, $texto) !== false) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 public function EjecutarMigracionesPendientes()
 {
 	self::SetNames();
 	$this->CrearTablaMigraciones();
+
+	// Asegurar tiempo suficiente para migraciones pesadas en producción
+	set_time_limit(0);
 
 	$migraciones = $this->ListarMigracionesPendientes();
 	$pendientes = array();
@@ -37648,6 +37975,13 @@ public function EjecutarMigracionesPendientes()
 	$exitos = array();
 
 	foreach ($pendientes as $archivo) {
+		$archivo = limpiar(basename($archivo));
+
+		if (!preg_match('/^[a-zA-Z0-9_\-]+\.sql$/', $archivo)) {
+			$errores[] = "Nombre de archivo no válido: " . $archivo;
+			continue;
+		}
+
 		$ruta = "migrations/" . $archivo;
 		if (!file_exists($ruta)) {
 			$errores[] = "No se encontró el archivo: " . $archivo;
@@ -37660,17 +37994,30 @@ public function EjecutarMigracionesPendientes()
 			continue;
 		}
 
-		try {
-			// Las sentencias DDL (ALTER, CREATE) provocan commit implícito en MySQL,
-			// por lo que no se utiliza transacción explícita para las migraciones.
-			$this->dbh->exec($sql);
+		$sentencias = $this->DividirSqlMigracion($sql);
+		$errorArchivo = false;
 
-			$stmt = $this->dbh->prepare("INSERT INTO migraciones_ejecutadas (archivo, fecha) VALUES (?, ?)");
-			$stmt->execute(array($archivo, date("Y-m-d H:i:s")));
+		foreach ($sentencias as $sentencia) {
+			try {
+				$this->dbh->exec($sentencia);
+			} catch (PDOException $e) {
+				if ($this->EsErrorMigracionIgnorable($e)) {
+					continue;
+				}
+				$errores[] = $archivo . ": " . $e->getMessage();
+				$errorArchivo = true;
+				break;
+			}
+		}
 
-			$exitos[] = $archivo;
-		} catch (PDOException $e) {
-			$errores[] = $archivo . ": " . $e->getMessage();
+		if (!$errorArchivo) {
+			try {
+				$stmt = $this->dbh->prepare("INSERT INTO migraciones_ejecutadas (archivo, fecha) VALUES (?, ?)");
+				$stmt->execute(array($archivo, date("Y-m-d H:i:s")));
+				$exitos[] = $archivo;
+			} catch (PDOException $e) {
+				$errores[] = $archivo . " (registro): " . $e->getMessage();
+			}
 		}
 	}
 

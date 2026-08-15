@@ -290,7 +290,7 @@ $familia = $familia->ListarFamilias();
             ?>
 
             <article class="product p-w-t animated fadeIn" OnClick="
-            $('#idproducto').val('<?php echo encrypt($producto[$ii]['idproducto']); ?>');
+            $('#idproducto').val('<?php echo $producto[$ii]['idproducto']; ?>');
             $('#codproducto').val('<?php echo $producto[$ii]['codproducto']; ?>');
             $('#producto').val('<?php echo str_replace($stringReplace, '', $producto[$ii]['producto']); ?>');
             $('#descripcion').val('<?php echo str_replace($stringReplace, '', $producto[$ii]['descripcion'] == '' ? '0' : $producto[$ii]['descripcion']); ?>');

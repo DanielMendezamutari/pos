@@ -1,12 +1,12 @@
 <?php
 require_once("class/class.php");
 if(isset($_SESSION['acceso'])) {
-if ($_SESSION['acceso'] == "administradorG") {
+if ($_SESSION['acceso'] == "administradorG" || $_SESSION['acceso'] == "administradorS") {
 
 $tra = new Login();
 $ses = $tra->ExpiraSession();
 
-if(isset($_POST["proceso"]) and $_POST["proceso"]=="ejecutar")
+if(isset($_POST["proceso"]) and limpiar($_POST["proceso"])=="ejecutar")
 {
    $reg = $tra->EjecutarMigracionesPendientes();
    exit;
@@ -42,7 +42,7 @@ $migraciones = $tra->ListarMigracionesPendientes();
 
 </head>
 
-<body onLoad="muestraReloj()" class="fix-header">
+<body onLoad="muestraReloj(); getTime();" class="fix-header">
 
     <div class="preloader">
         <svg class="circular" viewBox="25 25 50 50">
@@ -142,18 +142,21 @@ $migraciones = $tra->ListarMigracionesPendientes();
     </div>
 
     <script src="assets/script/jquery.min.js"></script>
-    <script src="assets/plugins/popper/popper.min.js"></script>
-    <script src="assets/js/bootstrap.min.js"></script>
-    <script src="assets/js/perfect-scrollbar.jquery.min.js"></script>
+    <script src="assets/js/bootstrap.js"></script>
+    <script src="assets/js/app.min.js"></script>
+    <script src="assets/js/app.init.horizontal-fullwidth.js"></script>
+    <script src="assets/js/app-style-switcher.js"></script>
+    <script src="assets/js/perfect-scrollbar.js"></script>
+    <script src="assets/js/sparkline.js"></script>
     <script src="assets/js/waves.js"></script>
+    <script src="assets/js/sweetalert-dev.js"></script>
     <script src="assets/js/sidebarmenu.js"></script>
-    <script src="assets/js/custom.min.js"></script>
-    <script src="assets/plugins/datatables/jquery.dataTables.min.js"></script>
-    <script src="assets/plugins/datatables/dataTables.bootstrap4.js"></script>
-    <script src="assets/js/alert.js"></script>
-    <script src="assets/js/noty.js"></script>
-    <script src="assets/js/funciones_basicas.js"></script>
-    <script src="assets/script/script2.js"></script>
+    <script src="assets/js/custom.js"></script>
+    <script type="text/javascript" src="assets/script/titulos.js"></script>
+    <script type="text/javascript" src="assets/script/script2.js"></script>
+    <script type="text/javascript" src="assets/script/validation.min.js"></script>
+    <script type="text/javascript" src="assets/script/script.js"></script>
+    <script src="assets/plugins/noty/packaged/jquery.noty.packaged.min.js"></script>
 
 </body>
 </html>

@@ -15543,7 +15543,10 @@ function TicketCierre()
 
     // Productos vendidos durante esta sesión de caja
     $productos = (new Login)->ProductosVendidosxArqueo();
-    if(!empty($productos)) {
+    $productosNormales = array_filter($productos, function($p) { return ($p['tipoproducto'] ?? 'PRODUCTO') != 'SERVICIO'; });
+    $productosServicios = array_filter($productos, function($p) { return ($p['tipoproducto'] ?? 'PRODUCTO') == 'SERVICIO'; });
+
+    if(!empty($productosNormales)) {
         $this->SetFont('Courier','B',12);
         $this->SetX(2);
         $this->Cell(70,3,'---------------------------',0,0,'C');
@@ -15556,7 +15559,7 @@ function TicketCierre()
 
         $totalUnidades = 0;
         $totalSubtotal = 0;
-        foreach($productos as $p):
+        foreach($productosNormales as $p):
             $totalUnidades += $p['cantidad'];
             $totalSubtotal += $p['subtotal'];
             $simb = ($p['simbolo'] != '' ? $p['simbolo'] : '');
@@ -15582,6 +15585,40 @@ function TicketCierre()
         $this->SetFont('Courier','B',9);
         $this->CellFitSpace(44,4,"SUBTOTAL (= TOTAL VENTAS):",0,0,'L');
         $this->CellFitSpace(26,4,$simb.number_format($totalSubtotal,2,'.',','),0,1,'R');
+    }
+
+    if(!empty($productosServicios)) {
+        $this->SetFont('Courier','B',12);
+        $this->SetX(2);
+        $this->Cell(70,3,'---------------------------',0,0,'C');
+        $this->Ln(3);
+
+        $this->SetX(2);
+        $this->SetFont('Courier','B',11);
+        $this->CellFitSpace(70,4,"VENTA DE SERVICIOS",0,1,'C');
+        $this->Ln(1);
+
+        $totalServicios = 0;
+        foreach($productosServicios as $p):
+            $totalServicios += $p['subtotal'];
+            $simb = ($p['simbolo'] != '' ? $p['simbolo'] : '');
+            $nombre = iconv('UTF-8','ISO-8859-1//TRANSLIT//IGNORE', $p['producto'].($p['descripcion'] != '' ? ' '.$p['descripcion'] : ''));
+
+            $this->SetX(2);
+            $this->SetFont('Courier','B',8);
+            $this->CellFitSpace(44,4,$nombre,0,0,'L');
+            $this->CellFitSpace(13,4,'x'.number_format($p['cantidad'],2,'.',','),0,0,'R');
+            $this->CellFitSpace(13,4,$simb.number_format($p['subtotal'],2,'.',','),0,1,'R');
+        endforeach;
+
+        $this->SetFont('Courier','B',12);
+        $this->SetX(2);
+        $this->Cell(70,1,'---------------------------',0,1,'C');
+
+        $this->SetX(2);
+        $this->SetFont('Courier','B',9);
+        $this->CellFitSpace(44,4,"TOTAL SERVICIOS:",0,0,'L');
+        $this->CellFitSpace(26,4,$simb.number_format($totalServicios,2,'.',','),0,1,'R');
     }
 
     // Ventas por familia
