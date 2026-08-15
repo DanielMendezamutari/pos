@@ -2899,12 +2899,13 @@ $yaexiste = $pro->ProductoExisteSucursal($reg[$i]['codproducto'], $codsucursalde
 ############################# OBTENER PRODUCTOS PARA COPIAR ############################
 if (isset($_GET['ObtenerProductosCopiar']) && isset($_GET['codsucursalorigen']) && isset($_GET['codsucursaldestino'])) {
 
+@ob_clean();
+@header('Content-Type: application/json');
+
 if ($_SESSION['acceso'] != "administradorG") {
   echo json_encode(["status" => "error", "message" => "NO TIENE PERMISOS"]);
   exit;
 }
-
-header('Content-Type: application/json');
 
 $codsucursalorigen = limpiar(decrypt($_GET['codsucursalorigen']));
 $codsucursaldestino = limpiar(decrypt($_GET['codsucursaldestino']));
