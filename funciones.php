@@ -12099,8 +12099,8 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 						</div>
 						<div class="col-md-3 col-sm-6 mb-2">
 							<div class="p-3 bg-light border rounded text-center">
-								<small class="text-muted text-uppercase font-weight-bold d-block">Valor Faltante ($)</small>
-								<span class="h4 font-weight-bold text-danger" id="lbl_monto_faltante">$ 0.00</span>
+								<small class="text-muted text-uppercase font-weight-bold d-block">Valor Faltante (Bs.)</small>
+								<span class="h4 font-weight-bold text-danger" id="lbl_monto_faltante">Bs. 0.00</span>
 							</div>
 						</div>
 					</div>
@@ -12130,7 +12130,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 							<p class="mb-0 text-dark">
 								Se detectaron <strong><?php echo $descuadres_inicio; ?> producto(s)</strong> donde el conteo físico declarado por la cajera <strong>NO COINCIDE</strong> con el stock del sistema.
 								<?php if ($monto_descuadre_inicio > 0) { ?>
-								<strong class="text-danger">(Faltante al Abrir: $ <?php echo number_format($monto_descuadre_inicio, 2, '.', ','); ?>)</strong>
+								<strong class="text-danger">(Faltante al Abrir: Bs. <?php echo number_format($monto_descuadre_inicio, 2, '.', ','); ?>)</strong>
 								<?php } ?>
 							</p>
 						</div>
@@ -12159,7 +12159,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 									<th style="min-width: 95px;">Físico Final ✍️</th>
 									<th style="min-width: 85px;">Diferencia</th>
 									<th style="min-width: 85px;">Precio Venta</th>
-									<th style="min-width: 90px;">Valor Dif. ($)</th>
+									<th style="min-width: 90px;">Valor Dif. (Bs.)</th>
 									<th style="min-width: 160px; background-color: #343a40; color: #ffc107;">Gestión de Faltante ⚖️</th>
 								</tr>
 							</thead>
@@ -12238,10 +12238,10 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 										<input type="hidden" name="diferencia[]" id="diferencia_<?php echo $i; ?>" value="0">
 										<span class="badge badge-success p-2 font-13 badge-dif" id="badge_diferencia_<?php echo $i; ?>">0.00</span>
 									</td>
-									<td class="text-center align-middle font-weight-bold">$ <?php echo number_format($precioventa, 2, '.', ','); ?></td>
+									<td class="text-center align-middle font-weight-bold">Bs. <?php echo number_format($precioventa, 2, '.', ','); ?></td>
 									<td class="text-center align-middle">
 										<input type="hidden" name="valordiferencia[]" id="valordiferencia_<?php echo $i; ?>" value="0">
-										<span class="font-weight-bold span-valor-dif" id="span_valor_<?php echo $i; ?>">$ 0.00</span>
+										<span class="font-weight-bold span-valor-dif" id="span_valor_<?php echo $i; ?>">Bs. 0.00</span>
 									</td>
 									<td class="align-middle p-1" id="col_gestion_<?php echo $i; ?>" style="background-color: #fafbfc;">
 										<div class="gestion-faltante-box" id="box_gestion_<?php echo $i; ?>" style="display: none;">
