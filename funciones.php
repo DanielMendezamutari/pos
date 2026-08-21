@@ -12436,12 +12436,36 @@ if (isset($_GET['BuscaHistorialAuditorias']) && isset($_GET['codsucursal']) && i
 
 ########################## MODAL Y PROCESO CONTEO INICIAL CAJERO (CONTEO A CIEGAS) ##########################
 if (isset($_GET['CargaModalConteoInicial'])) {
-	$codsucursal = isset($_SESSION['codsucursal']) ? (int)$_SESSION['codsucursal'] : 0;
-	$idconteo = !empty($_GET['idconteo']) ? (int)$_GET['idconteo'] : 0;
-
 	$login = new Login();
+	$codsucursal = isset($_SESSION['codsucursal']) ? (int)$_SESSION['codsucursal'] : 0;
+	if (!empty($_GET['codsucursal'])) {
+		$decSuc = decrypt($_GET['codsucursal']);
+		if (is_numeric($decSuc) && $decSuc > 0) {
+			$codsucursal = (int)$decSuc;
+		} else if (is_numeric($_GET['codsucursal'])) {
+			$codsucursal = (int)$_GET['codsucursal'];
+		}
+	}
 
-	// Si ya está registrado, mostramos el resumen y botón para ver/imprimir PDF
+	$idconteo = 0;
+	if (!empty($_GET['idconteo'])) {
+		$dec = decrypt($_GET['idconteo']);
+		if (is_numeric($dec) && $dec > 0) {
+			$idconteo = (int)$dec;
+		} else if (is_numeric($_GET['idconteo']) && (int)$_GET['idconteo'] > 0) {
+			$idconteo = (int)$_GET['idconteo'];
+		}
+	}
+
+	// Si no vino idconteo pero tenemos codsucursal, verificamos si ya contó hoy
+	if ($idconteo == 0 && $codsucursal > 0) {
+		$conteoHoy = $login->VerificarConteoInicialHoy($codsucursal);
+		if ($conteoHoy && !empty($conteoHoy['idconteo'])) {
+			$idconteo = (int)$conteoHoy['idconteo'];
+		}
+	}
+
+	// Si ya está registrado, mostramos el resumen y botón para ver/imprimir PDF / editar
 	if ($idconteo > 0) {
 		$data = $login->BuscarConteoInicialPorId($idconteo);
 		if ($data && !empty($data['cabecera'])) {

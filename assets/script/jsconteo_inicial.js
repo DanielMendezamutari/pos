@@ -1,11 +1,12 @@
 // JavaScript para Gestión del Inventario Inicial Diario de Cajeros (2:00 PM)
 
-function AbrirModalConteoInicial(idconteo) {
+function AbrirModalConteoInicial(idconteo, codsucursal) {
     idconteo = idconteo || "";
+    codsucursal = codsucursal || ($("#codsucursal").length > 0 ? $("#codsucursal").val() : "") || "";
     $("#contenido_modal_conteo").html('<div class="text-center p-5"><i class="fa fa-spinner fa-spin fa-3x text-warning"></i><p class="mt-2 font-weight-bold">Cargando inventario inicial...</p></div>');
     $("#myModalConteoInicial").modal("show");
 
-    var url = "funciones.php?CargaModalConteoInicial=si" + (idconteo !== "" ? "&idconteo=" + idconteo : "");
+    var url = "funciones.php?CargaModalConteoInicial=si" + (idconteo !== "" ? "&idconteo=" + encodeURIComponent(idconteo) : "") + (codsucursal !== "" ? "&codsucursal=" + encodeURIComponent(codsucursal) : "");
     $.get(url, function (data) {
         $("#contenido_modal_conteo").html(data);
         setTimeout(function() {
