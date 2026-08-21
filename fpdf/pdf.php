@@ -23403,6 +23403,164 @@ public function TablaConteoInicialProductos()
 }
 ########################## FIN FUNCION COMPROBANTE DE INVENTARIO INICIAL ####################
 
+########################## FUNCION INFORME DE DISCREPANCIAS DE INVENTARIO INICIAL (DUEÑO/GERENCIA) ##############################
+public function TablaAuditoriaAperturaDiscrepancias()
+{
+    $idconteo = isset($_GET['idconteo']) ? (int)decrypt($_GET['idconteo']) : 0;
+    if (empty($idconteo)) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ EL FOLIO DE CONTEO"),0,1,'C');
+        return;
+    }
+
+    $login = new Login();
+    $data = $login->BuscarConteoInicialPorId($idconteo);
+
+    if (!$data || empty($data['cabecera'])) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("CONTEO INICIAL NO ENCONTRADO"),0,1,'C');
+        return;
+    }
+
+    $cab = $data['cabecera'];
+    $detalles = $data['detalles'];
+
+    $simbolo = !empty($cab['simbolo_moneda']) ? $cab['simbolo_moneda'] : "$";
+
+    // Encabezado
+    $logo = ( file_exists("./fotos/logo_pdf.png") == "" ? "./assets/images/null.png" : "./fotos/logo_pdf.png");
+    $this->Ln(1);
+    $this->SetFont('Courier','B',12);
+    $this->SetTextColor(3,3,3);
+    $this->Cell(35,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 26),0,0,'C');
+    $this->Cell(240,5,_u8d($cab['nomsucursal']),0,0,'C');
+    $this->Ln(6);
+    $this->SetFont('Courier','B',11);
+    $this->SetTextColor(180,0,0);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(240,5,_u8d("ACTA DE AUDITORÍA: INFORME DE DISCREPANCIAS EN APERTURA DE TURNO"),0,0,'C');
+    $this->Ln(4);
+    $this->SetFont('Courier','I',8);
+    $this->SetTextColor(50,50,50);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(240,5,_u8d("Comparativa Oficial: Conteo Físico Inicial de Cajera (2:00 PM) vs Stock en Sistema"),0,0,'C');
+    $this->Ln(6);
+
+    $this->SetFont('Courier','',8);
+    $this->SetTextColor(0,0,0);
+    $this->Cell(150,4,_u8d("SUCURSAL: ".$cab['cuitsucursal']." - ".$cab['nomsucursal']),0,0,'L');
+    $this->Cell(125,4,_u8d("FOLIO CONTEO Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)),0,1,'R');
+
+    $this->Cell(150,4,_u8d("CAJERO/A QUE REALIZÓ EL CONTEO: ".($cab['nomusuario'] ?? 'Cajero')),0,0,'L');
+    $this->Cell(125,4,_u8d("FECHA Y HORA DECLARADA: ".date("d/m/Y h:i A", strtotime($cab['fechaconteo']))),0,1,'R');
+
+    $this->Cell(150,4,_u8d("AUDITOR / RESPONSABLE DE REVISIÓN: ".($_SESSION['nombres'] ?? 'Administrador General')),0,0,'L');
+    $this->Cell(125,4,_u8d("FECHA DE AUDITORÍA: ".date("d/m/Y h:i A")),0,1,'R');
+    $this->Ln(3);
+
+    // Definición de Anchos de Columna (Total = 276mm)
+    $this->SetWidths(array(8, 22, 75, 27, 27, 25, 25, 35, 32));
+    $this->SetAligns(array('C', 'C', 'L', 'C', 'C', 'C', 'R', 'R', 'C'));
+
+    // Cabecera de la Tabla
+    $this->SetFont('Courier','B',8);
+    $this->SetFillColor(220, 53, 69);
+    $this->SetTextColor(255, 255, 255);
+    $this->Row(array(
+        "#",
+        _u8d("CÓDIGO"),
+        _u8d("DESCRIPCIÓN PRODUCTO"),
+        _u8d("STOCK SISTEMA"),
+        _u8d("FÍSICO CAJERA"),
+        _u8d("DIFERENCIA"),
+        _u8d("P. VENTA"),
+        _u8d("MONTO DESCUADRE"),
+        _u8d("DIAGNÓSTICO")
+    ));
+
+    $this->SetFont('Courier','',7);
+    $this->SetTextColor(0, 0, 0);
+
+    $n = 1;
+    $total_items_auditados = count($detalles);
+    $total_con_faltante = 0;
+    $total_unidades_faltantes = 0;
+    $total_unidades_sobrantes = 0;
+    $monto_total_faltante = 0;
+
+    foreach ($detalles as $d) {
+        $stock_sis = (float)($d['stock_sistema'] ?? 0);
+        $fisico_caj = (float)$d['cantidad_fisica'];
+        $dif = $fisico_caj - $stock_sis;
+        $pv = (float)($d['precioventa'] ?? 0);
+        $monto_dif = $dif * $pv;
+
+        $txtDif = number_format($dif, 0);
+        $txtMonto = $simbolo." ".number_format(abs($monto_dif), 2);
+        $txtDiagnostico = _u8d("CUADRA");
+
+        if ($dif < 0) {
+            $total_con_faltante++;
+            $total_unidades_faltantes += abs($dif);
+            $monto_total_faltante += abs($monto_dif);
+            $txtDif = "-".number_format(abs($dif), 0);
+            $txtMonto = "-".$simbolo." ".number_format(abs($monto_dif), 2);
+            $txtDiagnostico = _u8d("FALTANTE");
+        } elseif ($dif > 0) {
+            $total_unidades_sobrantes += $dif;
+            $txtDif = "+".number_format($dif, 0);
+            $txtMonto = "+".$simbolo." ".number_format($monto_dif, 2);
+            $txtDiagnostico = _u8d("SOBRANTE");
+        }
+
+        $this->Row(array(
+            $n++,
+            _u8d($d['codproducto']),
+            _u8d($d['producto']),
+            number_format($stock_sis, 0),
+            number_format($fisico_caj, 0),
+            $txtDif,
+            $simbolo." ".number_format($pv, 2),
+            $txtMonto,
+            $txtDiagnostico
+        ));
+    }
+
+    $this->Ln(3);
+
+    // Cuadro de Resumen para el Dueño
+    $this->SetFillColor(245, 245, 245);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(65,5,_u8d("TOTAL PRODUCTOS: ").$total_items_auditados,1,0,'C',true);
+    $this->Cell(65,5,_u8d("PROD. CON FALTANTE: ").$total_con_faltante,1,0,'C',true);
+    $this->Cell(65,5,_u8d("UNIDADES FALTANTES: -").number_format($total_unidades_faltantes, 0),1,0,'C',true);
+    $this->SetFillColor(255, 230, 230);
+    $this->SetTextColor(180, 0, 0);
+    $this->Cell(81,5,_u8d("PÉRDIDA / DESCUADRE APERTURA: ").$simbolo." ".number_format($monto_total_faltante, 2),1,1,'C',true);
+    $this->SetTextColor(0,0,0);
+
+    if (!empty($cab['observaciones'])) {
+        $this->Ln(2);
+        $this->SetFont('Courier','I',8);
+        $this->MultiCell(0,4,_u8d("OBSERVACIONES / JUSTIFICACIÓN DE APERTURA: ".$cab['observaciones']),0,'L');
+    }
+
+    // Bloque de 3 Firmas de Conformidad y Descargo
+    $this->Ln(12);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(90,4,'__________________________________________',0,0,'C');
+    $this->Cell(96,4,'__________________________________________',0,0,'C');
+    $this->Cell(90,4,'__________________________________________',0,1,'C');
+
+    $this->Cell(90,4,_u8d("ADMINISTRADOR / AUDITOR"),0,0,'C');
+    $this->Cell(96,4,_u8d("CAJERO/A QUE DECLARÓ EL CONTEO"),0,0,'C');
+    $this->Cell(90,4,_u8d("PROPIETARIO / GERENCIA GENERAL"),0,1,'C');
+    $this->Ln(2);
+    $this->SetFont('Courier','I',7);
+    $this->Cell(0,4,_u8d("Documento probatorio para control interno, deducciones, aclaración de inventario inicial y notificación a gerencia."),0,1,'C');
+}
+########################## FIN FUNCION INFORME DE DISCREPANCIAS DE INVENTARIO INICIAL ##############################
+
  // FIN Class PDF
 }
 ?>

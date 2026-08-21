@@ -12119,16 +12119,28 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 							}
 						}
 					}
+					$verif_conteo_apertura = $auditoria->VerificarConteoInicialHoy($codsucursal, substr($fechadesde, 0, 10));
 					if ($descuadres_inicio > 0) {
 					?>
-					<div class="alert alert-warning border-warning d-flex align-items-center justify-content-between flex-wrap p-2 px-3 mb-3 shadow-sm">
+					<div class="alert alert-danger border-danger d-flex align-items-center justify-content-between flex-wrap p-3 mb-3 shadow-sm">
 						<div>
-							<i class="fa fa-exclamation-triangle text-danger font-16 mr-1"></i>
-							<strong class="text-dark">Control de Apertura (2:00 PM):</strong> Se detectaron <strong class="text-danger"><?php echo $descuadres_inicio; ?> producto(s)</strong> donde el conteo físico de la cajera al abrir no coincidió con el stock del sistema.
+							<h5 class="alert-heading font-weight-bold text-danger mb-1">
+								<i class="fa fa-exclamation-triangle"></i> ¡ALERTA DE DESCUADRE EN APERTURA DE TURNO (2:00 PM)!
+							</h5>
+							<p class="mb-0 text-dark">
+								Se detectaron <strong><?php echo $descuadres_inicio; ?> producto(s)</strong> donde el conteo físico declarado por la cajera <strong>NO COINCIDE</strong> con el stock del sistema.
+								<?php if ($monto_descuadre_inicio > 0) { ?>
+								<strong class="text-danger">(Faltante al Abrir: $ <?php echo number_format($monto_descuadre_inicio, 2, '.', ','); ?>)</strong>
+								<?php } ?>
+							</p>
 						</div>
-						<?php if ($monto_descuadre_inicio > 0) { ?>
-						<span class="badge badge-danger p-2 font-12 font-weight-bold">Faltante al Abrir: $ <?php echo number_format($monto_descuadre_inicio, 2, '.', ','); ?></span>
-						<?php } ?>
+						<div class="mt-2 mt-md-0">
+							<?php if ($verif_conteo_apertura && !empty($verif_conteo_apertura['idconteo'])) { ?>
+							<a href="reportepdf?idconteo=<?php echo encrypt($verif_conteo_apertura['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow">
+								<i class="fa fa-file-pdf-o"></i> 📄 Exportar Acta para el Dueño (PDF)
+							</a>
+							<?php } ?>
+						</div>
 					</div>
 					<?php } ?>
 
@@ -12415,16 +12427,23 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 			<p class="mb-0">Registrado por <strong><?php echo htmlspecialchars($cab['nomusuario'] ?? $_SESSION['nombres']); ?></strong> el <strong><?php echo date("d/m/Y h:i A", strtotime($cab['fechaconteo'])); ?></strong>.</p>
 		</div>
 
-		<div class="d-flex justify-content-between align-items-center mb-2">
-			<span class="font-weight-bold text-dark"><i class="fa fa-cubes"></i> Total Ítems Contados: <?php echo count($det); ?></span>
-			<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow-sm">
-				<i class="fa fa-file-pdf-o"></i> Descargar Comprobante PDF (WhatsApp)
-			</a>
-		</div>
-
 		<?php
 		$isAdmin = (isset($_SESSION['acceso']) && ($_SESSION['acceso'] == "administradorG" || $_SESSION['acceso'] == "administradorS"));
 		?>
+		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
+			<span class="font-weight-bold text-dark"><i class="fa fa-cubes"></i> Total Ítems Contados: <?php echo count($det); ?></span>
+			<div class="mt-1 mt-md-0">
+				<?php if ($isAdmin) { ?>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark shadow-sm mr-1">
+					<i class="fa fa-file-pdf-o text-danger"></i> 📄 Exportar Acta para el Dueño (PDF)
+				</a>
+				<?php } ?>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow-sm">
+					<i class="fa fa-print"></i> Comprobante Físico (WhatsApp)
+				</a>
+			</div>
+		</div>
+
 		<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
 			<table class="table table-striped table-bordered table-sm mb-0">
 				<thead class="bg-warning text-dark font-weight-bold text-center">
@@ -12490,11 +12509,18 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		</div>
 		<?php } ?>
 
-		<div class="modal-footer px-0 pb-0 mt-3">
+		<div class="modal-footer px-0 pb-0 mt-3 d-flex justify-content-between flex-wrap">
 			<button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> Cerrar</button>
-			<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold">
-				<i class="fa fa-print"></i> Imprimir / Enviar a WhatsApp
-			</a>
+			<div>
+				<?php if ($isAdmin) { ?>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark mr-1">
+					<i class="fa fa-file-pdf-o text-danger"></i> 📊 Acta de Discrepancias para el Dueño (PDF)
+				</a>
+				<?php } ?>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold">
+					<i class="fa fa-print"></i> Imprimir Comprobante
+				</a>
+			</div>
 		</div>
 		<?php
 			exit;

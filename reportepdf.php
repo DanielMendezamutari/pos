@@ -590,6 +590,11 @@ $casos = [
     'func'    => 'TablaConteoInicialProductos',
     'output'  => ['Comprobante de Inventario Inicial.pdf', 'I'],
   ],
+  'DISCREPANCIAS_CONTEO'   => [
+    'medidas' => ['L', 'mm', 'A4'],
+    'func'    => 'TablaAuditoriaAperturaDiscrepancias',
+    'output'  => ['Informe de Discrepancias Inventario Inicial.pdf', 'I'],
+  ],
 ];
 
 $tipo = decrypt($_GET['tipo']);
