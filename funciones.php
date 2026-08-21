@@ -11983,6 +11983,8 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 	}
 
 	$ventas_anuladas = $auditoria->ConsultarVentasAnuladasAuditoria($codsucursal, $fechadesde, $fechahasta);
+	$fechaFiltroConteo = date('Y-m-d', strtotime($fechadesde));
+	$conteoInicial = $auditoria->VerificarConteoInicialHoy($codsucursal, $fechaFiltroConteo);
 ?>
 <form class="form" method="post" action="#" name="formguardarauditoria" id="formguardarauditoria">
 	<input type="hidden" name="proceso" value="save_auditoria">
@@ -12001,6 +12003,30 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 				<div class="modal-body" id="contenidoDesgloseCajas">
 					<!-- Se carga por AJAX -->
 				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Panel de Estado del Conteo Inicial de la Sucursal -->
+	<div class="card border-info mb-3 shadow-sm">
+		<div class="card-header bg-light py-2 d-flex justify-content-between align-items-center flex-wrap">
+			<div>
+				<i class="fa fa-clipboard-check fa-lg text-info mr-1"></i>
+				<?php if (!empty($conteoInicial)) { ?>
+					<strong>Inventario Inicial de Sucursal (<?php echo date("d/m/Y", strtotime($fechaFiltroConteo)); ?>):</strong> Registrado a las <span class="badge badge-success font-12"><?php echo date("h:i A", strtotime($conteoInicial['fechaconteo'])); ?></span> por <strong><?php echo htmlspecialchars($conteoInicial['nomusuario'] ?? 'Cajero'); ?></strong>.
+				<?php } else { ?>
+					<strong>Inventario Inicial de Sucursal (<?php echo date("d/m/Y", strtotime($fechaFiltroConteo)); ?>):</strong> <span class="badge badge-warning text-dark font-12">Pendiente / No realizado aún</span>
+				<?php } ?>
+			</div>
+			<div class="mt-1 mt-md-0">
+				<?php if (!empty($conteoInicial)) { ?>
+					<button type="button" class="btn btn-xs btn-info font-weight-bold mr-1" onclick="AbrirModalConteoInicial('<?php echo encrypt($conteoInicial['idconteo']); ?>')">
+						<i class="fa fa-eye"></i> Ver / Corregir Conteo
+					</button>
+					<button type="button" class="btn btn-xs btn-danger font-weight-bold" onclick="DesbloquearConteoInicial('<?php echo encrypt($conteoInicial['idconteo']); ?>', '<?php echo htmlspecialchars($conteoInicial['nomsucursal'] ?? 'esta sucursal'); ?>')">
+						<i class="fa fa-unlock"></i> 🔓 Desbloquear y Permitir Re-conteo
+					</button>
+				<?php } ?>
 			</div>
 		</div>
 	</div>
@@ -12430,6 +12456,26 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		<?php
 		$isAdmin = (isset($_SESSION['acceso']) && ($_SESSION['acceso'] == "administradorG" || $_SESSION['acceso'] == "administradorS"));
 		?>
+		<?php if ($isAdmin) { ?>
+		<!-- Panel Exclusivo de Administrador -->
+		<form id="form_edicion_conteo_admin" onsubmit="return false;">
+		<input type="hidden" name="idconteo" value="<?php echo encrypt($cab['idconteo']); ?>">
+		<div class="alert alert-info py-2 px-3 mb-2 d-flex justify-content-between align-items-center flex-wrap">
+			<div>
+				<i class="fa fa-shield fa-lg text-primary mr-1"></i>
+				<strong>Opciones de Administrador:</strong> Si la sucursal se equivocó, puedes permitirle contar de nuevo o corregir valores.
+			</div>
+			<div class="mt-1 mt-md-0">
+				<button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" id="btn_habilitar_edicion_conteo" onclick="HabilitarEdicionConteoAdmin()">
+					<i class="fa fa-pencil"></i> ✏️ Corregir Cantidades
+				</button>
+				<button type="button" class="btn btn-sm btn-danger font-weight-bold ml-1" onclick="DesbloquearConteoInicial('<?php echo encrypt($cab['idconteo']); ?>', '<?php echo htmlspecialchars($cab['nomsucursal'] ?? 'esta sucursal'); ?>')">
+					<i class="fa fa-unlock"></i> 🔓 Permitir Re-conteo (Desbloquear)
+				</button>
+			</div>
+		</div>
+		<?php } ?>
+
 		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
 			<span class="font-weight-bold text-dark"><i class="fa fa-cubes"></i> Total Ítems Contados: <?php echo count($det); ?></span>
 			<div class="mt-1 mt-md-0">
@@ -12475,7 +12521,13 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 						<td class="align-middle"><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
 						<?php if ($isAdmin) { ?>
 						<td class="text-center font-weight-bold align-middle bg-light text-dark font-14"><?php echo number_format($stock_sis, 0); ?></td>
-						<td class="text-center font-weight-bold align-middle font-15 text-primary" style="background-color: #fff9e6;"><?php echo number_format($fisico_caj, 0); ?></td>
+						<td class="text-center font-weight-bold align-middle font-15 text-primary" style="background-color: #fff9e6;">
+							<span class="vista-lectura-conteo"><?php echo number_format($fisico_caj, 0); ?></span>
+							<div class="vista-edicion-conteo" style="display: none;">
+								<input type="hidden" name="iddetalleconteo[]" value="<?php echo $item['iddetalleconteo']; ?>">
+								<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold border-danger" name="cantidad_fisica[]" value="<?php echo $fisico_caj; ?>">
+							</div>
+						</td>
 						<td class="text-center font-weight-bold align-middle font-14">
 							<?php if (abs($dif_ap) < 0.001) { ?>
 								<span class="text-success">0</span>
@@ -12503,6 +12555,14 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 			</table>
 		</div>
 
+		<?php if ($isAdmin) { ?>
+		<div id="seccion_edicion_admin_conteo" style="display: none;" class="mt-3 p-3 bg-light border border-danger rounded">
+			<label class="font-weight-bold text-danger"><i class="fa fa-comment"></i> Justificación de la Modificación por Administrador: <span class="text-danger">*</span></label>
+			<textarea class="form-control" name="justificacion" id="justificacion_edicion_conteo" rows="2" placeholder="Ej: Cajera digitó 5 en vez de 50 cajas de cerveza Corona. Corregido por Administración..."></textarea>
+		</div>
+		</form>
+		<?php } ?>
+
 		<?php if (!empty($cab['observaciones'])) { ?>
 		<div class="alert alert-secondary mt-3 mb-0">
 			<strong>Notas / Observaciones:</strong> <?php echo htmlspecialchars($cab['observaciones']); ?>
@@ -12513,6 +12573,12 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 			<button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> Cerrar</button>
 			<div>
 				<?php if ($isAdmin) { ?>
+				<button type="button" class="btn btn-success font-weight-bold mr-1" id="btn_guardar_edicion_conteo" style="display: none;" onclick="GuardarEdicionConteoAdmin()">
+					<i class="fa fa-save"></i> Guardar Correcciones
+				</button>
+				<button type="button" class="btn btn-outline-secondary font-weight-bold mr-1" id="btn_cancelar_edicion_conteo" style="display: none;" onclick="CancelarEdicionConteoAdmin()">
+					<i class="fa fa-ban"></i> Cancelar Edición
+				</button>
 				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark mr-1">
 					<i class="fa fa-file-pdf-o text-danger"></i> 📊 Acta de Discrepancias para el Dueño (PDF)
 				</a>
@@ -12611,6 +12677,91 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 if (isset($_GET['GuardarConteoInicialCajero'])) {
 	$login = new Login();
 	$login->RegistrarConteoInicialCajero();
+	exit;
+}
+
+if (isset($_GET['ActualizarConteoInicialAdmin'])) {
+	$login = new Login();
+	$login->ActualizarConteoInicialAdmin();
+	exit;
+}
+
+if (isset($_GET['DesbloquearConteoInicialAdmin'])) {
+	$login = new Login();
+	$login->DesbloquearConteoInicialAdmin();
+	exit;
+}
+
+if (isset($_GET['BuscaHistorialConteosIniciales'])) {
+	$login = new Login();
+	$codsucursal = !empty($_GET["codsucursal"]) ? (int)decrypt($_GET["codsucursal"]) : 0;
+	$desde = !empty($_GET["desde"]) ? limpiar($_GET["desde"]) : "";
+	$hasta = !empty($_GET["hasta"]) ? limpiar($_GET["hasta"]) : "";
+
+	$conteos = $login->ListarConteosInicialesDiarios($codsucursal, $desde, $hasta);
+?>
+	<div class="table-responsive">
+		<table id="tabla_historial_conteos" class="table table-striped table-bordered text-center font-12 display" style="width:100%">
+			<thead class="bg-warning text-dark font-weight-bold">
+				<tr>
+					<th># Folio</th>
+					<th>Sucursal</th>
+					<th>Cajero / Usuario</th>
+					<th>Fecha y Hora</th>
+					<th>Ítems Contados</th>
+					<th>Observaciones</th>
+					<th style="width: 250px;">Acciones de Administrador</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php
+				if (!empty($conteos)) {
+					foreach ($conteos as $row) {
+				?>
+				<tr>
+					<td class="font-weight-bold align-middle">#<?php echo str_pad($row['idconteo'], 5, "0", STR_PAD_LEFT); ?></td>
+					<td class="align-middle text-left font-weight-bold text-dark">
+						<i class="fa fa-home text-muted mr-1"></i> <?php echo htmlspecialchars($row['nomsucursal']); ?>
+					</td>
+					<td class="align-middle text-left">
+						<i class="fa fa-user text-muted mr-1"></i> <?php echo htmlspecialchars($row['nomusuario'] ?? 'Cajero'); ?>
+					</td>
+					<td class="align-middle">
+						<span class="badge badge-light border text-dark font-12 font-weight-bold">
+							<i class="fa fa-calendar text-danger mr-1"></i> <?php echo date("d/m/Y h:i A", strtotime($row['fechaconteo'])); ?>
+						</span>
+					</td>
+					<td class="align-middle">
+						<span class="badge badge-info font-12 font-weight-bold"><?php echo $row['total_items']; ?> productos</span>
+					</td>
+					<td class="align-middle text-left font-11 text-muted" style="max-width: 200px;">
+						<?php echo !empty($row['observaciones']) ? nl2br(htmlspecialchars($row['observaciones'])) : '<span class="text-muted italic">Sin notas</span>'; ?>
+					</td>
+					<td class="align-middle">
+						<div class="btn-group btn-group-sm" role="group">
+							<button type="button" class="btn btn-outline-info font-weight-bold" title="Ver Detalle y Corregir Cantidades" onclick="AbrirModalConteoInicial('<?php echo encrypt($row['idconteo']); ?>')">
+								<i class="fa fa-eye"></i> Ver / Editar
+							</button>
+							<button type="button" class="btn btn-danger font-weight-bold" title="Desbloquear para que la sucursal vuelva a contar a ciegas" onclick="DesbloquearConteoInicial('<?php echo encrypt($row['idconteo']); ?>', '<?php echo htmlspecialchars($row['nomsucursal']); ?>')">
+								<i class="fa fa-unlock"></i> 🔓 Desbloquear
+							</button>
+							<a href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('DISCREPANCIAS_CONTEO'); ?>" target="_blank" class="btn btn-warning text-dark font-weight-bold" title="Descargar Acta de Discrepancias en PDF">
+								<i class="fa fa-file-pdf-o text-danger"></i> Acta
+							</a>
+							<a href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('CONTEOINICIAL'); ?>" target="_blank" class="btn btn-secondary" title="Descargar Comprobante Físico (WhatsApp)">
+								<i class="fa fa-print"></i>
+							</a>
+						</div>
+					</td>
+				</tr>
+				<?php
+					}
+				}
+				?>
+			</tbody>
+		</table>
+	</div>
+<?php
 	exit;
 }
 ########################## FIN MODAL Y PROCESO CONTEO INICIAL CAJERO ##########################

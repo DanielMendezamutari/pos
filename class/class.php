@@ -38643,6 +38643,11 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null)
 	}
 }
 
+public function ConsultarConteoInicialHoy($codsucursal, $fecha = null)
+{
+	return $this->VerificarConteoInicialHoy($codsucursal, $fecha);
+}
+
 public function RegistrarConteoInicialCajero()
 {
 	self::SetNames();
@@ -38744,6 +38749,134 @@ public function BuscarConteoInicialPorId($idconteo)
 	} catch (Exception $e) {
 		error_log("Error en BuscarConteoInicialPorId: " . $e->getMessage());
 		return false;
+	}
+}
+
+public function ActualizarConteoInicialAdmin()
+{
+	self::SetNames();
+	if (empty($_SESSION["acceso"]) || ($_SESSION["acceso"] != "administradorG" && $_SESSION["acceso"] != "administradorS")) {
+		echo json_encode(array("status" => 0, "msg" => "No tienes permisos de Administrador para editar el inventario inicial."));
+		exit;
+	}
+
+	if (empty($_POST["idconteo"]) || empty($_POST["iddetalleconteo"]) || !is_array($_POST["iddetalleconteo"])) {
+		echo json_encode(array("status" => 0, "msg" => "Datos incompletos para actualizar el conteo."));
+		exit;
+	}
+
+	$idconteo = (int)decrypt($_POST["idconteo"]);
+	$justificacion = isset($_POST["justificacion"]) ? limpiar($_POST["justificacion"]) : "";
+	$nomadmin = isset($_SESSION["nombres"]) ? $_SESSION["nombres"] : "Administrador";
+
+	try {
+		$this->dbh->beginTransaction();
+
+		$sqlUpd = "UPDATE detalle_conteo_inicial SET cantidad_fisica = ? WHERE iddetalleconteo = ? AND idconteo = ?";
+		$stmtUpd = $this->dbh->prepare($sqlUpd);
+
+		foreach ($_POST["iddetalleconteo"] as $i => $iddet) {
+			$iddetalle = (int)$iddet;
+			$cantidad_fisica = (float)$_POST["cantidad_fisica"][$i];
+			$stmtUpd->execute(array($cantidad_fisica, $iddetalle, $idconteo));
+		}
+
+		$nota = "\n[Corregido el " . date("d/m/Y h:i A") . " por " . $nomadmin . ($justificacion ? ": " . $justificacion : "") . "]";
+		$sqlObs = "UPDATE conteo_inicial_diario SET observaciones = CONCAT(COALESCE(observaciones, ''), ?) WHERE idconteo = ?";
+		$stmtObs = $this->dbh->prepare($sqlObs);
+		$stmtObs->execute(array($nota, $idconteo));
+
+		$this->dbh->commit();
+
+		echo json_encode(array(
+			"status" => 1,
+			"msg" => "¡Cantidades del inventario inicial corregidas y actualizadas exitosamente!"
+		));
+		exit;
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en ActualizarConteoInicialAdmin: " . $e->getMessage());
+		echo json_encode(array("status" => 0, "msg" => "Error interno al actualizar: " . $e->getMessage()));
+		exit;
+	}
+}
+
+public function DesbloquearConteoInicialAdmin()
+{
+	self::SetNames();
+	if (empty($_SESSION["acceso"]) || ($_SESSION["acceso"] != "administradorG" && $_SESSION["acceso"] != "administradorS")) {
+		echo json_encode(array("status" => 0, "msg" => "No tienes permisos de Administrador para desbloquear el inventario."));
+		exit;
+	}
+
+	if (empty($_POST["idconteo"])) {
+		echo json_encode(array("status" => 0, "msg" => "No se recibió el folio de conteo a desbloquear."));
+		exit;
+	}
+
+	$idconteo = (int)decrypt($_POST["idconteo"]);
+
+	try {
+		$this->dbh->beginTransaction();
+
+		$sqlDelDet = "DELETE FROM detalle_conteo_inicial WHERE idconteo = ?";
+		$stmtDelDet = $this->dbh->prepare($sqlDelDet);
+		$stmtDelDet->execute(array($idconteo));
+
+		$sqlDelCab = "DELETE FROM conteo_inicial_diario WHERE idconteo = ?";
+		$stmtDelCab = $this->dbh->prepare($sqlDelCab);
+		$stmtDelCab->execute(array($idconteo));
+
+		$this->dbh->commit();
+
+		echo json_encode(array(
+			"status" => 1,
+			"msg" => "¡Inventario Inicial desbloqueado! El cajero ya puede volver a realizar el conteo inicial a ciegas."
+		));
+		exit;
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en DesbloquearConteoInicialAdmin: " . $e->getMessage());
+		echo json_encode(array("status" => 0, "msg" => "Error al desbloquear el conteo: " . $e->getMessage()));
+		exit;
+	}
+}
+
+public function ListarConteosInicialesDiarios($codsucursal = 0, $desde = "", $hasta = "")
+{
+	self::SetNames();
+	try {
+		$sql = "SELECT 
+					conteo_inicial_diario.*,
+					sucursales.nomsucursal,
+					sucursales.cuitsucursal,
+					usuarios.nombres AS nomusuario,
+					(SELECT COUNT(*) FROM detalle_conteo_inicial WHERE detalle_conteo_inicial.idconteo = conteo_inicial_diario.idconteo) AS total_items
+				FROM conteo_inicial_diario
+				INNER JOIN sucursales ON conteo_inicial_diario.codsucursal = sucursales.codsucursal
+				LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+				WHERE 1=1 ";
+		$params = array();
+
+		if (!empty($codsucursal) && $codsucursal != "0") {
+			$sql .= " AND conteo_inicial_diario.codsucursal = ? ";
+			$params[] = $codsucursal;
+		}
+
+		if (!empty($desde) && !empty($hasta)) {
+			$sql .= " AND DATE(conteo_inicial_diario.fechaconteo) BETWEEN ? AND ? ";
+			$params[] = $desde;
+			$params[] = $hasta;
+		}
+
+		$sql .= " ORDER BY conteo_inicial_diario.idconteo DESC";
+
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute($params);
+		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+	} catch (Exception $e) {
+		error_log("Error en ListarConteosInicialesDiarios: " . $e->getMessage());
+		return array();
 	}
 }
 

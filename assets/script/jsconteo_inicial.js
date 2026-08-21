@@ -98,3 +98,151 @@ function GuardarConteoInicialCajero() {
         });
     });
 }
+
+function DesbloquearConteoInicial(idconteo, nomsucursal) {
+    if (!idconteo) {
+        swal("Aviso", "No se especificó el folio del conteo.", "warning");
+        return;
+    }
+    nomsucursal = nomsucursal || "esta sucursal";
+
+    swal({
+        title: "¿Desbloquear Inventario Inicial?",
+        text: "Se eliminará el conteo actual de " + nomsucursal + " para que el cajero pueda ingresar y realizar el conteo inicial a ciegas nuevamente.",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#d33",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, Desbloquear",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        showLoaderOnConfirm: true
+    }, function () {
+        $.ajax({
+            type: "POST",
+            url: "funciones.php?DesbloquearConteoInicialAdmin=si",
+            data: { idconteo: idconteo },
+            dataType: "json",
+            success: function (resp) {
+                if (resp && resp.status === 1) {
+                    // Si estamos en POS / forventa, restaurar el botón amarillo
+                    if ($("#contenedor_boton_conteo").length > 0) {
+                        $("#contenedor_boton_conteo").html(
+                            '<button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm blink-btn" onclick="AbrirModalConteoInicial()"><i class="fa fa-exclamation-triangle"></i> ⚠️ REALIZAR INVENTARIO INICIAL A CIEGAS (2:00 PM)</button>'
+                        );
+                    }
+                    $("#myModalConteoInicial").modal("hide");
+
+                    swal({
+                        title: "¡Desbloqueado con Éxito!",
+                        text: resp.msg,
+                        type: "success",
+                        confirmButtonText: "Aceptar"
+                    }, function () {
+                        if (typeof BuscaHistorialConteosIniciales === "function" && $("#muestra_historial_conteos").length > 0) {
+                            BuscaHistorialConteosIniciales();
+                        }
+                        if (typeof CargarProductosAuditoria === "function" && $("#codsucursal").val() && $("#contenedor_auditoria").length > 0) {
+                            CargarProductosAuditoria();
+                        }
+                    });
+                } else {
+                    swal("Error", resp ? resp.msg : "No se pudo desbloquear el inventario.", "error");
+                }
+            },
+            error: function () {
+                swal("Error", "Error de comunicación con el servidor.", "error");
+            }
+        });
+    });
+}
+
+function BuscaHistorialConteosIniciales() {
+    var codsucursal = $("#codsucursal").val();
+    var desde = $("#desde").val();
+    var hasta = $("#hasta").val();
+
+    $("#muestra_historial_conteos").html('<div class="text-center p-4"><i class="fa fa-spinner fa-spin fa-2x text-warning"></i><p class="mt-2 font-weight-bold">Cargando inventarios iniciales...</p></div>');
+
+    var url = "funciones.php?BuscaHistorialConteosIniciales=si&codsucursal=" + encodeURIComponent(codsucursal || "") + "&desde=" + encodeURIComponent(desde || "") + "&hasta=" + encodeURIComponent(hasta || "");
+
+    $.get(url, function (data) {
+        $("#muestra_historial_conteos").html(data);
+        $("#tabla_historial_conteos").DataTable({
+            "order": [[0, "desc"]],
+            "language": {
+                "url": "assets/plugins/datatables/Spanish.json"
+            }
+        });
+    });
+}
+
+function HabilitarEdicionConteoAdmin() {
+    $(".vista-lectura-conteo").hide();
+    $(".vista-edicion-conteo").show();
+    $("#seccion_edicion_admin_conteo").slideDown();
+    $("#btn_habilitar_edicion_conteo").hide();
+    $("#btn_guardar_edicion_conteo").show();
+    $("#btn_cancelar_edicion_conteo").show();
+}
+
+function CancelarEdicionConteoAdmin() {
+    $(".vista-edicion-conteo").hide();
+    $(".vista-lectura-conteo").show();
+    $("#seccion_edicion_admin_conteo").slideUp();
+    $("#btn_guardar_edicion_conteo").hide();
+    $("#btn_cancelar_edicion_conteo").hide();
+    $("#btn_habilitar_edicion_conteo").show();
+}
+
+function GuardarEdicionConteoAdmin() {
+    var $form = $("#form_edicion_conteo_admin");
+    var justificacion = $("#justificacion_edicion_conteo").val().trim();
+
+    if (justificacion === "") {
+        swal("Justificación Requerida", "Por favor indique el motivo de la corrección de cantidades.", "warning");
+        $("#justificacion_edicion_conteo").focus();
+        return;
+    }
+
+    swal({
+        title: "¿Guardar Correcciones?",
+        text: "Se actualizarán las cantidades físicas contadas en el inventario inicial.",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#28a745",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, Actualizar",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        showLoaderOnConfirm: true
+    }, function () {
+        $.ajax({
+            type: "POST",
+            url: "funciones.php?ActualizarConteoInicialAdmin=si",
+            data: $form.serialize(),
+            dataType: "json",
+            success: function (resp) {
+                if (resp && resp.status === 1) {
+                    swal({
+                        title: "¡Actualizado!",
+                        text: resp.msg,
+                        type: "success",
+                        confirmButtonText: "Aceptar"
+                    }, function () {
+                        var idc = $form.find('input[name="idconteo"]').val();
+                        AbrirModalConteoInicial(idc);
+                        if (typeof CargarProductosAuditoria === "function" && $("#codsucursal").val()) {
+                            CargarProductosAuditoria();
+                        }
+                    });
+                } else {
+                    swal("Error", resp ? resp.msg : "No se pudo actualizar el conteo.", "error");
+                }
+            },
+            error: function () {
+                swal("Error", "Error de comunicación con el servidor.", "error");
+            }
+        });
+    });
+}

@@ -150,6 +150,21 @@ if (isset($_SESSION['acceso'])) {
 
             </div>
 
+            <!-- MODAL INVENTARIO INICIAL CAJEROS / ADMIN -->
+            <div id="myModalConteoInicial" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabelConteo" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header bg-warning text-dark">
+                            <h4 class="modal-title font-weight-bold" id="myModalLabelConteo"><i class="fa fa-clipboard"></i> Inventario Inicial Diario (2:00 PM)</h4>
+                            <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><img src="assets/images/close.png"/></button>
+                        </div>
+                        <div class="modal-body" id="contenido_modal_conteo">
+                            <!-- Carga por AJAX -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <footer class="footer text-center">
                 <i class="fa fa-copyright"></i> <span class="current-year"></span> Sistema POS.
             </footer>
@@ -172,6 +187,7 @@ if (isset($_SESSION['acceso'])) {
     <script src="assets/plugins/datatables/dataTables.bootstrap4.min.js"></script>
     <script type="text/javascript" src="assets/script/titulos.js"></script>
     <script type="text/javascript" src="assets/script/jsauditorias.js"></script>
+    <script type="text/javascript" src="assets/script/jsconteo_inicial.js"></script>
 
 </body>
 </html>

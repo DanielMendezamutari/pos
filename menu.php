@@ -542,6 +542,7 @@ case 'administradorG':  ?>
                     <ul aria-expanded="false" class="collapse first-level">
                         <li class="sidebar-item"><a href="auditorias" class="sidebar-link"><i class="mdi mdi-clipboard-text"></i><span class="hide-menu"> Nueva Auditoría</span></a></li>
                         <li class="sidebar-item"><a href="auditoriasxfechas" class="sidebar-link"><i class="mdi mdi-history"></i><span class="hide-menu"> Historial de Auditorías</span></a></li>
+                        <li class="sidebar-item"><a href="conteosiniciales" class="sidebar-link"><i class="mdi mdi-lock-open-outline text-warning"></i><span class="hide-menu font-weight-bold"> Conteos Iniciales (Desbloqueo)</span></a></li>
                     </ul>
                 </li>
                 <!-- ============================================================== -->

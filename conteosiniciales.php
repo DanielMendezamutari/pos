@@ -14,7 +14,7 @@ if (isset($_SESSION['acceso'])) {
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="icon" type="image/png" sizes="16x16" href="assets/images/favicon.png">
-    <title>Historial de Auditorías de Productos - Administrador General</title>
+    <title>Inventarios Iniciales Diarios (2:00 PM) - Administrador General</title>
 
     <link href="assets/plugins/bower_components/sidebar-nav/dist/sidebar-nav.min.css" rel="stylesheet">
     <link href="assets/plugins/bower_components/toast-master/css/jquery.toast.css" rel="stylesheet">
@@ -49,14 +49,14 @@ if (isset($_SESSION['acceso'])) {
         <div class="page-wrapper">
             <div class="page-breadcrumb border-bottom">
                 <div class="row">
-                    <div class="col-lg-4 col-md-5 col-xs-12 align-self-center">
-                        <h5 class="font-medium text-uppercase mb-0"><i class="fa fa-history"></i> Historial de Auditorías</h5>
+                    <div class="col-lg-6 col-md-6 col-xs-12 align-self-center">
+                        <h5 class="font-medium text-uppercase mb-0"><i class="fa fa-clipboard-check text-warning"></i> Inventarios Iniciales Diarios (2:00 PM)</h5>
                     </div>
-                    <div class="col-lg-8 col-md-7 col-xs-12 align-self-center">
+                    <div class="col-lg-6 col-md-6 col-xs-12 align-self-center">
                         <nav aria-label="breadcrumb" class="mt-2 float-md-right float-left">
                             <ol class="breadcrumb mb-0 justify-content-end p-0">
                                 <li class="breadcrumb-item"><a href="auditorias">Auditorías</a></li>
-                                <li class="breadcrumb-item active">Historial</li>
+                                <li class="breadcrumb-item active">Conteos Iniciales</li>
                             </ol>
                         </nav>
                     </div>
@@ -65,14 +65,22 @@ if (isset($_SESSION['acceso'])) {
 
             <div class="page-content container-fluid">
 
+                <!-- Alerta Informativa para el Administrador -->
+                <div class="alert alert-info py-2 px-3 mb-3 d-flex justify-content-between align-items-center flex-wrap shadow-sm">
+                    <div>
+                        <i class="fa fa-info-circle fa-lg mr-1 text-primary"></i>
+                        <strong>Panel de Control de Inventarios Iniciales:</strong> Aquí puedes monitorear los conteos de apertura a ciegas, descargar actas, corregir cantidades o <strong>desbloquear sucursales</strong> que se hayan equivocado para que repitan su conteo.
+                    </div>
+                </div>
+
                 <div class="row">
                     <div class="col-lg-12">
                         <div class="card shadow-sm">
-                            <div class="card-header bg-danger">
-                                <h4 class="card-title text-white mb-0"><i class="fa fa-search"></i> Filtros de Búsqueda de Auditorías</h4>
+                            <div class="card-header bg-warning text-dark">
+                                <h4 class="card-title text-dark font-weight-bold mb-0"><i class="fa fa-search"></i> Filtros de Búsqueda de Conteos Iniciales</h4>
                             </div>
 
-                            <form class="form form-material" method="post" action="#" name="formhistorial" id="formhistorial">
+                            <form class="form form-material" method="post" action="#" name="formhistorialconteo" id="formhistorialconteo">
                                 <div class="card-body">
                                     <div class="row">
                                         <div class="col-md-4">
@@ -110,8 +118,8 @@ if (isset($_SESSION['acceso'])) {
                                     </div>
 
                                     <div class="text-right mt-2">
-                                        <a href="auditorias" class="btn btn-outline-danger mr-2"><i class="fa fa-plus-circle"></i> Nueva Auditoría</a>
-                                        <button type="button" onClick="BuscaHistorialAuditorias()" class="btn btn-danger font-weight-bold"><i class="fa fa-search"></i> Buscar Registros</button>
+                                        <a href="auditorias" class="btn btn-outline-secondary mr-2"><i class="fa fa-calculator"></i> Ir a Auditoría Diaria</a>
+                                        <button type="button" onClick="BuscaHistorialConteosIniciales()" class="btn btn-warning text-dark font-weight-bold shadow-sm"><i class="fa fa-search"></i> Buscar Conteos Iniciales</button>
                                     </div>
                                 </div>
                             </form>
@@ -122,12 +130,12 @@ if (isset($_SESSION['acceso'])) {
                 <div class="row">
                     <div class="col-lg-12">
                         <div class="card shadow-sm">
-                            <div class="card-header bg-dark text-white">
-                                <h4 class="card-title text-white mb-0"><i class="fa fa-list"></i> Resultados de Auditorías Registradas</h4>
+                            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-2">
+                                <h4 class="card-title text-white mb-0"><i class="fa fa-list"></i> Registro de Inventarios Iniciales por Sucursal</h4>
                             </div>
                             <div class="card-body">
-                                <div id="muestra_historial_auditorias">
-                                    <div class="alert alert-info text-center">Haga clic en "Buscar Registros" para cargar el historial de auditorías.</div>
+                                <div id="muestra_historial_conteos">
+                                    <div class="alert alert-info text-center">Cargando inventarios iniciales...</div>
                                 </div>
                             </div>
                         </div>
@@ -174,12 +182,11 @@ if (isset($_SESSION['acceso'])) {
     <script type="text/javascript" src="assets/script/titulos.js"></script>
     <script src="assets/calendario/jquery-ui.js"></script>
     <script src="assets/script/jscalendario.js"></script>
-    <script type="text/javascript" src="assets/script/jsauditorias.js"></script>
     <script type="text/javascript" src="assets/script/jsconteo_inicial.js"></script>
 
     <script>
     $(document).ready(function() {
-        BuscaHistorialAuditorias();
+        BuscaHistorialConteosIniciales();
     });
     </script>
 
