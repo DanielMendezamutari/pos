@@ -1381,6 +1381,11 @@ function CellFit($w, $h=0, $txt='', $border=0, $ln=0, $align='', $fill=false, $l
         //Get string width
 	$str_width=$this->GetStringWidth($txt);
 
+	if ($str_width == 0) {
+		$this->Cell($w, $h, $txt, $border, $ln, $align, $fill, $link);
+		return;
+	}
+
         //Calculate ratio to fit cell
 	if($w==0)
 		$w = $this->w-$this->rMargin-$this->x;

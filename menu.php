@@ -530,6 +530,25 @@ case 'administradorG':  ?>
                     </ul>
                 </li>
 
+                <?php if($_SESSION['acceso'] == "administradorG") { ?>
+                <!-- ============================================================== -->
+                <!-- MODULO DE AUDITORIAS (ADMINISTRADOR GENERAL) -->
+                <!-- ============================================================== -->
+                <li class="sidebar-item"> 
+                    <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false">
+                        <i class="mdi mdi-shield-check text-warning font-20"></i>
+                        <span class="hide-menu font-weight-bold">Auditorías</span>
+                    </a>
+                    <ul aria-expanded="false" class="collapse first-level">
+                        <li class="sidebar-item"><a href="auditorias" class="sidebar-link"><i class="mdi mdi-clipboard-text"></i><span class="hide-menu"> Nueva Auditoría</span></a></li>
+                        <li class="sidebar-item"><a href="auditoriasxfechas" class="sidebar-link"><i class="mdi mdi-history"></i><span class="hide-menu"> Historial de Auditorías</span></a></li>
+                    </ul>
+                </li>
+                <!-- ============================================================== -->
+                <!-- FIN MODULO DE AUDITORIAS -->
+                <!-- ============================================================== -->
+                <?php } ?>
+
                 <li class="sidebar-item"> <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false"><i class="mdi mdi-cart"></i><span class="hide-menu">Compras </span></a>
                     <ul aria-expanded="false" class="collapse first-level">
 

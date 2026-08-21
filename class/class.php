@@ -12907,11 +12907,13 @@ public function RegistrarTraspasos()
 	$fecha_recibe = limpiar("");
 	$observaciones_recibido = limpiar("");
 	$agregar_stock = limpiar("0");
-	$stmt->execute();
-	################### REGISTRO EL TRASPASO ####################
-	
-	$this->dbh->beginTransaction();
-	$detalle = $_SESSION["CarritoTraspaso"];
+
+	try {
+		$this->dbh->beginTransaction();
+		$stmt->execute();
+		################### REGISTRO EL TRASPASO ####################
+		
+		$detalle = $_SESSION["CarritoTraspaso"];
 	for($i=0;$i<count($detalle);$i++){
 
 	################ VERIFICO LA EXISTENCIA DEL PRODUCTO EN ALMACEN ################
@@ -13054,9 +13056,16 @@ public function RegistrarTraspasos()
 
    }//FIN SESSION DETALLES
         
-   ####################### DESTRUYO LA VARIABLE DE SESSION #####################
-	unset($_SESSION["CarritoTraspaso"]);
-   $this->dbh->commit();
+		$this->dbh->commit();
+		####################### DESTRUYO LA VARIABLE DE SESSION #####################
+		unset($_SESSION["CarritoTraspaso"]);
+
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en RegistrarTraspasos: " . $e->getMessage());
+		echo "3";
+		exit;
+	}
    ################################### REGISTRO DETALLES DE FACTURA ###################################
 		
    echo "<span class='fa fa-check-square-o'></span> EL TRASPASO DE PRODUCTOS HA SIDO REALIZADO EXITOSAMENTE <a href='reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
@@ -14966,12 +14975,13 @@ public function RegistrarCompras()
 	   $observaciones = limpiar($_POST["observaciones"]);
 		$codigo = limpiar($_SESSION["codigo"]);
 		$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
-		$stmt->execute();
-		################### REGISTRO LA COMPRA ####################
-	
-	$this->dbh->beginTransaction();
 
-	$detalle = $_SESSION["CarritoCompra"];
+		try {
+			$this->dbh->beginTransaction();
+			$stmt->execute();
+			################### REGISTRO LA COMPRA ####################
+		
+		$detalle = $_SESSION["CarritoCompra"];
 	for($i=0;$i<count($detalle);$i++){
 
 	   ############### VERIFICO LA EXISTENCIA DEL PRODUCTO EN ALMACEN ################
@@ -15167,9 +15177,16 @@ public function RegistrarCompras()
 		$stmt->execute();
 		##################### REGISTRAMOS LOS DATOS DE PRODUCTOS EN KARDEX #####################
    }
-	####################### DESTRUYO LA VARIABLE DE SESSION #####################
-   unset($_SESSION["CarritoCompra"]);
-   $this->dbh->commit();
+		$this->dbh->commit();
+		####################### DESTRUYO LA VARIABLE DE SESSION #####################
+		unset($_SESSION["CarritoCompra"]);
+
+		} catch (Exception $e) {
+			$this->dbh->rollBack();
+			error_log("Error en RegistrarCompras: " . $e->getMessage());
+			echo "4";
+			exit;
+		}
 		
       echo "<span class='fa fa-check-square-o'></span> LA COMPRA DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
@@ -27779,22 +27796,24 @@ public function RegistrarVentas()
 	$notacredito = limpiar("0");
 	$codigo = limpiar($_SESSION["codigo"]);
 	$codsucursal = limpiar(decrypt($_POST['codsucursal']));
-	$stmt->execute();
-	################### REGISTRO LA VENTA ####################
 
-	################################ REGISTRO DE FORMAS DE PAGOS EN VENTA ################################
-	if(limpiar($_POST["tipopago"])=="CONTADO"){
+	try {
+		$this->dbh->beginTransaction();
+		$stmt->execute();
+		################### REGISTRO LA VENTA ####################
 
-	   $sql  = "INSERT INTO mediospagoxventas VALUES (NULL, ?, ?, ?, ?, ?, ?)";
-	   foreach ($_POST['pagos'] as $pago) {
-	      $stmt = $this->dbh->prepare($sql);
-	      $stmt->execute([$codarqueo, $codcaja, $codventa, decrypt($pago['codmediopago']), $pago['montopagado'], $_POST['montodevuelto']]);
-	   }
-	}
-	################################ REGISTRO DE FORMAS DE PAGOS EN VENTA ################################
+		################################ REGISTRO DE FORMAS DE PAGOS EN VENTA ################################
+		if(limpiar($_POST["tipopago"])=="CONTADO"){
 
-	$this->dbh->beginTransaction();
-	$detalle = $_SESSION["CarritoVenta"];
+		   $sql  = "INSERT INTO mediospagoxventas VALUES (NULL, ?, ?, ?, ?, ?, ?)";
+		   foreach ($_POST['pagos'] as $pago) {
+		      $stmt = $this->dbh->prepare($sql);
+		      $stmt->execute([$codarqueo, $codcaja, $codventa, decrypt($pago['codmediopago']), $pago['montopagado'], $_POST['montodevuelto']]);
+		   }
+		}
+		################################ REGISTRO DE FORMAS DE PAGOS EN VENTA ################################
+
+		$detalle = $_SESSION["CarritoVenta"];
     for ($i = 0, $iMax = count($detalle); $i < $iMax; $i++) {
 
 	################### REGISTRO DETALLES DE VENTA ####################
@@ -28180,10 +28199,6 @@ public function RegistrarVentas()
       }
    }
 		
-	####################### DESTRUYO LA VARIABLE DE SESSION #####################
-	unset($_SESSION["CarritoVenta"]);
-   $this->dbh->commit();
-
    ################ AGREGAMOS EL INGRESO A CONTADO ##############
 	if (limpiar($_POST["tipopago"]=="CONTADO")){
 
@@ -28274,6 +28289,17 @@ public function RegistrarVentas()
 		}
 	}
    ################ AGREGAMOS EL INGRESO Y ABONOS A CREDITO ################
+
+		$this->dbh->commit();
+		####################### DESTRUYO LA VARIABLE DE SESSION #####################
+		unset($_SESSION["CarritoVenta"]);
+
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en RegistrarVentas: " . $e->getMessage());
+		echo "3";
+		exit;
+	}
 
    echo "<span class='fa fa-check-square-o'></span> LA VENTA DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
@@ -31108,12 +31134,11 @@ public function EliminarDetallesVentas()
 		if ($tipopagobd=="CONTADO"){
 
 		   ################# OBTENGO DATOS DE ARQUEO #################
-			$sql = "SELECT ingresos FROM arqueocaja WHERE codarqueo = $arqueobd";
-			foreach ($this->dbh->query($sql) as $row)
-			{
-				$this->p[] = $row;
-			}
-			$ingreso = ($row['ingresos']== "" ? "0.00" : $row['ingresos']);
+			$sql = "SELECT ingresos FROM arqueocaja WHERE codarqueo = ?";
+			$stmt = $this->dbh->prepare($sql);
+			$stmt->execute(array($arqueobd));
+			$row = $stmt->fetch(PDO::FETCH_ASSOC);
+			$ingreso = (!empty($row['ingresos']) ? $row['ingresos'] : "0.00");
 			################# OBTENGO DATOS DE ARQUEO #################
 
 		   ################# ACTUALIZO DATOS DE ARQUEO #################
@@ -31137,13 +31162,12 @@ public function EliminarDetallesVentas()
 		if ($tipopagobd=="CREDITO") {
 
 			################# OBTENGO DATOS DE ARQUEO #################
-			$sql = "SELECT creditos, abonos FROM arqueocaja WHERE codarqueo = $arqueobd";
-			foreach ($this->dbh->query($sql) as $row)
-			{
-				$this->p[] = $row;
-			}
-			$credito = ($row['creditos']== "" ? "0.00" : $row['creditos']);
-			$abono = ($row['abonos']== "" ? "0.00" : $row['abonos']);
+			$sql = "SELECT creditos, abonos FROM arqueocaja WHERE codarqueo = ?";
+			$stmt = $this->dbh->prepare($sql);
+			$stmt->execute(array($arqueobd));
+			$row = $stmt->fetch(PDO::FETCH_ASSOC);
+			$credito = (!empty($row['creditos']) ? $row['creditos'] : "0.00");
+			$abono = (!empty($row['abonos']) ? $row['abonos'] : "0.00");
 			################# OBTENGO DATOS DE ARQUEO #################
 
 			################# ACTUALIZO DATOS DE ARQUEO #################
@@ -31205,6 +31229,9 @@ public function EliminarVentas()
 {
 	self::SetNames();
 	if ($_SESSION["acceso"]=="administradorS" || $_SESSION["acceso"]=="secretaria" || $_SESSION["acceso"]=="cajero") {
+
+	try {
+		$this->dbh->beginTransaction();
 
    ############ CONSULTO TOTAL ACTUAL ##############
 	$sql = "SELECT 
@@ -31551,12 +31578,11 @@ public function EliminarVentas()
 	if($tipopagobd == "CONTADO"){
 
 		################# OBTENGO DATOS DE ARQUEO #################
-		$sql = "SELECT ingresos FROM arqueocaja WHERE codarqueo = $arqueobd";
-		foreach ($this->dbh->query($sql) as $row)
-		{
-			$this->p[] = $row;
-		}
-		$ingreso = ($row['ingresos']== "" ? "0.00" : $row['ingresos']);
+		$sql = "SELECT ingresos FROM arqueocaja WHERE codarqueo = ?";
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($arqueobd));
+		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		$ingreso = (!empty($row['ingresos']) ? $row['ingresos'] : "0.00");
 		################# OBTENGO DATOS DE ARQUEO #################
 
 		################# ACTUALIZO DATOS DE ARQUEO #################
@@ -31587,13 +31613,12 @@ public function EliminarVentas()
 	if ($tipopagobd == "CREDITO") {
 
 		################# OBTENGO DATOS DE ARQUEO #################
-		$sql = "SELECT creditos, abonos FROM arqueocaja WHERE codarqueo = $arqueobd";
-		foreach ($this->dbh->query($sql) as $row)
-		{
-			$this->p[] = $row;
-		}
-		$credito = ($row['creditos']== "" ? "0.00" : $row['creditos']);
-		$abono = ($row['abonos']== "" ? "0.00" : $row['abonos']);
+		$sql = "SELECT creditos, abonos FROM arqueocaja WHERE codarqueo = ?";
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($arqueobd));
+		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		$credito = (!empty($row['creditos']) ? $row['creditos'] : "0.00");
+		$abono = (!empty($row['abonos']) ? $row['abonos'] : "0.00");
 		################# OBTENGO DATOS DE ARQUEO #################
 
 	   ################# ACTUALIZO DATOS DE ARQUEO #################
@@ -31661,8 +31686,16 @@ public function EliminarVentas()
 		$stmt->execute();
 		################## ELIMINO DETALLE DE VENTA ##################
 
+		$this->dbh->commit();
 		echo "1";
 		exit;
+
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en EliminarVentas: " . $e->getMessage());
+		echo "2";
+		exit;
+	}
 
 	} else {
 
@@ -38177,6 +38210,467 @@ public function CreditosPendientesGeneral()
 
 ######################## FUNCIONES PARA DASHBOARD DEL ADMINISTRADOR GENERAL ###########################
 
+######################## FUNCIONES PARA AUDITORIA DE PRODUCTOS (ADMINISTRADOR GENERAL) ###########################
+
+public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fechahasta, $codfamilia = 0)
+{
+	self::SetNames();
+	$this->p = array();
+
+	$whereFamilia = "";
+	$params = array(
+		$fechadesde, $fechahasta, // ventas
+		$fechadesde, $fechahasta, // compras
+		$fechadesde, $fechahasta, // traspasos entrada
+		$fechadesde, $fechahasta, // traspasos salida
+		$fechadesde,              // conteo inicial cajero
+		$codsucursal
+	);
+
+	if (!empty($codfamilia) && $codfamilia > 0) {
+		$whereFamilia = " AND productos.codfamilia = ? ";
+		$params[] = $codfamilia;
+	}
+
+	$sql = "SELECT 
+		productos.idproducto,
+		productos.codproducto,
+		productos.producto,
+		productos.existencia,
+		productos.preciocompra,
+		productos.precioxpublico,
+		marcas.nommarca,
+		familias.nomfamilia,
+		presentaciones.nompresentacion,
+		COALESCE((
+			SELECT SUM(dv.cantventa) 
+			FROM detalleventas dv 
+			INNER JOIN ventas v ON dv.codventa = v.codventa 
+			WHERE dv.idproducto = productos.idproducto 
+			AND v.codsucursal = productos.codsucursal 
+			AND v.statusventa != 'ANULADA' 
+			AND v.fechaventa BETWEEN ? AND ?
+		), 0) AS ventas_pos,
+		COALESCE((
+			SELECT SUM(dc.cantcompra) 
+			FROM detallecompras dc 
+			INNER JOIN compras c ON dc.codcompra = c.codcompra 
+			WHERE dc.idproducto = productos.idproducto 
+			AND c.codsucursal = productos.codsucursal 
+			AND c.statuscompra != 'ANULADA' 
+			AND CONCAT(c.fechaemision, ' 00:00:00') <= ? 
+			AND CONCAT(c.fecharecepcion, ' 23:59:59') >= ?
+		), 0) AS compras_entradas,
+		COALESCE((
+			SELECT SUM(dt.cantidad) 
+			FROM detalletraspasos dt 
+			INNER JOIN traspasos t ON dt.codtraspaso = t.codtraspaso 
+			WHERE dt.idproducto = productos.idproducto 
+			AND t.sucursal_recibe = productos.codsucursal 
+			AND t.fechatraspaso BETWEEN ? AND ?
+		), 0) AS traspasos_entradas,
+		COALESCE((
+			SELECT SUM(dt.cantidad) 
+			FROM detalletraspasos dt 
+			INNER JOIN traspasos t ON dt.codtraspaso = t.codtraspaso 
+			WHERE dt.idproducto = productos.idproducto 
+			AND t.sucursal_envia = productos.codsucursal 
+			AND t.fechatraspaso BETWEEN ? AND ?
+		), 0) AS traspasos_salidas,
+		COALESCE((
+			SELECT dci.cantidad_fisica 
+			FROM detalle_conteo_inicial dci 
+			INNER JOIN conteo_inicial_diario cid ON dci.idconteo = cid.idconteo 
+			WHERE dci.idproducto = productos.idproducto 
+			AND cid.codsucursal = productos.codsucursal 
+			AND DATE(cid.fechaconteo) = DATE(?) 
+			ORDER BY cid.idconteo DESC LIMIT 1
+		), 0) AS conteo_cajero
+		FROM productos 
+		LEFT JOIN marcas ON productos.codmarca = marcas.codmarca 
+		LEFT JOIN familias ON productos.codfamilia = familias.codfamilia 
+		LEFT JOIN presentaciones ON productos.codpresentacion = presentaciones.codpresentacion 
+		WHERE productos.codsucursal = ? " . $whereFamilia . " 
+		ORDER BY productos.producto ASC";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute($params);
+	while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+		$this->p[] = $row;
+	}
+	return $this->p;
+}
+
+public function RegistrarAuditoria()
+{
+	self::SetNames();
+	if (empty($_POST["codsucursal"]) || empty($_POST["fechadesde"]) || empty($_POST["fechahasta"])) {
+		echo "1"; // campos obligatorios incompletos
+		exit;
+	}
+
+	$codsucursal = (int)decrypt($_POST["codsucursal"]);
+	$fechadesde = limpiar($_POST["fechadesde"]);
+	$fechahasta = limpiar($_POST["fechahasta"]);
+	$observaciones = isset($_POST["observaciones"]) ? limpiar($_POST["observaciones"]) : "";
+	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
+	$fecharegistro = date("Y-m-d H:i:s");
+
+	// Soportar recepción estructurada en JSON para evitar límites de max_input_vars en PHP
+	$detalles = array();
+	if (isset($_POST["detalles_json"]) && !empty($_POST["detalles_json"])) {
+		$decoded = json_decode($_POST["detalles_json"], true);
+		if (is_array($decoded) && count($decoded) > 0) {
+			$detalles = $decoded;
+		}
+	} elseif (isset($_POST["idproducto"]) && is_array($_POST["idproducto"])) {
+		foreach ($_POST["idproducto"] as $i => $idprod) {
+			$detalles[] = array(
+				"idproducto" => (int)$idprod,
+				"codproducto" => limpiar($_POST["codproducto"][$i] ?? ''),
+				"producto" => limpiar($_POST["producto"][$i] ?? ''),
+				"inicial_cuaderno" => (float)($_POST["inicial_cuaderno"][$i] ?? 0),
+				"entradas_compras" => (float)($_POST["entradas_compras"][$i] ?? 0),
+				"entradas_traspasos" => (float)($_POST["entradas_traspasos"][$i] ?? 0),
+				"salidas_ventas" => (float)($_POST["salidas_ventas"][$i] ?? 0),
+				"salidas_traspasos" => (float)($_POST["salidas_traspasos"][$i] ?? 0),
+				"stock_teorico" => (float)($_POST["stock_teorico"][$i] ?? 0),
+				"fisico_final" => (float)($_POST["fisico_final"][$i] ?? 0),
+				"diferencia" => (float)($_POST["diferencia"][$i] ?? 0),
+				"preciocompra" => (float)($_POST["preciocompra"][$i] ?? 0),
+				"precioventa" => (float)($_POST["precioventa"][$i] ?? 0),
+				"valordiferencia" => (float)($_POST["valordiferencia"][$i] ?? 0),
+				"accion_diferencia" => isset($_POST["accion_diferencia"][$i]) ? limpiar($_POST["accion_diferencia"][$i]) : "NINGUNA",
+				"responsable_diferencia" => isset($_POST["responsable_diferencia"][$i]) ? limpiar($_POST["responsable_diferencia"][$i]) : "",
+				"motivo_diferencia" => isset($_POST["motivo_diferencia"][$i]) ? limpiar($_POST["motivo_diferencia"][$i]) : ""
+			);
+		}
+	}
+
+	if (empty($detalles)) {
+		echo "2"; // no hay productos para auditar
+		exit;
+	}
+
+	try {
+		$this->dbh->beginTransaction();
+
+		$total_productos = count($detalles);
+		$total_faltantes = 0;
+		$total_sobrantes = 0;
+		$monto_faltante = 0;
+
+		$sqlCabecera = "INSERT INTO auditorias_inventario 
+			(codsucursal, fechadesde, fechahasta, fecharegistro, codusuario, total_productos, total_faltantes, total_sobrantes, monto_faltante, observaciones) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		$stmtCab = $this->dbh->prepare($sqlCabecera);
+		$stmtCab->execute(array(
+			$codsucursal, $fechadesde, $fechahasta, $fecharegistro, $codusuario,
+			$total_productos, 0, 0, 0, $observaciones
+		));
+		$idauditoria = $this->dbh->lastInsertId();
+
+		$sqlDetalle = "INSERT INTO detalle_auditorias 
+			(idauditoria, idproducto, codproducto, producto, inicial_cuaderno, entradas_compras, entradas_traspasos, salidas_ventas, salidas_traspasos, stock_teorico, fisico_final, diferencia, preciocompra, precioventa, valordiferencia, accion_diferencia, responsable_diferencia, motivo_diferencia) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		$stmtDet = $this->dbh->prepare($sqlDetalle);
+
+		foreach ($detalles as $row) {
+			$idproducto = (int)$row["idproducto"];
+			$codproducto = limpiar($row["codproducto"] ?? '');
+			$producto = limpiar($row["producto"] ?? '');
+			$inicial_cuaderno = (float)($row["inicial_cuaderno"] ?? 0);
+			$entradas_compras = (float)($row["entradas_compras"] ?? 0);
+			$entradas_traspasos = (float)($row["entradas_traspasos"] ?? 0);
+			$salidas_ventas = (float)($row["salidas_ventas"] ?? 0);
+			$salidas_traspasos = (float)($row["salidas_traspasos"] ?? 0);
+			$stock_teorico = (float)($row["stock_teorico"] ?? 0);
+			$fisico_final = (float)($row["fisico_final"] ?? 0);
+			$diferencia = (float)($row["diferencia"] ?? 0);
+			$preciocompra = (float)($row["preciocompra"] ?? 0);
+			$precioventa = (float)($row["precioventa"] ?? 0);
+			$valordiferencia = (float)($row["valordiferencia"] ?? 0);
+			$accion_diferencia = isset($row["accion_diferencia"]) && !empty($row["accion_diferencia"]) ? limpiar($row["accion_diferencia"]) : "NINGUNA";
+			$responsable_diferencia = isset($row["responsable_diferencia"]) ? limpiar($row["responsable_diferencia"]) : "";
+			$motivo_diferencia = isset($row["motivo_diferencia"]) ? limpiar($row["motivo_diferencia"]) : "";
+
+			if ($diferencia < 0) {
+				$total_faltantes += abs($diferencia);
+				$monto_faltante += abs($valordiferencia);
+			} elseif ($diferencia > 0) {
+				$total_sobrantes += $diferencia;
+			}
+
+			$stmtDet->execute(array(
+				$idauditoria, $idproducto, $codproducto, $producto,
+				$inicial_cuaderno, $entradas_compras, $entradas_traspasos,
+				$salidas_ventas, $salidas_traspasos, $stock_teorico,
+				$fisico_final, $diferencia, $preciocompra, $precioventa,
+				$valordiferencia, $accion_diferencia, $responsable_diferencia,
+				$motivo_diferencia
+			));
+		}
+
+		$sqlUpdateCab = "UPDATE auditorias_inventario SET total_faltantes = ?, total_sobrantes = ?, monto_faltante = ? WHERE idauditoria = ?";
+		$stmtUpd = $this->dbh->prepare($sqlUpdateCab);
+		$stmtUpd->execute(array($total_faltantes, $total_sobrantes, $monto_faltante, $idauditoria));
+
+		$this->dbh->commit();
+		echo "3"; // Éxito guardando auditoría
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en RegistrarAuditoria: " . $e->getMessage());
+		echo "4"; // Error
+	}
+}
+
+public function ConsultarDesgloseVentasProducto($idproducto, $codsucursal, $fechadesde, $fechahasta)
+{
+	self::SetNames();
+	$sql = "SELECT 
+		cajas.nrocaja,
+		cajas.nomcaja,
+		usuarios.nombres AS nomusuario,
+		SUM(detalleventas.cantventa) AS total_vendido,
+		SUM(detalleventas.valortotal) AS importe_total
+		FROM detalleventas
+		INNER JOIN ventas ON detalleventas.codventa = ventas.codventa
+		LEFT JOIN cajas ON ventas.codcaja = cajas.codcaja
+		LEFT JOIN usuarios ON ventas.codigo = usuarios.codigo
+		WHERE detalleventas.idproducto = ?
+		AND ventas.codsucursal = ?
+		AND ventas.fechaventa BETWEEN ? AND ?
+		AND ventas.statusventa != 'ANULADA'
+		GROUP BY ventas.codcaja, ventas.codigo
+		ORDER BY total_vendido DESC";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($idproducto, $codsucursal, $fechadesde, $fechahasta));
+	return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function ConsultarVentasAnuladasAuditoria($codsucursal, $fechadesde, $fechahasta)
+{
+	self::SetNames();
+	$sql = "SELECT 
+		ventas.codventa,
+		ventas.codfactura,
+		ventas.tipodocumento,
+		ventas.fechaventa,
+		ventas.subtotalivasi,
+		ventas.totalpago,
+		cajas.nomcaja,
+		usuarios.nombres AS nomusuario,
+		detalleventas.idproducto,
+		detalleventas.codproducto,
+		detalleventas.producto,
+		detalleventas.cantventa,
+		detalleventas.precioventa,
+		detalleventas.valortotal
+		FROM detalleventas
+		INNER JOIN ventas ON detalleventas.codventa = ventas.codventa
+		LEFT JOIN cajas ON ventas.codcaja = cajas.codcaja
+		LEFT JOIN usuarios ON ventas.codigo = usuarios.codigo
+		WHERE ventas.codsucursal = ?
+		AND ventas.fechaventa BETWEEN ? AND ?
+		AND ventas.statusventa = 'ANULADA'
+		ORDER BY ventas.fechaventa DESC";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($codsucursal, $fechadesde, $fechahasta));
+	return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+public function BuscarAuditoriasxFechas($codsucursal = 0, $desde = "", $hasta = "")
+{
+	self::SetNames();
+	$this->p = array();
+
+	$where = " WHERE 1=1 ";
+	$params = array();
+
+	if (!empty($codsucursal) && $codsucursal > 0) {
+		$where .= " AND auditorias_inventario.codsucursal = ? ";
+		$params[] = $codsucursal;
+	}
+	if (!empty($desde) && !empty($hasta)) {
+		$where .= " AND DATE_FORMAT(auditorias_inventario.fecharegistro, '%Y-%m-%d') BETWEEN ? AND ? ";
+		$params[] = $desde;
+		$params[] = $hasta;
+	}
+
+	$sql = "SELECT 
+		auditorias_inventario.*,
+		sucursales.cuitsucursal,
+		sucursales.nomsucursal,
+		usuarios.nombres AS nomusuario
+		FROM auditorias_inventario
+		INNER JOIN sucursales ON auditorias_inventario.codsucursal = sucursales.codsucursal
+		LEFT JOIN usuarios ON auditorias_inventario.codusuario = usuarios.codigo
+		" . $where . "
+		ORDER BY auditorias_inventario.idauditoria DESC";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute($params);
+	while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+		$this->p[] = $row;
+	}
+	return $this->p;
+}
+
+public function BuscarAuditoriaPorId($idauditoria)
+{
+	self::SetNames();
+	$this->p = array();
+
+	$sql = "SELECT 
+		auditorias_inventario.*,
+		sucursales.cuitsucursal,
+		sucursales.nomsucursal,
+		sucursales.direcsucursal,
+		sucursales.tlfsucursal,
+		tiposmoneda.simbolo AS simbolo_moneda,
+		usuarios.nombres AS nomusuario
+		FROM auditorias_inventario
+		INNER JOIN sucursales ON auditorias_inventario.codsucursal = sucursales.codsucursal
+		LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
+		LEFT JOIN usuarios ON auditorias_inventario.codusuario = usuarios.codigo
+		WHERE auditorias_inventario.idauditoria = ?";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($idauditoria));
+	$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
+
+	if (!$cabecera) {
+		return false;
+	}
+
+	$sqlDet = "SELECT * FROM detalle_auditorias WHERE idauditoria = ? ORDER BY producto ASC";
+	$stmtDet = $this->dbh->prepare($sqlDet);
+	$stmtDet->execute(array($idauditoria));
+	$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
+
+	return array(
+		'cabecera' => $cabecera,
+		'detalles' => $detalles
+	);
+}
+
+######################## FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
+
+public function VerificarConteoInicialHoy($codsucursal, $fecha = null)
+{
+	self::SetNames();
+	if (empty($fecha)) {
+		$fecha = date("Y-m-d");
+	}
+
+	$sql = "SELECT 
+		conteo_inicial_diario.*,
+		usuarios.nombres AS nomusuario
+		FROM conteo_inicial_diario
+		LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+		WHERE conteo_inicial_diario.codsucursal = ? 
+		AND DATE(conteo_inicial_diario.fechaconteo) = ?
+		ORDER BY conteo_inicial_diario.idconteo DESC LIMIT 1";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($codsucursal, $fecha));
+	return $stmt->fetch(PDO::FETCH_ASSOC);
+}
+
+public function RegistrarConteoInicialCajero()
+{
+	self::SetNames();
+	if (empty($_POST["codsucursal"]) || empty($_POST["idproducto"]) || !is_array($_POST["idproducto"])) {
+		echo json_encode(array("status" => 0, "msg" => "No se recibieron productos para registrar el inventario inicial."));
+		exit;
+	}
+
+	$codsucursal = (int)decrypt($_POST["codsucursal"]);
+	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
+	$fechaconteo = date("Y-m-d H:i:s");
+	$observaciones = isset($_POST["observaciones"]) ? limpiar($_POST["observaciones"]) : "";
+	$total_productos = count($_POST["idproducto"]);
+
+	try {
+		$this->dbh->beginTransaction();
+
+		$sqlCab = "INSERT INTO conteo_inicial_diario 
+			(codsucursal, codusuario, fechaconteo, total_productos, observaciones) 
+			VALUES (?, ?, ?, ?, ?)";
+		$stmtCab = $this->dbh->prepare($sqlCab);
+		$stmtCab->execute(array($codsucursal, $codusuario, $fechaconteo, $total_productos, $observaciones));
+		$idconteo = $this->dbh->lastInsertId();
+
+		$sqlDet = "INSERT INTO detalle_conteo_inicial 
+			(idconteo, idproducto, codproducto, producto, cantidad_fisica) 
+			VALUES (?, ?, ?, ?, ?)";
+		$stmtDet = $this->dbh->prepare($sqlDet);
+
+		foreach ($_POST["idproducto"] as $i => $idprod) {
+			$idproducto = (int)$idprod;
+			$codproducto = limpiar($_POST["codproducto"][$i]);
+			$producto = limpiar($_POST["producto"][$i]);
+			$cantidad_fisica = (float)$_POST["cantidad_fisica"][$i];
+
+			$stmtDet->execute(array($idconteo, $idproducto, $codproducto, $producto, $cantidad_fisica));
+		}
+
+		$this->dbh->commit();
+
+		echo json_encode(array(
+			"status" => 1,
+			"idconteo" => encrypt($idconteo),
+			"horaconteo" => date("h:i A", strtotime($fechaconteo)),
+			"msg" => "¡Inventario Inicial registrado exitosamente!"
+		));
+		exit;
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en RegistrarConteoInicialCajero: " . $e->getMessage());
+		echo json_encode(array("status" => 0, "msg" => "Error interno al guardar: " . $e->getMessage()));
+		exit;
+	}
+}
+
+public function BuscarConteoInicialPorId($idconteo)
+{
+	self::SetNames();
+	$sql = "SELECT 
+		conteo_inicial_diario.*,
+		sucursales.cuitsucursal,
+		sucursales.nomsucursal,
+		sucursales.direcsucursal,
+		sucursales.tlfsucursal,
+		usuarios.nombres AS nomusuario
+		FROM conteo_inicial_diario
+		INNER JOIN sucursales ON conteo_inicial_diario.codsucursal = sucursales.codsucursal
+		LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+		WHERE conteo_inicial_diario.idconteo = ?";
+
+	$stmt = $this->dbh->prepare($sql);
+	$stmt->execute(array($idconteo));
+	$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
+
+	if (!$cabecera) {
+		return false;
+	}
+
+	$sqlDet = "SELECT * FROM detalle_conteo_inicial WHERE idconteo = ? ORDER BY producto ASC";
+	$stmtDet = $this->dbh->prepare($sqlDet);
+	$stmtDet->execute(array($idconteo));
+	$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
+
+	return array(
+		'cabecera' => $cabecera,
+		'detalles' => $detalles
+	);
+}
+
+######################## FIN FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
+
+######################## FIN FUNCIONES PARA AUDITORIA DE PRODUCTOS ###########################
 
 }
 ############## TERMINA LA CLASE LOGIN ######################

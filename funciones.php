@@ -11952,4 +11952,547 @@ $TotalImporte+=$reg[$i]['totalpago'];
   }
 } 
 ########################## BUSQUEDA NOTAS DE CREDITOS POR CLIENTES ##########################
+
+########################## BUSQUEDA PRODUCTOS PARA AUDITORIA ##########################
+if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && isset($_GET['fechadesde']) && isset($_GET['fechahasta'])) {
+
+	$codsucursal = decrypt($_GET['codsucursal']);
+	$fechadesde = limpiar($_GET['fechadesde']);
+	$fechahasta = limpiar($_GET['fechahasta']);
+	$codfamilia = isset($_GET['codfamilia']) ? (int)decrypt($_GET['codfamilia']) : 0;
+
+	if (empty($codsucursal)) {
+		echo "<div class='alert alert-danger text-center'><span class='fa fa-info-circle'></span> POR FAVOR SELECCIONE UNA SUCURSAL</div>";
+		exit;
+	}
+	if (empty($fechadesde) || empty($fechahasta)) {
+		echo "<div class='alert alert-danger text-center'><span class='fa fa-info-circle'></span> POR FAVOR INGRESE EL RANGO DE FECHA Y HORA</div>";
+		exit;
+	}
+	if (strtotime($fechadesde) > strtotime($fechahasta)) {
+		echo "<div class='alert alert-danger text-center'><span class='fa fa-info-circle'></span> LA FECHA/HORA INICIAL NO PUEDE SER MAYOR A LA FINAL</div>";
+		exit;
+	}
+
+	$auditoria = new Login();
+	$productos = $auditoria->ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fechahasta, $codfamilia);
+
+	if (empty($productos)) {
+		echo "<div class='alert alert-warning text-center'><span class='fa fa-info-circle'></span> NO SE ENCONTRARON PRODUCTOS PARA LA SUCURSAL SELECCIONADA</div>";
+		exit;
+	}
+
+	$ventas_anuladas = $auditoria->ConsultarVentasAnuladasAuditoria($codsucursal, $fechadesde, $fechahasta);
+?>
+<form class="form" method="post" action="#" name="formguardarauditoria" id="formguardarauditoria">
+	<input type="hidden" name="proceso" value="save_auditoria">
+	<input type="hidden" name="codsucursal" value="<?php echo encrypt($codsucursal); ?>">
+	<input type="hidden" name="fechadesde" value="<?php echo $fechadesde; ?>">
+	<input type="hidden" name="fechahasta" value="<?php echo $fechahasta; ?>">
+
+	<!-- Modal Desglose de Ventas por Caja -->
+	<div id="modalDesgloseCajas" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+		<div class="modal-dialog">
+			<div class="modal-content">
+				<div class="modal-header bg-danger text-white">
+					<h5 class="modal-title font-weight-bold" id="tituloModalDesglose"><i class="fa fa-desktop"></i> Desglose de Ventas por Caja</h5>
+					<button type="button" class="close text-white" data-dismiss="modal">&times;</button>
+				</div>
+				<div class="modal-body" id="contenidoDesgloseCajas">
+					<!-- Se carga por AJAX -->
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<?php if (!empty($ventas_anuladas)) { ?>
+	<!-- Panel de Alerta: Ventas y Productos Anulados en el Periodo -->
+	<div class="card border-warning mb-3">
+		<div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center py-2">
+			<h6 class="font-weight-bold mb-0">
+				<i class="fa fa-exclamation-triangle fa-lg text-danger mr-1"></i> 
+				🔴 PANEL DE CONTROL: <?php echo count($ventas_anuladas); ?> PRODUCTOS ANULADOS / TICKETS CANCELADOS EN ESTE TURNO
+			</h6>
+			<button type="button" class="btn btn-xs btn-dark" data-toggle="collapse" data-target="#panelAnuladas">
+				<i class="fa fa-eye"></i> Ver / Ocultar Detalles
+			</button>
+		</div>
+		<div class="collapse show" id="panelAnuladas">
+			<div class="card-body p-2 bg-light">
+				<div class="table-responsive" style="max-height: 220px; overflow-y: auto;">
+					<table class="table table-sm table-bordered table-striped mb-0 font-11">
+						<thead class="bg-dark text-white text-center">
+							<tr>
+								<th>#</th>
+								<th>Hora Anulación</th>
+								<th>Ticket / Factura</th>
+								<th>Caja</th>
+								<th>Cajero / Usuario</th>
+								<th>Producto Anulado</th>
+								<th>Cant.</th>
+								<th>Monto Anulado</th>
+							</tr>
+						</thead>
+						<tbody>
+							<?php 
+							$va_i = 1;
+							$total_anulados_dinero = 0;
+							foreach ($ventas_anuladas as $va) {
+								$total_anulados_dinero += (float)$va['valortotal'];
+							?>
+							<tr>
+								<td class="text-center font-weight-bold"><?php echo $va_i++; ?></td>
+								<td class="text-center"><?php echo date("d/m/Y h:i A", strtotime($va['fechaventa'])); ?></td>
+								<td class="text-center font-weight-bold text-danger"><?php echo htmlspecialchars($va['txtdocumento'] ?: $va['codventa']); ?></td>
+								<td><?php echo htmlspecialchars($va['nomcaja'] ?? 'Caja Principal'); ?></td>
+								<td><?php echo htmlspecialchars($va['nomusuario'] ?? 'N/A'); ?></td>
+								<td><strong><?php echo htmlspecialchars($va['producto']); ?></strong> (Cód: <?php echo htmlspecialchars($va['codproducto']); ?>)</td>
+								<td class="text-center font-weight-bold text-danger"><?php echo number_format($va['cantventa'], 0); ?></td>
+								<td class="text-right font-weight-bold text-danger">$ <?php echo number_format($va['valortotal'], 2, '.', ','); ?></td>
+							</tr>
+							<?php } ?>
+							<tr class="bg-warning text-dark font-weight-bold">
+								<td colspan="6" class="text-right">TOTAL DINERO ANULADO EN EL TURNO:</td>
+								<td class="text-center"><?php echo count($ventas_anuladas); ?> ítem(s)</td>
+								<td class="text-right font-14">$ <?php echo number_format($total_anulados_dinero, 2, '.', ','); ?></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<small class="text-muted d-block mt-1"><i class="fa fa-info-circle"></i> <strong>Nota del Auditor:</strong> Si un producto fue anulado después de ser entregado, no debe faltar físicamente en refrigeradores/barra a menos que haya sido devuelto.</small>
+			</div>
+		</div>
+	</div>
+	<?php } ?>
+
+	<div class="row">
+		<div class="col-lg-12">
+			<div class="card">
+				<div class="card-header bg-danger d-flex justify-content-between align-items-center flex-wrap">
+					<h4 class="card-title text-white mb-0"><i class="fa fa-clipboard-check"></i> Hoja de Trabajo de Auditoría (<?php echo count($productos); ?> Productos)</h4>
+					<div>
+						<button type="button" class="btn btn-sm btn-light font-weight-bold mr-1" onclick="CopiarTeoricoAFisico()"><i class="fa fa-magic text-primary"></i> Copiar Teórico a Físico</button>
+						<button type="button" class="btn btn-sm btn-light font-weight-bold" onclick="LimpiarCuaderno()"><i class="fa fa-eraser text-danger"></i> Limpiar Cuaderno</button>
+					</div>
+				</div>
+
+				<div class="card-body">
+					<!-- Banner de Resumen Dinámico -->
+					<div class="row mb-3">
+						<div class="col-md-3 col-sm-6 mb-2">
+							<div class="p-3 bg-light border rounded text-center">
+								<small class="text-muted text-uppercase font-weight-bold d-block">Total Productos</small>
+								<span class="h4 font-weight-bold text-dark" id="lbl_total_items"><?php echo count($productos); ?></span>
+							</div>
+						</div>
+						<div class="col-md-3 col-sm-6 mb-2">
+							<div class="p-3 bg-light border rounded text-center">
+								<small class="text-muted text-uppercase font-weight-bold d-block">Total Faltantes (U)</small>
+								<span class="h4 font-weight-bold text-danger" id="lbl_total_faltantes">0.00</span>
+							</div>
+						</div>
+						<div class="col-md-3 col-sm-6 mb-2">
+							<div class="p-3 bg-light border rounded text-center">
+								<small class="text-muted text-uppercase font-weight-bold d-block">Total Sobrantes (U)</small>
+								<span class="h4 font-weight-bold text-info" id="lbl_total_sobrantes">0.00</span>
+							</div>
+						</div>
+						<div class="col-md-3 col-sm-6 mb-2">
+							<div class="p-3 bg-light border rounded text-center">
+								<small class="text-muted text-uppercase font-weight-bold d-block">Valor Faltante ($)</small>
+								<span class="h4 font-weight-bold text-danger" id="lbl_monto_faltante">$ 0.00</span>
+							</div>
+						</div>
+					</div>
+
+					<div class="table-responsive">
+						<table id="tabla_auditoria" class="table table-hover table-bordered table-striped" style="font-size: 13px;">
+							<thead class="bg-dark text-white text-center">
+								<tr>
+									<th style="width: 35px;">#</th>
+									<th style="min-width: 170px;" class="text-left">Producto</th>
+									<th style="min-width: 95px;">Inicial Cuad. ✍️</th>
+									<th style="min-width: 65px;">Compras (+)</th>
+									<th style="min-width: 65px;">Trasp. (+)</th>
+									<th style="min-width: 95px;" class="text-danger">Ventas (-)</th>
+									<th style="min-width: 65px;" class="text-warning">Trasp. (-)</th>
+									<th style="min-width: 85px;" class="bg-primary text-white">Stock Teór.</th>
+									<th style="min-width: 95px;">Físico Final ✍️</th>
+									<th style="min-width: 85px;">Diferencia</th>
+									<th style="min-width: 85px;">Precio Venta</th>
+									<th style="min-width: 90px;">Valor Dif. ($)</th>
+									<th style="min-width: 160px; background-color: #343a40; color: #ffc107;">Gestión de Faltante ⚖️</th>
+								</tr>
+							</thead>
+							<tbody>
+								<?php
+								$n = 1;
+								foreach ($productos as $i => $p) {
+									$entradas_compras = (float)$p['compras_entradas'];
+									$entradas_traspasos = (float)$p['traspasos_entradas'];
+									$salidas_ventas = (float)$p['ventas_pos'];
+									$salidas_traspasos = (float)$p['traspasos_salidas'];
+									$precioventa = (float)$p['precioxpublico'];
+									$preciocompra = (float)$p['preciocompra'];
+									$conteo_cajero_ini = (!empty($p['conteo_cajero']) && (float)$p['conteo_cajero'] > 0) ? (float)$p['conteo_cajero'] : 0;
+								?>
+								<tr class="fila-auditoria" id="fila_<?php echo $i; ?>" data-index="<?php echo $i; ?>">
+									<td class="text-center font-weight-bold align-middle"><?php echo $n++; ?></td>
+									<td class="align-middle">
+										<input type="hidden" name="idproducto[]" value="<?php echo $p['idproducto']; ?>">
+										<input type="hidden" name="codproducto[]" value="<?php echo htmlspecialchars($p['codproducto']); ?>">
+										<input type="hidden" name="producto[]" value="<?php echo htmlspecialchars($p['producto']); ?>">
+										<input type="hidden" name="preciocompra[]" id="preciocompra_<?php echo $i; ?>" value="<?php echo $preciocompra; ?>">
+										<input type="hidden" name="precioventa[]" id="precioventa_<?php echo $i; ?>" value="<?php echo $precioventa; ?>">
+										<input type="hidden" name="entradas_compras[]" id="entradas_compras_<?php echo $i; ?>" value="<?php echo $entradas_compras; ?>">
+										<input type="hidden" name="entradas_traspasos[]" id="entradas_traspasos_<?php echo $i; ?>" value="<?php echo $entradas_traspasos; ?>">
+										<input type="hidden" name="salidas_ventas[]" id="salidas_ventas_<?php echo $i; ?>" value="<?php echo $salidas_ventas; ?>">
+										<input type="hidden" name="salidas_traspasos[]" id="salidas_traspasos_<?php echo $i; ?>" value="<?php echo $salidas_traspasos; ?>">
+										
+										<strong><?php echo htmlspecialchars($p['producto']); ?></strong>
+										<br><small class="text-muted">Cód: <?php echo htmlspecialchars($p['codproducto']); ?> | Stock Actual: <?php echo number_format($p['existencia'], 0); ?></small>
+									</td>
+									<td class="text-center align-middle">
+										<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold input-cuaderno" name="inicial_cuaderno[]" id="inicial_cuaderno_<?php echo $i; ?>" value="<?php echo $conteo_cajero_ini; ?>" oninput="CalcularFila(<?php echo $i; ?>)" style="background-color: #fff9e6; border: 2px solid #ffc107;">
+										<?php if ($conteo_cajero_ini > 0) { ?>
+											<small class="text-success font-weight-bold d-block font-10">✓ Auto Cajero</small>
+										<?php } ?>
+									</td>
+									<td class="text-center align-middle text-success font-weight-bold"><?php echo $entradas_compras > 0 ? "+".number_format($entradas_compras, 0) : "0"; ?></td>
+									<td class="text-center align-middle text-success font-weight-bold"><?php echo $entradas_traspasos > 0 ? "+".number_format($entradas_traspasos, 0) : "0"; ?></td>
+									<td class="text-center align-middle">
+										<span class="text-danger font-weight-bold d-block"><?php echo $salidas_ventas > 0 ? "-".number_format($salidas_ventas, 0) : "0"; ?></span>
+										<?php if ($salidas_ventas > 0) { ?>
+											<button type="button" class="btn btn-outline-danger btn-xs font-10 px-1 py-0 mt-1 shadow-sm" onclick="VerDesgloseCajas(<?php echo $p['idproducto']; ?>, '<?php echo htmlspecialchars(addslashes($p['producto'])); ?>')">
+												<i class="fa fa-desktop"></i> Cajas
+											</button>
+										<?php } ?>
+									</td>
+									<td class="text-center align-middle text-warning font-weight-bold"><?php echo $salidas_traspasos > 0 ? "-".number_format($salidas_traspasos, 0) : "0"; ?></td>
+									<td class="text-center align-middle">
+										<input type="hidden" name="stock_teorico[]" id="stock_teorico_<?php echo $i; ?>" value="0">
+										<span class="badge badge-primary p-2 font-13" id="badge_teorico_<?php echo $i; ?>">0.00</span>
+									</td>
+									<td class="text-center align-middle">
+										<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold input-fisico" name="fisico_final[]" id="fisico_final_<?php echo $i; ?>" value="0" oninput="CalcularFila(<?php echo $i; ?>)" style="background-color: #f0f7ff; border: 2px solid #007bff;">
+									</td>
+									<td class="text-center align-middle">
+										<input type="hidden" name="diferencia[]" id="diferencia_<?php echo $i; ?>" value="0">
+										<span class="badge badge-success p-2 font-13 badge-dif" id="badge_diferencia_<?php echo $i; ?>">0.00</span>
+									</td>
+									<td class="text-center align-middle font-weight-bold">$ <?php echo number_format($precioventa, 2, '.', ','); ?></td>
+									<td class="text-center align-middle">
+										<input type="hidden" name="valordiferencia[]" id="valordiferencia_<?php echo $i; ?>" value="0">
+										<span class="font-weight-bold span-valor-dif" id="span_valor_<?php echo $i; ?>">$ 0.00</span>
+									</td>
+									<td class="align-middle p-1" id="col_gestion_<?php echo $i; ?>" style="background-color: #fafbfc;">
+										<div class="gestion-faltante-box" id="box_gestion_<?php echo $i; ?>" style="display: none;">
+											<select class="form-control form-control-sm mb-1 font-11 font-weight-bold text-danger border-danger" name="accion_diferencia[]" id="accion_diferencia_<?php echo $i; ?>">
+												<option value="NINGUNA">-- Acción Faltante --</option>
+												<option value="COBRO_CAJERO">⚖️ Cobro a Cajero</option>
+												<option value="MERMA_ROTURA">🍷 Merma / Botella Rota</option>
+												<option value="ERROR_CONTEO">📝 Error de Conteo</option>
+												<option value="PERDIDA_EMPRESA">🏢 Pérdida Empresa</option>
+											</select>
+											<input type="text" class="form-control form-control-sm font-11 mb-1" name="responsable_diferencia[]" id="responsable_diferencia_<?php echo $i; ?>" placeholder="Cajero / Turno">
+											<input type="text" class="form-control form-control-sm font-10" name="motivo_diferencia[]" id="motivo_diferencia_<?php echo $i; ?>" placeholder="Justificación...">
+										</div>
+										<span class="text-muted font-11 d-block text-center sin-faltante-lbl" id="lbl_ok_<?php echo $i; ?>"><i class="fa fa-check text-success"></i> Sin Faltante</span>
+									</td>
+								</tr>
+								<?php } ?>
+							</tbody>
+						</table>
+					</div>
+
+					<div class="row mt-4">
+						<div class="col-md-8">
+							<div class="form-group">
+								<label class="control-label font-weight-bold">Observaciones / Notas de la Auditoría:</label>
+								<textarea class="form-control" name="observaciones" id="observaciones" rows="3" placeholder="Escriba aquí cualquier novedad o aclaración sobre la auditoría del turno..."></textarea>
+							</div>
+						</div>
+						<div class="col-md-4 d-flex align-items-end justify-content-end mb-3">
+							<button type="button" class="btn btn-success btn-lg btn-block font-weight-bold shadow" onclick="GuardarAuditoria()"><i class="fa fa-save"></i> GUARDAR AUDITORÍA</button>
+						</div>
+					</div>
+
+				</div>
+			</div>
+		</div>
+	</div>
+</form>
+<?php
+}
+########################## FIN BUSQUEDA PRODUCTOS PARA AUDITORIA ##########################
+
+########################## AJAX DESGLOSE VENTAS POR CAJA ##########################
+if (isset($_GET['DesgloseVentasCajas']) && isset($_GET['idproducto'])) {
+	$idproducto = (int)$_GET['idproducto'];
+	$codsucursal = !empty($_GET['codsucursal']) ? (int)decrypt($_GET['codsucursal']) : 0;
+	$fechadesde = limpiar($_GET['fechadesde']);
+	$fechahasta = limpiar($_GET['fechahasta']);
+
+	$login = new Login();
+	$desglose = $login->ConsultarDesgloseVentasProducto($idproducto, $codsucursal, $fechadesde, $fechahasta);
+
+	if (empty($desglose)) {
+		echo "<div class='alert alert-info text-center py-3 mb-0'><i class='fa fa-info-circle'></i> No se encontraron ventas registradas para este producto en el rango horario seleccionado.</div>";
+		exit;
+	}
+?>
+	<table class="table table-bordered table-sm table-striped mb-0 font-12">
+		<thead class="bg-danger text-white text-center">
+			<tr>
+				<th>Caja / Terminal</th>
+				<th>Cajero Responsable</th>
+				<th>Cant. Vendida</th>
+				<th>Total Recaudado</th>
+			</tr>
+		</thead>
+		<tbody>
+			<?php 
+			$tot_cant = 0;
+			$tot_dinero = 0;
+			foreach ($desglose as $d) {
+				$tot_cant += (float)$d['total_vendido'];
+				$tot_dinero += (float)$d['importe_total'];
+			?>
+			<tr>
+				<td class="font-weight-bold align-middle"><?php echo htmlspecialchars($d['nomcaja'] ?? 'Caja #'.$d['nrocaja']); ?></td>
+				<td class="align-middle"><?php echo htmlspecialchars($d['nomusuario'] ?? 'Sin cajero asignado'); ?></td>
+				<td class="text-center font-weight-bold text-danger align-middle"><?php echo number_format($d['total_vendido'], 0); ?></td>
+				<td class="text-right font-weight-bold align-middle">$ <?php echo number_format($d['importe_total'], 2, '.', ','); ?></td>
+			</tr>
+			<?php } ?>
+			<tr class="bg-light font-weight-bold">
+				<td colspan="2" class="text-right">TOTAL GENERAL:</td>
+				<td class="text-center text-danger font-14"><?php echo number_format($tot_cant, 0); ?></td>
+				<td class="text-right font-14 text-dark">$ <?php echo number_format($tot_dinero, 2, '.', ','); ?></td>
+			</tr>
+		</tbody>
+	</table>
+<?php
+	exit;
+}
+########################## FIN DESGLOSE VENTAS POR CAJA ##########################
+
+########################## BUSQUEDA HISTORIAL AUDITORIAS ##########################
+if (isset($_GET['BuscaHistorialAuditorias']) && isset($_GET['codsucursal']) && isset($_GET['desde']) && isset($_GET['hasta'])) {
+
+	$codsucursal = !empty($_GET['codsucursal']) ? (int)decrypt($_GET['codsucursal']) : 0;
+	$desde = limpiar($_GET['desde']);
+	$hasta = limpiar($_GET['hasta']);
+
+	$auditoria = new Login();
+	$registros = $auditoria->BuscarAuditoriasxFechas($codsucursal, $desde, $hasta);
+
+	if (empty($registros)) {
+		echo "<div class='alert alert-warning text-center'><span class='fa fa-info-circle'></span> NO SE ENCONTRARON AUDITORIAS EN EL RANGO SELECCIONADO</div>";
+		exit;
+	}
+?>
+<div class="table-responsive">
+	<table id="tabla_historial_auditorias" class="table table-striped table-bordered display">
+		<thead class="bg-danger text-white text-center">
+			<tr>
+				<th>Nº</th>
+				<th>Sucursal</th>
+				<th>Rango Auditado (Desde - Hasta)</th>
+				<th>Fecha Registro</th>
+				<th>Realizado Por</th>
+				<th>Prod. Auditados</th>
+				<th>Faltantes (U)</th>
+				<th>Sobrantes (U)</th>
+				<th>Monto Faltante</th>
+				<th>Acciones</th>
+			</tr>
+		</thead>
+		<tbody>
+			<?php
+			$a = 1;
+			foreach ($registros as $r) {
+			?>
+			<tr>
+				<td class="text-center font-weight-bold"><?php echo $a++; ?></td>
+				<td><?php echo htmlspecialchars($r['cuitsucursal'] . " - " . $r['nomsucursal']); ?></td>
+				<td class="text-center">
+					<small class="d-block font-weight-bold text-dark"><?php echo date("d/m/Y h:i A", strtotime($r['fechadesde'])); ?></small>
+					<small class="text-muted">hasta</small>
+					<small class="d-block font-weight-bold text-dark"><?php echo date("d/m/Y h:i A", strtotime($r['fechahasta'])); ?></small>
+				</td>
+				<td class="text-center"><?php echo date("d/m/Y h:i A", strtotime($r['fecharegistro'])); ?></td>
+				<td><?php echo htmlspecialchars($r['nomusuario'] ?? 'Administrador'); ?></td>
+				<td class="text-center font-weight-bold"><?php echo $r['total_productos']; ?></td>
+				<td class="text-center font-weight-bold text-danger"><?php echo number_format($r['total_faltantes'], 0); ?></td>
+				<td class="text-center font-weight-bold text-info"><?php echo number_format($r['total_sobrantes'], 0); ?></td>
+				<td class="text-center font-weight-bold text-danger">$ <?php echo number_format($r['monto_faltante'], 2, '.', ','); ?></td>
+				<td class="text-center">
+					<a href="reportepdf?idauditoria=<?php echo encrypt($r['idauditoria']); ?>&tipo=<?php echo encrypt("AUDITORIAPRODUCTOS"); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-danger btn-sm" title="Descargar PDF"><i class="fa fa-file-pdf-o"></i> PDF</a>
+					<a href="reporteexcel?idauditoria=<?php echo encrypt($r['idauditoria']); ?>&documento=<?php echo encrypt("EXCEL"); ?>&tipo=<?php echo encrypt("AUDITORIAPRODUCTOS"); ?>" class="btn btn-success btn-sm" title="Descargar Excel"><i class="fa fa-file-excel-o"></i> Excel</a>
+				</td>
+			</tr>
+			<?php } ?>
+		</tbody>
+	</table>
+</div>
+<?php
+}
+########################## FIN BUSQUEDA HISTORIAL AUDITORIAS ##########################
+
+########################## MODAL Y PROCESO CONTEO INICIAL CAJERO (CONTEO A CIEGAS) ##########################
+if (isset($_GET['CargaModalConteoInicial'])) {
+	$codsucursal = isset($_SESSION['codsucursal']) ? (int)$_SESSION['codsucursal'] : 0;
+	$idconteo = !empty($_GET['idconteo']) ? (int)$_GET['idconteo'] : 0;
+
+	$login = new Login();
+
+	// Si ya está registrado, mostramos el resumen y botón para ver/imprimir PDF
+	if ($idconteo > 0) {
+		$data = $login->BuscarConteoInicialPorId($idconteo);
+		if ($data && !empty($data['cabecera'])) {
+			$cab = $data['cabecera'];
+			$det = $data['detalles'];
+		?>
+		<div class="alert alert-success text-center mb-3">
+			<h4 class="alert-heading font-weight-bold mb-1"><i class="fa fa-check-circle"></i> ¡Inventario Inicial Ya Registrado!</h4>
+			<p class="mb-0">Registrado por <strong><?php echo htmlspecialchars($cab['nomusuario'] ?? $_SESSION['nombres']); ?></strong> el <strong><?php echo date("d/m/Y h:i A", strtotime($cab['fechaconteo'])); ?></strong>.</p>
+		</div>
+
+		<div class="d-flex justify-content-between align-items-center mb-2">
+			<span class="font-weight-bold text-dark"><i class="fa fa-cubes"></i> Total Ítems Contados: <?php echo count($det); ?></span>
+			<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow-sm">
+				<i class="fa fa-file-pdf-o"></i> Descargar Comprobante PDF (WhatsApp)
+			</a>
+		</div>
+
+		<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+			<table class="table table-striped table-bordered table-sm mb-0">
+				<thead class="bg-warning text-dark font-weight-bold text-center">
+					<tr>
+						<th style="width: 50px;">#</th>
+						<th style="width: 120px;">Código</th>
+						<th>Producto</th>
+						<th style="width: 140px;">Cantidad Física</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php 
+					$c = 1;
+					foreach ($det as $item) { ?>
+					<tr>
+						<td class="text-center font-weight-bold"><?php echo $c++; ?></td>
+						<td class="text-center"><?php echo htmlspecialchars($item['codproducto']); ?></td>
+						<td><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
+						<td class="text-center font-weight-bold bg-light text-primary font-16"><?php echo number_format($item['cantidad_fisica'], 0); ?></td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+		</div>
+
+		<?php if (!empty($cab['observaciones'])) { ?>
+		<div class="alert alert-secondary mt-3 mb-0">
+			<strong>Notas / Observaciones:</strong> <?php echo htmlspecialchars($cab['observaciones']); ?>
+		</div>
+		<?php } ?>
+
+		<div class="modal-footer px-0 pb-0 mt-3">
+			<button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> Cerrar</button>
+			<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold">
+				<i class="fa fa-print"></i> Imprimir / Enviar a WhatsApp
+			</a>
+		</div>
+		<?php
+			exit;
+		}
+	}
+
+	// Si no está registrado, mostramos el formulario de captura rápida (MODO CONTEO A CIEGAS)
+	$productos = $login->ConsultarProductosParaAuditoria($codsucursal, date('Y-m-d 00:00:00'), date('Y-m-d 23:59:59'));
+?>
+	<form id="form_conteo_inicial_cajero" onsubmit="return false;">
+		<input type="hidden" name="codsucursal" value="<?php echo encrypt($codsucursal); ?>">
+
+		<div class="alert alert-warning text-dark py-2 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap">
+			<div>
+				<i class="fa fa-clipboard-check fa-lg text-dark mr-1"></i>
+				<strong>Conteo Físico Inicial (2:00 PM):</strong> Cuente y anote la cantidad real en refrigeradores y barra.
+			</div>
+			<span class="badge badge-dark text-warning font-weight-bold p-2"><i class="fa fa-eye-slash"></i> Conteo Físico a Ciegas</span>
+		</div>
+
+		<div class="form-group mb-2">
+			<div class="input-group">
+				<div class="input-group-prepend">
+					<span class="input-group-text bg-white"><i class="fa fa-search text-muted"></i></span>
+				</div>
+				<input type="text" id="buscador_producto_conteo" class="form-control" placeholder="Buscar producto por nombre o código..." onkeyup="FiltrarProductosConteo()">
+			</div>
+		</div>
+
+		<div class="table-responsive" style="max-height: 380px; overflow-y: auto;">
+			<table class="table table-bordered table-striped table-hover table-sm mb-0" id="tabla_captura_conteo">
+				<thead class="bg-warning text-dark font-weight-bold text-center sticky-top" style="position: sticky; top: 0; z-index: 1;">
+					<tr>
+						<th style="width: 45px;">#</th>
+						<th style="width: 110px;">Código</th>
+						<th>Descripción del Producto</th>
+						<th style="width: 170px; background-color: #ffe8a1;">Cantidad Física Contada ✍️</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php
+					$k = 1;
+					if (empty($productos)) {
+						echo '<tr><td colspan="4" class="text-center py-3 text-muted">No se encontraron productos asignados a esta sucursal.</td></tr>';
+					} else {
+						foreach ($productos as $idx => $p) {
+					?>
+					<tr class="fila-producto-conteo">
+						<td class="text-center font-weight-bold align-middle"><?php echo $k++; ?></td>
+						<td class="text-center text-muted align-middle font-12"><?php echo htmlspecialchars($p['codproducto']); ?></td>
+						<td class="align-middle">
+							<input type="hidden" name="idproducto[]" value="<?php echo $p['idproducto']; ?>">
+							<input type="hidden" name="codproducto[]" value="<?php echo htmlspecialchars($p['codproducto']); ?>">
+							<input type="hidden" name="producto[]" value="<?php echo htmlspecialchars($p['producto']); ?>">
+							<strong class="nombre-prod"><?php echo htmlspecialchars($p['producto']); ?></strong>
+							<?php if (!empty($p['nommarca'])) { ?>
+								<span class="badge badge-light border text-muted ml-1"><?php echo htmlspecialchars($p['nommarca']); ?></span>
+							<?php } ?>
+						</td>
+						<td class="p-1 align-middle" style="background-color: #fffdf5;">
+							<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold input-conteo-cajero" name="cantidad_fisica[]" value="0" style="font-size: 16px; border: 2px solid #ffc107; font-weight: 700;" onclick="this.select();" onfocus="this.select();">
+						</td>
+					</tr>
+					<?php
+						}
+					}
+					?>
+				</tbody>
+			</table>
+		</div>
+
+		<div class="form-group mt-3 mb-0">
+			<label class="font-weight-bold text-dark font-12 mb-1">Notas / Observaciones del Conteo:</label>
+			<textarea class="form-control form-control-sm" name="observaciones" rows="2" placeholder="Opcional: Indique cualquier producto roto, cambio o detalle importante de su entrega..."></textarea>
+		</div>
+
+		<div class="modal-footer px-0 pb-0 mt-3 d-flex justify-content-between">
+			<button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> Cancelar</button>
+			<button type="button" class="btn btn-warning text-dark font-weight-bold shadow px-4" id="btn_guardar_conteo_cajero" onclick="GuardarConteoInicialCajero()">
+				<i class="fa fa-save"></i> GUARDAR INVENTARIO INICIAL
+			</button>
+		</div>
+	</form>
+<?php
+	exit;
+}
+
+if (isset($_GET['GuardarConteoInicialCajero'])) {
+	$login = new Login();
+	$login->RegistrarConteoInicialCajero();
+	exit;
+}
+########################## FIN MODAL Y PROCESO CONTEO INICIAL CAJERO ##########################
 ?>

@@ -23133,10 +23133,275 @@ function TablaListarNotasxClientes()
     $this->Cell(125,6,'',0,0,'');
     $this->Ln(4);
 }
-########################## FUNCION LISTAR NOTAS DE CREDITO POR FECHAS ##############################
+########################## FUNCION REPORTE OFICIAL DE AUDITORIA DE PRODUCTOS ##############################
+public function TablaAuditoriaProductos()
+{
+    $idauditoria = isset($_GET['idauditoria']) ? (int)decrypt($_GET['idauditoria']) : 0;
+    if (empty($idauditoria)) {
+        $this->SetFont('Courier','B',14);
+        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ LA AUDITORÍA A CONSULTAR"),0,1,'C');
+        return;
+    }
 
-############################## REPORTES DE NOTAS DE CREDITOS ##################################
+    $login = new Login();
+    $data = $login->BuscarAuditoriaPorId($idauditoria);
 
+    if (!$data || empty($data['cabecera'])) {
+        $this->SetFont('Courier','B',14);
+        $this->Cell(0,10,_u8d("AUDITORÍA NO ENCONTRADA"),0,1,'C');
+        return;
+    }
+
+    $cab = $data['cabecera'];
+    $detalles = $data['detalles'];
+    $simbolo = !empty($cab['simbolo_moneda']) ? $cab['simbolo_moneda'] : "$";
+
+    // Encabezado Corporativo
+    $logo = (file_exists("./fotos/logo_pdf.png") ? "./fotos/logo_pdf.png" : "./assets/images/null.png");
+    $this->Ln(2);
+    $this->SetFont('Courier','B',14);
+    $this->SetTextColor(3,3,3);
+    $this->Cell(45,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 32),0,0,'C');
+    $this->Cell(245,5,_u8d(strtoupper($cab['nomsucursal'])),0,0,'C');
+    $this->Ln(6);
+    $this->SetFont('Courier','B',12);
+    $this->Cell(45,5,"",0,0,'C');
+    $this->Cell(245,5,_u8d("INFORME OFICIAL DE AUDITORÍA Y CUADRE DE INVENTARIO"),0,0,'C');
+    $this->Ln(5);
+    $this->SetFont('Courier','B',9);
+    $this->Cell(45,5,"",0,0,'C');
+    $this->Cell(245,5,_u8d("RANGO AUDITADO: Desde ".date("d/m/Y h:i A", strtotime($cab['fechadesde']))." Hasta ".date("d/m/Y h:i A", strtotime($cab['fechahasta']))),0,0,'C');
+    $this->Ln(7);
+
+    // Metadata Superior
+    $this->SetFont('Courier','',9);
+    $this->Cell(170,4,_u8d("SUCURSAL: ".$cab['cuitsucursal']." - ".$cab['nomsucursal']." | DIRECCIÓN: ".$cab['direcsucursal']),0,0,'L');
+    $this->SetFont('Courier','B',9);
+    $this->Cell(165,4,_u8d("FOLIO DE AUDITORÍA Nº: ".str_pad($cab['idauditoria'], 6, "0", STR_PAD_LEFT)),0,1,'R');
+
+    $this->SetFont('Courier','',9);
+    $this->Cell(170,4,_u8d("AUDITOR / REGISTRADO POR: ".($cab['nomusuario'] ?? 'ADMINISTRADOR GENERAL')),0,0,'L');
+    $this->Cell(165,4,_u8d("FECHA DE REGISTRO: ".date("d/m/Y h:i A", strtotime($cab['fecharegistro']))),0,1,'R');
+    $this->Ln(3);
+
+    // KPI / Resumen Ejecutivo
+    $this->SetFont('Courier','B',8);
+    $this->SetFillColor(240, 240, 240);
+    $this->SetTextColor(0, 0, 0);
+    $this->Cell(80,6,_u8d("TOTAL ÍTEMS AUDITADOS: ").$cab['total_productos'],1,0,'C',true);
+    $this->SetFillColor(255, 230, 230);
+    $this->SetTextColor(180, 0, 0);
+    $this->Cell(85,6,_u8d("TOTAL FALTANTES: ").number_format($cab['total_faltantes'], 2)." Unidades",1,0,'C',true);
+    $this->SetFillColor(230, 245, 255);
+    $this->SetTextColor(0, 80, 160);
+    $this->Cell(85,6,_u8d("TOTAL SOBRANTES: ").number_format($cab['total_sobrantes'], 2)." Unidades",1,0,'C',true);
+    $this->SetFillColor(255, 220, 220);
+    $this->SetTextColor(180, 0, 0);
+    $this->Cell(85,6,_u8d("MONTO TOTAL FALTANTE: ").$simbolo." ".number_format($cab['monto_faltante'], 2),1,1,'C',true);
+    $this->Ln(3);
+
+    // Cabecera de la Tabla Principal
+    // Anchos: 8, 20, 64, 20, 18, 18, 18, 18, 21, 21, 22, 22, 25, 40 = 335 mm
+    $this->SetWidths(array(8, 20, 64, 20, 18, 18, 18, 18, 21, 21, 22, 22, 25, 40));
+    $this->SetAligns(array('C', 'C', 'L', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'R', 'R', 'L'));
+
+    $this->SetFont('Courier','B',7);
+    $this->SetFillColor(220, 53, 69);
+    $this->SetTextColor(255, 255, 255);
+    $this->Row(array(
+        "#",
+        _u8d("CÓDIGO"),
+        _u8d("DESCRIPCIÓN DEL PRODUCTO"),
+        _u8d("INIC. CUAD"),
+        _u8d("COMPRAS"),
+        _u8d("TRASP +"),
+        _u8d("VENTAS -"),
+        _u8d("TRASP -"),
+        _u8d("TEÓRICO"),
+        _u8d("FÍSICO FIN"),
+        _u8d("DIFERENCIA"),
+        _u8d("P. VENTA"),
+        _u8d("VALOR DIF."),
+        _u8d("GESTIÓN / RESPONSABLE")
+    ));
+
+    $this->SetFont('Courier','',7);
+    $this->SetTextColor(3,3,3);
+
+    $n = 1;
+    $hay_faltantes = false;
+    foreach ($detalles as $d) {
+        $dif = (float)$d['diferencia'];
+        $valordif = (float)$d['valordiferencia'];
+        if ($dif < 0) {
+            $hay_faltantes = true;
+            $txtDif = number_format($dif, 0)." (FALT)";
+            $txtValorDif = "-".$simbolo." ".number_format(abs($valordif), 2);
+        } elseif ($dif > 0) {
+            $txtDif = "+".number_format($dif, 0)." (SOBR)";
+            $txtValorDif = "+".$simbolo." ".number_format(abs($valordif), 2);
+        } else {
+            $txtDif = "0 (CUADRADO)";
+            $txtValorDif = $simbolo." 0.00";
+        }
+
+        $gestionTxt = "-";
+        if ($d['accion_diferencia'] != 'NINGUNA' && !empty($d['accion_diferencia'])) {
+            $gestionTxt = _u8d($d['accion_diferencia']);
+            if (!empty($d['responsable_diferencia'])) {
+                $gestionTxt .= " | "._u8d($d['responsable_diferencia']);
+            }
+        }
+
+        $this->Row(array(
+            $n++,
+            _u8d($d['codproducto']),
+            _u8d($d['producto']),
+            number_format($d['inicial_cuaderno'], 0),
+            number_format($d['entradas_compras'], 0),
+            number_format($d['entradas_traspasos'], 0),
+            number_format($d['salidas_ventas'], 0),
+            number_format($d['salidas_traspasos'], 0),
+            number_format($d['stock_teorico'], 0),
+            number_format($d['fisico_final'], 0),
+            $txtDif,
+            $simbolo." ".number_format($d['precioventa'], 2),
+            $txtValorDif,
+            $gestionTxt
+        ));
+    }
+
+    $this->Ln(3);
+
+    // Sección de Justificación / Observaciones
+    if (!empty($cab['observaciones'])) {
+        $this->SetFont('Courier','B',8);
+        $this->Cell(0,4,_u8d("OBSERVACIONES GENERALES DE LA AUDITORÍA:"),0,1,'L');
+        $this->SetFont('Courier','',8);
+        $this->MultiCell(0,4,_u8d($cab['observaciones']),0,'L');
+        $this->Ln(2);
+    }
+
+    // Bloque de Firmas de Conformidad (3 Firmas)
+    $this->Ln(10);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(110,4,'__________________________________________',0,0,'C');
+    $this->Cell(115,4,'__________________________________________',0,0,'C');
+    $this->Cell(110,4,'__________________________________________',0,1,'C');
+
+    $this->Cell(110,4,_u8d("ADMINISTRADOR GENERAL / AUDITOR"),0,0,'C');
+    $this->Cell(115,4,_u8d("CAJERO TURNO TARDE (2:00 PM)"),0,0,'C');
+    $this->Cell(110,4,_u8d("CAJERO TURNO NOCHE (2:00 AM)"),0,1,'C');
+    $this->Ln(2);
+    $this->SetFont('Courier','I',7);
+    $this->Cell(0,4,_u8d("Las firmas confirman la exactitud del conteo inicial, movimientos del turno y entrega de valores/inventario."),0,1,'C');
+}
+########################## FIN FUNCION REPORTE OFICIAL DE AUDITORIA DE PRODUCTOS ##############################
+
+########################## FUNCION COMPROBANTE DE INVENTARIO INICIAL CAJEROS ##############################
+public function TablaConteoInicialProductos()
+{
+    $idconteo = isset($_GET['idconteo']) ? (int)decrypt($_GET['idconteo']) : 0;
+    if (empty($idconteo)) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ EL CONTEO INICIAL"),0,1,'C');
+        return;
+    }
+
+    $login = new Login();
+    $data = $login->BuscarConteoInicialPorId($idconteo);
+
+    if (!$data || empty($data['cabecera'])) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("CONTEO INICIAL NO ENCONTRADO"),0,1,'C');
+        return;
+    }
+
+    $cab = $data['cabecera'];
+    $detalles = $data['detalles'];
+
+    // Encabezado
+    $logo = ( file_exists("./fotos/logo_pdf.png") == "" ? "./assets/images/null.png" : "./fotos/logo_pdf.png");
+    $this->Ln(2);
+    $this->SetFont('Courier','B',12);
+    $this->SetTextColor(3,3,3);
+    $this->Cell(35,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 26),0,0,'C');
+    $this->Cell(155,5,_u8d($cab['nomsucursal']),0,0,'C');
+    $this->Ln(6);
+    $this->SetFont('Courier','B',10);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(155,5,_u8d("COMPROBANTE DE ENTREGA DE INVENTARIO INICIAL"),0,0,'C');
+    $this->Ln(4);
+    $this->SetFont('Courier','I',8);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(155,5,_u8d("(TURNO TARDE - 2:00 PM)"),0,0,'C');
+    $this->Ln(6);
+
+    $this->SetFont('Courier','',8);
+    $this->Cell(110,4,_u8d("SUCURSAL: ".$cab['cuitsucursal']." - ".$cab['nomsucursal']),0,0,'L');
+    $this->Cell(80,4,_u8d("FOLIO CONTEO Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)),0,1,'R');
+
+    $this->Cell(110,4,_u8d("CAJERO / RESPONSABLE: ".($cab['nomusuario'] ?? $_SESSION['nombres'])),0,0,'L');
+    $this->Cell(80,4,_u8d("FECHA Y HORA: ".date("d/m/Y h:i A", strtotime($cab['fechaconteo']))),0,1,'R');
+
+    $this->Cell(110,4,_u8d("DIRECCIÓN: ".$cab['direcsucursal']),0,0,'L');
+    $this->Cell(80,4,_u8d("TELÉFONO: ".$cab['tlfsucursal']),0,1,'R');
+    $this->Ln(3);
+
+    // Cabecera de Tabla
+    $this->SetWidths(array(10, 30, 110, 40));
+    $this->SetAligns(array('C', 'C', 'L', 'C'));
+
+    $this->SetFont('Courier','B',8);
+    $this->SetFillColor(255, 193, 7);
+    $this->SetTextColor(0, 0, 0);
+    $this->Row(array(
+        "#",
+        _u8d("CÓDIGO"),
+        _u8d("DESCRIPCIÓN DEL PRODUCTO"),
+        _u8d("CANTIDAD FÍSICA")
+    ));
+
+    $this->SetFont('Courier','',8);
+    $this->SetTextColor(3,3,3);
+
+    $n = 1;
+    $total_unidades = 0;
+    foreach ($detalles as $d) {
+        $cant = (float)$d['cantidad_fisica'];
+        $total_unidades += $cant;
+
+        $this->Row(array(
+            $n++,
+            _u8d($d['codproducto']),
+            _u8d($d['producto']),
+            number_format($cant, 0)
+        ));
+    }
+
+    $this->Ln(3);
+
+    // Resumen
+    $this->SetFont('Courier','B',9);
+    $this->Cell(110,5,_u8d("TOTAL ÍTEMS: ".$cab['total_productos']),0,0,'L');
+    $this->Cell(80,5,_u8d("TOTAL UNIDADES FÍSICAS: ".number_format($total_unidades, 0)),0,1,'R');
+
+    if (!empty($cab['observaciones'])) {
+        $this->Ln(2);
+        $this->SetFont('Courier','I',8);
+        $this->MultiCell(0,4,_u8d("OBSERVACIONES / NOTAS: ".$cab['observaciones']),0,'L');
+    }
+
+    // Firmas
+    $this->Ln(15);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(95,5,'____________________________________',0,0,'C');
+    $this->Cell(95,5,'____________________________________',0,1,'C');
+
+    $this->Cell(95,4,_u8d("ENTREGA: TURNO ANTERIOR"),0,0,'C');
+    $this->Cell(95,4,_u8d("RECIBE: CAJERO TURNO TARDE"),0,1,'C');
+}
+########################## FIN FUNCION COMPROBANTE DE INVENTARIO INICIAL ####################
 
  // FIN Class PDF
 }

@@ -74,6 +74,17 @@ exit;
     <!-- color alert -->
     <link rel="stylesheet" type="text/css" href="assets/css/alert.css">
 
+    <style>
+    @keyframes pulse-conteo-anim {
+        0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.7); }
+        70% { transform: scale(1.03); box-shadow: 0 0 0 8px rgba(255, 193, 7, 0); }
+        100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 193, 7, 0); }
+    }
+    .pulse-conteo {
+        animation: pulse-conteo-anim 2s infinite;
+    }
+    </style>
+
     <!-- HTML5 Shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
     <!--[if lt IE 9]>
@@ -99,6 +110,22 @@ exit;
     <!-- Main wrapper - style you can find in pages.scss -->
     <!-- ============================================================== -->
     <div id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full" data-boxed-layout="full" data-boxed-layout="boxed" data-header-position="fixed" data-sidebar-position="fixed" class="mini-sidebar"> 
+
+<!--############################## MODAL INVENTARIO INICIAL CAJEROS ##############################-->
+<div id="myModalConteoInicial" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabelConteo" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h4 class="modal-title font-weight-bold" id="myModalLabelConteo"><i class="fa fa-clipboard"></i> Inventario Inicial Diario (Turno Tarde - 2:00 PM)</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><img src="assets/images/close.png"/></button>
+            </div>
+            <div class="modal-body" id="contenido_modal_conteo">
+                <!-- Carga por AJAX -->
+            </div>
+        </div>
+    </div>
+</div>
+<!--############################## FIN MODAL INVENTARIO INICIAL CAJEROS ##############################-->
 
 <!--############################## MODAL PARA AGREGAR PRECIO VENTA EN DETALLE ##############################-->
 <!-- sample modal content -->
@@ -374,8 +401,19 @@ exit;
 <div class="row">
     <div class="col-lg-12">
         <div class="card">
-            <div class="card-header bg-danger">
-            <h4 class="card-title text-white"><i class="fa fa-save"></i> Gestión de Ventas</h4>
+            <?php
+            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"]);
+            ?>
+            <div class="card-header bg-danger d-flex justify-content-between align-items-center flex-wrap">
+                <h4 class="card-title text-white mb-0"><i class="fa fa-save"></i> Gestión de Ventas</h4>
+                <div id="contenedor_boton_conteo" class="mt-1 mt-md-0">
+                <?php if(!$verif_conteo){ ?>
+                    <button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm pulse-conteo" onclick="AbrirModalConteoInicial()"><i class="fa fa-clipboard"></i> 📦 REGISTRAR INVENTARIO INICIAL (2:00 PM)</button>
+                <?php } else { ?>
+                    <button type="button" class="btn btn-success font-weight-bold shadow-sm mr-1" onclick="AbrirModalConteoInicial(<?php echo $verif_conteo['idconteo']; ?>)"><i class="fa fa-check-circle"></i> ✅ INVENTARIO INICIAL REGISTRADO (<?php echo date("h:i A", strtotime($verif_conteo['fechaconteo'])); ?>)</button>
+                    <a href="reportepdf?idconteo=<?php echo encrypt($verif_conteo['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-light font-weight-bold" title="Descargar Comprobante PDF para WhatsApp"><i class="fa fa-file-pdf-o text-danger"></i> PDF WhatsApp</a>
+                <?php } ?>
+                </div>
             </div>
 
 <?php if (isset($_GET['codventa']) && isset($_GET['codsucursal']) && decrypt($_GET["proceso"])=="U") {
@@ -1298,7 +1336,11 @@ for($i=0;$i<sizeof($detalle);$i++){
     <script type="text/javascript" src="assets/script/jquery.mask.js"></script>
     <script type="text/javascript" src="assets/script/mask.js"></script>
     <script type="text/javascript" src="assets/script/script2.js"></script>
+    <script>
+    var TIPO_CONTEO_INICIAL = "<?php echo encrypt('CONTEOINICIAL'); ?>";
+    </script>
     <script type="text/javascript" src="assets/script/jsventas.js"></script>
+    <script type="text/javascript" src="assets/script/jsconteo_inicial.js"></script>
     <script type="text/javascript" src="assets/script/validation.min.js"></script>
     <script type="text/javascript" src="assets/script/script.js"></script>
     <!-- script jquery -->

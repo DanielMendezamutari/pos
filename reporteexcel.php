@@ -6488,9 +6488,95 @@ $TotalImporte+=$reg[$i]['totalpago'];
   </tr>
   <?php } ?>
 </table>
+############################### MODULO DE AUDITORIA DE PRODUCTOS ###############################
+case 'AUDITORIAPRODUCTOS':
+
+$idauditoria = isset($_GET['idauditoria']) ? (int)decrypt($_GET['idauditoria']) : 0;
+$tra = new Login();
+$data = $tra->BuscarAuditoriaPorId($idauditoria);
+
+$cab = $data ? $data['cabecera'] : [];
+$detalles = $data ? $data['detalles'] : [];
+
+$archivo = str_replace(" ", "_", "AUDITORIA_PRODUCTOS_" . ($cab['nomsucursal'] ?? 'SUCURSAL') . "_" . date("Ymd_His"));
+header("Content-Type: application/vnd.ms-$documento");
+header("Expires: 0");
+header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+header("content-disposition: attachment;filename=".$archivo.$extension);
+?>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<table border="1" cellpadding="2" cellspacing="0">
+  <tr style="background-color: #d9534f; color: #ffffff; font-weight: bold; text-align: center;">
+    <th colspan="11">INFORME DE AUDITORÍA DE PRODUCTOS - <?php echo strtoupper($cab['nomsucursal'] ?? ''); ?></th>
+  </tr>
+  <tr>
+    <td colspan="4"><strong>Sucursal:</strong> <?php echo ($cab['cuitsucursal'] ?? '').": ".($cab['nomsucursal'] ?? ''); ?></td>
+    <td colspan="4"><strong>Periodo:</strong> <?php echo date("d/m/Y H:i", strtotime($cab['fechadesde'])); ?> al <?php echo date("d/m/Y H:i", strtotime($cab['fechahasta'])); ?></td>
+    <td colspan="3"><strong>Auditoría Nº:</strong> <?php echo str_pad($cab['idauditoria'] ?? 0, 6, "0", STR_PAD_LEFT); ?></td>
+  </tr>
+  <tr style="background-color: #333333; color: #ffffff; font-weight: bold; text-align: center;">
+    <th>Nº</th>
+    <th>CÓDIGO</th>
+    <th>PRODUCTO</th>
+    <th>INICIAL CUADERNO</th>
+    <th>COMPRAS (+)</th>
+    <th>TRASP. RECIBIDOS (+)</th>
+    <th>VENTAS POS (-)</th>
+    <th>TRASP. ENVIADOS (-)</th>
+    <th>STOCK TEÓRICO</th>
+    <th>FÍSICO FINAL</th>
+    <th>DIFERENCIA (U)</th>
+    <th>PRECIO VENTA</th>
+    <th>VALOR DIFERENCIA ($)</th>
+    <th>ACCIÓN ASIGNADA</th>
+    <th>RESPONSABLE / CAJERO</th>
+    <th>JUSTIFICACIÓN / MOTIVO</th>
+  </tr>
+  <?php
+  $a = 1;
+  foreach ($detalles as $d) {
+    $dif = (float)$d['diferencia'];
+    $valDif = (float)$d['valordiferencia'];
+    $colorDif = $dif < 0 ? 'style="color: red; font-weight: bold;"' : ($dif > 0 ? 'style="color: blue; font-weight: bold;"' : '');
+    $accionTxt = $d['accion_diferencia'] ?? 'NINGUNA';
+    if ($accionTxt == 'COBRO_CAJERO') $accionTxt = 'COBRO A CAJERO';
+    elseif ($accionTxt == 'MERMA_ROTURA') $accionTxt = 'MERMA / ROTURA';
+    elseif ($accionTxt == 'ERROR_CONTEO') $accionTxt = 'ERROR DE CONTEO';
+    elseif ($accionTxt == 'PERDIDA_EMPRESA') $accionTxt = 'PERDIDA EMPRESA';
+    elseif ($accionTxt == 'NINGUNA') $accionTxt = '-';
+  ?>
+  <tr>
+    <td align="center"><?php echo $a++; ?></td>
+    <td><?php echo $d['codproducto']; ?></td>
+    <td><?php echo $d['producto']; ?></td>
+    <td align="center"><?php echo number_format($d['inicial_cuaderno'], 2); ?></td>
+    <td align="center"><?php echo number_format($d['entradas_compras'], 2); ?></td>
+    <td align="center"><?php echo number_format($d['entradas_traspasos'], 2); ?></td>
+    <td align="center"><?php echo number_format($d['salidas_ventas'], 2); ?></td>
+    <td align="center"><?php echo number_format($d['salidas_traspasos'], 2); ?></td>
+    <td align="center" style="font-weight: bold;"><?php echo number_format($d['stock_teorico'], 2); ?></td>
+    <td align="center"><?php echo number_format($d['fisico_final'], 2); ?></td>
+    <td align="center" <?php echo $colorDif; ?>><?php echo ($dif > 0 ? "+" : "") . number_format($dif, 2); ?></td>
+    <td align="right"><?php echo number_format($d['precioventa'], 2); ?></td>
+    <td align="right" <?php echo $colorDif; ?>><?php echo ($valDif > 0 ? "+" : "") . number_format($valDif, 2); ?></td>
+    <td align="center"><?php echo $accionTxt; ?></td>
+    <td><?php echo $d['responsable_diferencia'] ?? ''; ?></td>
+    <td><?php echo $d['motivo_diferencia'] ?? ''; ?></td>
+  </tr>
+  <?php } ?>
+  <tr style="background-color: #f2f2f2; font-weight: bold;">
+    <td colspan="8">TOTALES</td>
+    <td align="center"><?php echo count($detalles); ?> Prod.</td>
+    <td></td>
+    <td align="center" style="color: red;"><?php echo number_format($cab['total_faltantes'] ?? 0, 2); ?></td>
+    <td></td>
+    <td align="right" style="color: red;">$ <?php echo number_format($cab['monto_faltante'] ?? 0, 2); ?></td>
+    <td colspan="3"></td>
+  </tr>
+</table>
 <?php
 break;
-############################### MODULO DE CREDITOS ###############################
+############################### MODULO DE AUDITORIA DE PRODUCTOS ###############################
 
 }
  

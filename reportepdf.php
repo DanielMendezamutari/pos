@@ -580,6 +580,16 @@ $casos = [
     'func'    => 'TablaListarNotasxClientes',
     'output'  => ['Listado de Notas de Creditos x Clientes.pdf', 'I'],
   ],
+  'AUDITORIAPRODUCTOS'     => [
+    'medidas' => ['L', 'mm', 'A4'],
+    'func'    => 'TablaAuditoriaProductos',
+    'output'  => ['Reporte de Auditoria de Productos.pdf', 'I'],
+  ],
+  'CONTEOINICIAL'          => [
+    'medidas' => ['P', 'mm', 'A4'],
+    'func'    => 'TablaConteoInicialProductos',
+    'output'  => ['Comprobante de Inventario Inicial.pdf', 'I'],
+  ],
 ];
 
 $tipo = decrypt($_GET['tipo']);
