@@ -12105,13 +12105,40 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 						</div>
 					</div>
 
+					<?php
+					$descuadres_inicio = 0;
+					$monto_descuadre_inicio = 0;
+					foreach ($productos as $p_chk) {
+						$ini_chk = (!empty($p_chk['conteo_cajero']) && (float)$p_chk['conteo_cajero'] > 0) ? (float)$p_chk['conteo_cajero'] : 0;
+						$stock_chk = (float)$p_chk['existencia'];
+						if ($ini_chk > 0 && abs($ini_chk - $stock_chk) > 0.001) {
+							$descuadres_inicio++;
+							$dif_u = $ini_chk - $stock_chk;
+							if ($dif_u < 0) {
+								$monto_descuadre_inicio += abs($dif_u) * (float)$p_chk['precioxpublico'];
+							}
+						}
+					}
+					if ($descuadres_inicio > 0) {
+					?>
+					<div class="alert alert-warning border-warning d-flex align-items-center justify-content-between flex-wrap p-2 px-3 mb-3 shadow-sm">
+						<div>
+							<i class="fa fa-exclamation-triangle text-danger font-16 mr-1"></i>
+							<strong class="text-dark">Control de Apertura (2:00 PM):</strong> Se detectaron <strong class="text-danger"><?php echo $descuadres_inicio; ?> producto(s)</strong> donde el conteo físico de la cajera al abrir no coincidió con el stock del sistema.
+						</div>
+						<?php if ($monto_descuadre_inicio > 0) { ?>
+						<span class="badge badge-danger p-2 font-12 font-weight-bold">Faltante al Abrir: $ <?php echo number_format($monto_descuadre_inicio, 2, '.', ','); ?></span>
+						<?php } ?>
+					</div>
+					<?php } ?>
+
 					<div class="table-responsive">
 						<table id="tabla_auditoria" class="table table-hover table-bordered table-striped" style="font-size: 13px;">
 							<thead class="bg-dark text-white text-center">
 								<tr>
 									<th style="width: 35px;">#</th>
 									<th style="min-width: 170px;" class="text-left">Producto</th>
-									<th style="min-width: 95px;">Inicial Cuad. ✍️</th>
+									<th style="min-width: 110px;">Inicial Cuad. ✍️</th>
 									<th style="min-width: 65px;">Compras (+)</th>
 									<th style="min-width: 65px;">Trasp. (+)</th>
 									<th style="min-width: 95px;" class="text-danger">Ventas (-)</th>
@@ -12150,13 +12177,27 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 										<input type="hidden" name="salidas_traspasos[]" id="salidas_traspasos_<?php echo $i; ?>" value="<?php echo $salidas_traspasos; ?>">
 										
 										<strong><?php echo htmlspecialchars($p['producto']); ?></strong>
-										<br><small class="text-muted">Cód: <?php echo htmlspecialchars($p['codproducto']); ?> | Stock Actual: <?php echo number_format($p['existencia'], 0); ?></small>
+										<br><small class="text-muted">Cód: <?php echo htmlspecialchars($p['codproducto']); ?> | Stock Sistema: <strong><?php echo number_format($p['existencia'], 0); ?></strong></small>
 									</td>
 									<td class="text-center align-middle">
 										<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold input-cuaderno" name="inicial_cuaderno[]" id="inicial_cuaderno_<?php echo $i; ?>" value="<?php echo $conteo_cajero_ini; ?>" oninput="CalcularFila(<?php echo $i; ?>)" style="background-color: #fff9e6; border: 2px solid #ffc107;">
-										<?php if ($conteo_cajero_ini > 0) { ?>
-											<small class="text-success font-weight-bold d-block font-10">✓ Auto Cajero</small>
-										<?php } ?>
+										<?php 
+										if ($conteo_cajero_ini > 0) {
+											$dif_inicio = $conteo_cajero_ini - (float)$p['existencia'];
+											if (abs($dif_inicio) < 0.001) { ?>
+												<span class="badge badge-success d-block mt-1 font-10" title="El conteo de la cajera coincide con el stock del sistema (<?php echo number_format($p['existencia'], 0); ?>)">
+													<i class="fa fa-check"></i> Cuadra Stock (<?php echo number_format($p['existencia'], 0); ?>)
+												</span>
+											<?php } elseif ($dif_inicio < 0) { ?>
+												<span class="badge badge-danger d-block mt-1 font-10" title="Cajera contó <?php echo number_format($conteo_cajero_ini, 0); ?> pero en sistema hay <?php echo number_format($p['existencia'], 0); ?>">
+													<i class="fa fa-exclamation-triangle"></i> Falta inicio: <?php echo number_format($dif_inicio, 0); ?>u
+												</span>
+											<?php } else { ?>
+												<span class="badge badge-info d-block mt-1 font-10" title="Cajera contó <?php echo number_format($conteo_cajero_ini, 0); ?> pero en sistema hay <?php echo number_format($p['existencia'], 0); ?>">
+													<i class="fa fa-info-circle"></i> Sobra inicio: +<?php echo number_format($dif_inicio, 0); ?>u
+												</span>
+											<?php }
+										} ?>
 									</td>
 									<td class="text-center align-middle text-success font-weight-bold"><?php echo $entradas_compras > 0 ? "+".number_format($entradas_compras, 0) : "0"; ?></td>
 									<td class="text-center align-middle text-success font-weight-bold"><?php echo $entradas_traspasos > 0 ? "+".number_format($entradas_traspasos, 0) : "0"; ?></td>
@@ -12381,25 +12422,62 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 			</a>
 		</div>
 
+		<?php
+		$isAdmin = (isset($_SESSION['acceso']) && ($_SESSION['acceso'] == "administradorG" || $_SESSION['acceso'] == "administradorS"));
+		?>
 		<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
 			<table class="table table-striped table-bordered table-sm mb-0">
 				<thead class="bg-warning text-dark font-weight-bold text-center">
 					<tr>
-						<th style="width: 50px;">#</th>
-						<th style="width: 120px;">Código</th>
+						<th style="width: 45px;">#</th>
+						<th style="width: 110px;">Código</th>
 						<th>Producto</th>
+						<?php if ($isAdmin) { ?>
+						<th style="width: 110px;" class="bg-dark text-white">Stock Sistema</th>
+						<th style="width: 120px;" class="bg-warning text-dark">Físico Cajera</th>
+						<th style="width: 110px;">Diferencia</th>
+						<th style="width: 120px;">Diagnóstico</th>
+						<?php } else { ?>
 						<th style="width: 140px;">Cantidad Física</th>
+						<?php } ?>
 					</tr>
 				</thead>
 				<tbody>
 					<?php 
 					$c = 1;
-					foreach ($det as $item) { ?>
+					foreach ($det as $item) {
+						$stock_sis = (float)($item['stock_sistema'] ?? 0);
+						$fisico_caj = (float)$item['cantidad_fisica'];
+						$dif_ap = $fisico_caj - $stock_sis;
+					?>
 					<tr>
-						<td class="text-center font-weight-bold"><?php echo $c++; ?></td>
-						<td class="text-center"><?php echo htmlspecialchars($item['codproducto']); ?></td>
-						<td><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
-						<td class="text-center font-weight-bold bg-light text-primary font-16"><?php echo number_format($item['cantidad_fisica'], 0); ?></td>
+						<td class="text-center font-weight-bold align-middle"><?php echo $c++; ?></td>
+						<td class="text-center align-middle"><?php echo htmlspecialchars($item['codproducto']); ?></td>
+						<td class="align-middle"><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
+						<?php if ($isAdmin) { ?>
+						<td class="text-center font-weight-bold align-middle bg-light text-dark font-14"><?php echo number_format($stock_sis, 0); ?></td>
+						<td class="text-center font-weight-bold align-middle font-15 text-primary" style="background-color: #fff9e6;"><?php echo number_format($fisico_caj, 0); ?></td>
+						<td class="text-center font-weight-bold align-middle font-14">
+							<?php if (abs($dif_ap) < 0.001) { ?>
+								<span class="text-success">0</span>
+							<?php } elseif ($dif_ap < 0) { ?>
+								<span class="text-danger"><?php echo number_format($dif_ap, 0); ?></span>
+							<?php } else { ?>
+								<span class="text-info">+<?php echo number_format($dif_ap, 0); ?></span>
+							<?php } ?>
+						</td>
+						<td class="text-center align-middle font-11 font-weight-bold">
+							<?php if (abs($dif_ap) < 0.001) { ?>
+								<span class="badge badge-success p-1"><i class="fa fa-check"></i> Cuadra</span>
+							<?php } elseif ($dif_ap < 0) { ?>
+								<span class="badge badge-danger p-1"><i class="fa fa-exclamation-triangle"></i> Faltante (<?php echo number_format($dif_ap, 0); ?>)</span>
+							<?php } else { ?>
+								<span class="badge badge-info p-1"><i class="fa fa-info-circle"></i> Sobrante (+<?php echo number_format($dif_ap, 0); ?>)</span>
+							<?php } ?>
+						</td>
+						<?php } else { ?>
+						<td class="text-center font-weight-bold bg-light text-primary font-16 align-middle"><?php echo number_format($fisico_caj, 0); ?></td>
+						<?php } ?>
 					</tr>
 					<?php } ?>
 				</tbody>

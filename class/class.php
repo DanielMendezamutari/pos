@@ -38722,7 +38722,17 @@ public function BuscarConteoInicialPorId($idconteo)
 			return false;
 		}
 
-		$sqlDet = "SELECT * FROM detalle_conteo_inicial WHERE idconteo = ? ORDER BY producto ASC";
+		$sqlDet = "SELECT 
+			detalle_conteo_inicial.*,
+			COALESCE(productos.existencia, 0) AS stock_sistema,
+			(detalle_conteo_inicial.cantidad_fisica - COALESCE(productos.existencia, 0)) AS dif_apertura,
+			productos.precioxpublico AS precioventa,
+			productos.preciocompra
+			FROM detalle_conteo_inicial 
+			LEFT JOIN productos ON (detalle_conteo_inicial.idproducto = productos.idproducto OR detalle_conteo_inicial.codproducto = productos.codproducto)
+			WHERE detalle_conteo_inicial.idconteo = ? 
+			GROUP BY detalle_conteo_inicial.iddetalleconteo
+			ORDER BY detalle_conteo_inicial.producto ASC";
 		$stmtDet = $this->dbh->prepare($sqlDet);
 		$stmtDet->execute(array($idconteo));
 		$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
