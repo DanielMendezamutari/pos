@@ -23511,17 +23511,15 @@ public function TablaAuditoriaAperturaDiscrepancias()
         $this->SetFont('Courier','B',8);
         $this->SetFillColor(220, 53, 69);
         $this->SetTextColor(255, 255, 255);
-        $this->Row(array(
-            "#",
-            _u8d("CÓDIGO"),
-            _u8d("DESCRIPCIÓN DEL PRODUCTO"),
-            _u8d("STOCK SISTEMA"),
-            _u8d("FÍSICO CAJERA"),
-            _u8d("DIFERENCIA"),
-            _u8d("P. VENTA"),
-            _u8d("VALOR DESCUADRE"),
-            _u8d("DIAGNÓSTICO")
-        ));
+        $this->Cell(8, 7, '#', 1, 0, 'C', true);
+        $this->Cell(22, 7, _u8d('CÓDIGO'), 1, 0, 'C', true);
+        $this->Cell(75, 7, _u8d('DESCRIPCIÓN DEL PRODUCTO'), 1, 0, 'C', true);
+        $this->Cell(28, 7, _u8d('STOCK SISTEMA'), 1, 0, 'C', true);
+        $this->Cell(28, 7, _u8d('FÍSICO CAJERA'), 1, 0, 'C', true);
+        $this->Cell(26, 7, _u8d('DIFERENCIA'), 1, 0, 'C', true);
+        $this->Cell(25, 7, _u8d('P. VENTA'), 1, 0, 'C', true);
+        $this->Cell(34, 7, _u8d('VALOR DESCUADRE'), 1, 0, 'C', true);
+        $this->Cell(30, 7, _u8d('DIAGNÓSTICO'), 1, 1, 'C', true);
 
         $this->SetFont('Courier','',8);
         $this->SetTextColor(0, 0, 0);
@@ -23537,11 +23535,36 @@ public function TablaAuditoriaAperturaDiscrepancias()
             if ($d['tipo_diag'] == "FALTANTE") {
                 $txtDif = "-".number_format(abs($dif), 0)." u.";
                 $txtMonto = "-".$simbolo." ".number_format($monto, 2, '.', ',');
-                $txtDiagnostico = _u8d("🔴 FALTANTE");
+                $txtDiagnostico = _u8d("FALTANTE");
             } else {
                 $txtDif = "+".number_format($dif, 0)." u.";
                 $txtMonto = "+".$simbolo." ".number_format($monto, 2, '.', ',');
-                $txtDiagnostico = _u8d("🔵 SOBRANTE");
+                $txtDiagnostico = _u8d("SOBRANTE");
+            }
+
+            // Si se llega al final de la página, saltar y re-imprimir cabecera
+            if ($this->GetY() >= 170) {
+                $this->AddPage();
+                $this->SetFont('Courier','I',8);
+                $this->SetTextColor(80, 80, 80);
+                $this->Cell(0, 5, _u8d("Continuación: Informe de Discrepancias - Folio Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)), 0, 1, 'L');
+                $this->Ln(1);
+
+                $this->SetFont('Courier','B',8);
+                $this->SetFillColor(220, 53, 69);
+                $this->SetTextColor(255, 255, 255);
+                $this->Cell(8, 7, '#', 1, 0, 'C', true);
+                $this->Cell(22, 7, _u8d('CÓDIGO'), 1, 0, 'C', true);
+                $this->Cell(75, 7, _u8d('DESCRIPCIÓN DEL PRODUCTO'), 1, 0, 'C', true);
+                $this->Cell(28, 7, _u8d('STOCK SISTEMA'), 1, 0, 'C', true);
+                $this->Cell(28, 7, _u8d('FÍSICO CAJERA'), 1, 0, 'C', true);
+                $this->Cell(26, 7, _u8d('DIFERENCIA'), 1, 0, 'C', true);
+                $this->Cell(25, 7, _u8d('P. VENTA'), 1, 0, 'C', true);
+                $this->Cell(34, 7, _u8d('VALOR DESCUADRE'), 1, 0, 'C', true);
+                $this->Cell(30, 7, _u8d('DIAGNÓSTICO'), 1, 1, 'C', true);
+
+                $this->SetFont('Courier','',8);
+                $this->SetTextColor(0, 0, 0);
             }
 
             $this->Row(array(
@@ -23556,6 +23579,11 @@ public function TablaAuditoriaAperturaDiscrepancias()
                 $txtDiagnostico
             ));
         }
+    }
+
+    // Salto de página para el resumen y firmas si queda poco espacio
+    if ($this->GetY() >= 155) {
+        $this->AddPage();
     }
 
     $this->Ln(3);
