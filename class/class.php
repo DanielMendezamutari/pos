@@ -38219,7 +38219,9 @@ public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fech
 
 	$whereFamilia = "";
 	$params = array(
-		$fechadesde, $fechahasta, // ventas
+		$fechadesde, $fechahasta, // ventas_pos (total directo + combos)
+		$fechadesde, $fechahasta, // ventas_directas
+		$fechadesde, $fechahasta, // ventas_combos
 		$fechadesde, $fechahasta, // compras
 		$fechadesde, $fechahasta, // traspasos entrada
 		$fechadesde, $fechahasta, // traspasos salida
@@ -38243,14 +38245,44 @@ public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fech
 		familias.nomfamilia,
 		presentaciones.nompresentacion,
 		COALESCE((
-			SELECT SUM(dv.cantventa) 
+			SELECT SUM(
+				CASE 
+					WHEN dv.tipodetalle = 2 THEN (dv.cantventa * cxp.cantidad)
+					ELSE dv.cantventa 
+				END
+			)
 			FROM detalleventas dv 
 			INNER JOIN ventas v ON dv.codventa = v.codventa 
-			WHERE dv.idproducto = productos.idproducto 
+			LEFT JOIN combosxproductos cxp ON (dv.tipodetalle = 2 AND dv.codproducto = cxp.codcombo AND cxp.codsucursal = v.codsucursal AND (cxp.idproducto = productos.idproducto OR cxp.codproducto = productos.codproducto))
+			WHERE (
+				(dv.tipodetalle = 1 AND (dv.idproducto = productos.idproducto OR dv.codproducto = productos.codproducto))
+				OR (dv.tipodetalle = 2 AND (cxp.idproducto = productos.idproducto OR cxp.codproducto = productos.codproducto))
+				OR (dv.tipodetalle IS NULL AND (dv.idproducto = productos.idproducto OR dv.codproducto = productos.codproducto))
+			)
 			AND v.codsucursal = productos.codsucursal 
 			AND v.statusventa != 'ANULADA' 
 			AND v.fechaventa BETWEEN ? AND ?
 		), 0) AS ventas_pos,
+		COALESCE((
+			SELECT SUM(dv.cantventa)
+			FROM detalleventas dv
+			INNER JOIN ventas v ON dv.codventa = v.codventa
+			WHERE (dv.tipodetalle = 1 OR dv.tipodetalle IS NULL)
+			AND (dv.idproducto = productos.idproducto OR dv.codproducto = productos.codproducto)
+			AND v.codsucursal = productos.codsucursal
+			AND v.statusventa != 'ANULADA'
+			AND v.fechaventa BETWEEN ? AND ?
+		), 0) AS ventas_directas,
+		COALESCE((
+			SELECT SUM(dv.cantventa * cxp.cantidad)
+			FROM detalleventas dv
+			INNER JOIN ventas v ON dv.codventa = v.codventa
+			INNER JOIN combosxproductos cxp ON (dv.codproducto = cxp.codcombo AND cxp.codsucursal = v.codsucursal AND (cxp.idproducto = productos.idproducto OR cxp.codproducto = productos.codproducto))
+			WHERE dv.tipodetalle = 2
+			AND v.codsucursal = productos.codsucursal
+			AND v.statusventa != 'ANULADA'
+			AND v.fechaventa BETWEEN ? AND ?
+		), 0) AS ventas_combos,
 		COALESCE((
 			SELECT SUM(dc.cantcompra) 
 			FROM detallecompras dc 
@@ -38431,21 +38463,43 @@ public function ConsultarDesgloseVentasProducto($idproducto, $codsucursal, $fech
 		cajas.nrocaja,
 		cajas.nomcaja,
 		usuarios.nombres AS nomusuario,
-		SUM(detalleventas.cantventa) AS total_vendido,
-		SUM(detalleventas.valortotal) AS importe_total
-		FROM detalleventas
-		INNER JOIN ventas ON detalleventas.codventa = ventas.codventa
-		LEFT JOIN cajas ON ventas.codcaja = cajas.codcaja
-		LEFT JOIN usuarios ON ventas.codigo = usuarios.codigo
-		WHERE detalleventas.idproducto = ?
-		AND ventas.codsucursal = ?
-		AND ventas.fechaventa BETWEEN ? AND ?
-		AND ventas.statusventa != 'ANULADA'
-		GROUP BY ventas.codcaja, ventas.codigo
+		SUM(
+			CASE 
+				WHEN dv.tipodetalle = 2 THEN (dv.cantventa * cxp.cantidad)
+				ELSE dv.cantventa 
+			END
+		) AS total_vendido,
+		SUM(
+			CASE 
+				WHEN dv.tipodetalle = 1 OR dv.tipodetalle IS NULL THEN dv.cantventa
+				ELSE 0 
+			END
+		) AS cant_directa,
+		SUM(
+			CASE 
+				WHEN dv.tipodetalle = 2 THEN (dv.cantventa * cxp.cantidad)
+				ELSE 0 
+			END
+		) AS cant_combos,
+		SUM(dv.valortotal) AS importe_total
+		FROM detalleventas dv
+		INNER JOIN ventas v ON dv.codventa = v.codventa
+		LEFT JOIN cajas ON v.codcaja = cajas.codcaja
+		LEFT JOIN usuarios ON v.codigo = usuarios.codigo
+		LEFT JOIN combosxproductos cxp ON (dv.tipodetalle = 2 AND dv.codproducto = cxp.codcombo AND cxp.codsucursal = v.codsucursal AND (cxp.idproducto = ? OR cxp.codproducto = (SELECT codproducto FROM productos WHERE idproducto = ?)))
+		WHERE (
+			(dv.tipodetalle = 1 AND dv.idproducto = ?)
+			OR (dv.tipodetalle = 2 AND (cxp.idproducto = ? OR cxp.codproducto = (SELECT codproducto FROM productos WHERE idproducto = ?)))
+			OR (dv.tipodetalle IS NULL AND dv.idproducto = ?)
+		)
+		AND v.codsucursal = ?
+		AND v.fechaventa BETWEEN ? AND ?
+		AND v.statusventa != 'ANULADA'
+		GROUP BY v.codcaja, v.codigo
 		ORDER BY total_vendido DESC";
 
 	$stmt = $this->dbh->prepare($sql);
-	$stmt->execute(array($idproducto, $codsucursal, $fechadesde, $fechahasta));
+	$stmt->execute(array($idproducto, $idproducto, $idproducto, $idproducto, $idproducto, $idproducto, $codsucursal, $fechadesde, $fechahasta));
 	return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 

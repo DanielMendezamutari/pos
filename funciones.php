@@ -12162,6 +12162,11 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 									<td class="text-center align-middle text-success font-weight-bold"><?php echo $entradas_traspasos > 0 ? "+".number_format($entradas_traspasos, 0) : "0"; ?></td>
 									<td class="text-center align-middle">
 										<span class="text-danger font-weight-bold d-block"><?php echo $salidas_ventas > 0 ? "-".number_format($salidas_ventas, 0) : "0"; ?></span>
+										<?php if (!empty($p['ventas_combos']) && (float)$p['ventas_combos'] > 0) { ?>
+											<small class="text-muted d-block font-10" title="Desglose: <?php echo number_format($p['ventas_directas'], 0); ?> sueltas + <?php echo number_format($p['ventas_combos'], 0); ?> en combos">
+												<i class="fa fa-cubes text-warning"></i> <?php echo number_format($p['ventas_directas'], 0); ?>u + <?php echo number_format($p['ventas_combos'], 0); ?>cb
+											</small>
+										<?php } ?>
 										<?php if ($salidas_ventas > 0) { ?>
 											<button type="button" class="btn btn-outline-danger btn-xs font-10 px-1 py-0 mt-1 shadow-sm" onclick="VerDesgloseCajas(<?php echo $p['idproducto']; ?>, '<?php echo htmlspecialchars(addslashes($p['producto'])); ?>')">
 												<i class="fa fa-desktop"></i> Cajas
@@ -12246,28 +12251,38 @@ if (isset($_GET['DesgloseVentasCajas']) && isset($_GET['idproducto'])) {
 			<tr>
 				<th>Caja / Terminal</th>
 				<th>Cajero Responsable</th>
-				<th>Cant. Vendida</th>
+				<th>Venta Suelta</th>
+				<th>Venta en Combos</th>
+				<th>Total Unidades</th>
 				<th>Total Recaudado</th>
 			</tr>
 		</thead>
 		<tbody>
 			<?php 
 			$tot_cant = 0;
+			$tot_directa = 0;
+			$tot_combos = 0;
 			$tot_dinero = 0;
 			foreach ($desglose as $d) {
 				$tot_cant += (float)$d['total_vendido'];
+				$tot_directa += (float)$d['cant_directa'];
+				$tot_combos += (float)$d['cant_combos'];
 				$tot_dinero += (float)$d['importe_total'];
 			?>
 			<tr>
 				<td class="font-weight-bold align-middle"><?php echo htmlspecialchars($d['nomcaja'] ?? 'Caja #'.$d['nrocaja']); ?></td>
 				<td class="align-middle"><?php echo htmlspecialchars($d['nomusuario'] ?? 'Sin cajero asignado'); ?></td>
-				<td class="text-center font-weight-bold text-danger align-middle"><?php echo number_format($d['total_vendido'], 0); ?></td>
+				<td class="text-center font-weight-bold text-dark align-middle"><?php echo number_format($d['cant_directa'], 0); ?> u.</td>
+				<td class="text-center font-weight-bold text-warning align-middle"><?php echo number_format($d['cant_combos'], 0); ?> u.</td>
+				<td class="text-center font-weight-bold text-danger align-middle font-14"><?php echo number_format($d['total_vendido'], 0); ?> u.</td>
 				<td class="text-right font-weight-bold align-middle">$ <?php echo number_format($d['importe_total'], 2, '.', ','); ?></td>
 			</tr>
 			<?php } ?>
 			<tr class="bg-light font-weight-bold">
 				<td colspan="2" class="text-right">TOTAL GENERAL:</td>
-				<td class="text-center text-danger font-14"><?php echo number_format($tot_cant, 0); ?></td>
+				<td class="text-center text-dark font-14"><?php echo number_format($tot_directa, 0); ?> u.</td>
+				<td class="text-center text-warning font-14"><?php echo number_format($tot_combos, 0); ?> u.</td>
+				<td class="text-center text-danger font-14"><?php echo number_format($tot_cant, 0); ?> u.</td>
 				<td class="text-right font-14 text-dark">$ <?php echo number_format($tot_dinero, 2, '.', ','); ?></td>
 			</tr>
 		</tbody>
