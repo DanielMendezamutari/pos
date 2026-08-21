@@ -38523,37 +38523,42 @@ public function BuscarAuditoriaPorId($idauditoria)
 	self::SetNames();
 	$this->p = array();
 
-	$sql = "SELECT 
-		auditorias_inventario.*,
-		sucursales.cuitsucursal,
-		sucursales.nomsucursal,
-		sucursales.direcsucursal,
-		sucursales.tlfsucursal,
-		tiposmoneda.simbolo AS simbolo_moneda,
-		usuarios.nombres AS nomusuario
-		FROM auditorias_inventario
-		INNER JOIN sucursales ON auditorias_inventario.codsucursal = sucursales.codsucursal
-		LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
-		LEFT JOIN usuarios ON auditorias_inventario.codusuario = usuarios.codigo
-		WHERE auditorias_inventario.idauditoria = ?";
+	try {
+		$sql = "SELECT 
+			auditorias_inventario.*,
+			sucursales.cuitsucursal,
+			sucursales.nomsucursal,
+			sucursales.direcsucursal,
+			sucursales.tlfsucursal,
+			tiposmoneda.simbolo AS simbolo_moneda,
+			usuarios.nombres AS nomusuario
+			FROM auditorias_inventario
+			INNER JOIN sucursales ON auditorias_inventario.codsucursal = sucursales.codsucursal
+			LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
+			LEFT JOIN usuarios ON auditorias_inventario.codusuario = usuarios.codigo
+			WHERE auditorias_inventario.idauditoria = ?";
 
-	$stmt = $this->dbh->prepare($sql);
-	$stmt->execute(array($idauditoria));
-	$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($idauditoria));
+		$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
 
-	if (!$cabecera) {
+		if (!$cabecera) {
+			return false;
+		}
+
+		$sqlDet = "SELECT * FROM detalle_auditorias WHERE idauditoria = ? ORDER BY producto ASC";
+		$stmtDet = $this->dbh->prepare($sqlDet);
+		$stmtDet->execute(array($idauditoria));
+		$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
+
+		return array(
+			'cabecera' => $cabecera,
+			'detalles' => $detalles
+		);
+	} catch (Exception $e) {
+		error_log("Error en BuscarAuditoriaPorId: " . $e->getMessage());
 		return false;
 	}
-
-	$sqlDet = "SELECT * FROM detalle_auditorias WHERE idauditoria = ? ORDER BY producto ASC";
-	$stmtDet = $this->dbh->prepare($sqlDet);
-	$stmtDet->execute(array($idauditoria));
-	$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
-
-	return array(
-		'cabecera' => $cabecera,
-		'detalles' => $detalles
-	);
 }
 
 ######################## FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
@@ -38565,18 +38570,23 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null)
 		$fecha = date("Y-m-d");
 	}
 
-	$sql = "SELECT 
-		conteo_inicial_diario.*,
-		usuarios.nombres AS nomusuario
-		FROM conteo_inicial_diario
-		LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
-		WHERE conteo_inicial_diario.codsucursal = ? 
-		AND DATE(conteo_inicial_diario.fechaconteo) = ?
-		ORDER BY conteo_inicial_diario.idconteo DESC LIMIT 1";
+	try {
+		$sql = "SELECT 
+			conteo_inicial_diario.*,
+			usuarios.nombres AS nomusuario
+			FROM conteo_inicial_diario
+			LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+			WHERE conteo_inicial_diario.codsucursal = ? 
+			AND DATE(conteo_inicial_diario.fechaconteo) = ?
+			ORDER BY conteo_inicial_diario.idconteo DESC LIMIT 1";
 
-	$stmt = $this->dbh->prepare($sql);
-	$stmt->execute(array($codsucursal, $fecha));
-	return $stmt->fetch(PDO::FETCH_ASSOC);
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($codsucursal, $fecha));
+		return $stmt->fetch(PDO::FETCH_ASSOC);
+	} catch (Exception $e) {
+		error_log("Error en VerificarConteoInicialHoy: " . $e->getMessage());
+		return false;
+	}
 }
 
 public function RegistrarConteoInicialCajero()
@@ -38637,35 +38647,40 @@ public function RegistrarConteoInicialCajero()
 public function BuscarConteoInicialPorId($idconteo)
 {
 	self::SetNames();
-	$sql = "SELECT 
-		conteo_inicial_diario.*,
-		sucursales.cuitsucursal,
-		sucursales.nomsucursal,
-		sucursales.direcsucursal,
-		sucursales.tlfsucursal,
-		usuarios.nombres AS nomusuario
-		FROM conteo_inicial_diario
-		INNER JOIN sucursales ON conteo_inicial_diario.codsucursal = sucursales.codsucursal
-		LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
-		WHERE conteo_inicial_diario.idconteo = ?";
+	try {
+		$sql = "SELECT 
+			conteo_inicial_diario.*,
+			sucursales.cuitsucursal,
+			sucursales.nomsucursal,
+			sucursales.direcsucursal,
+			sucursales.tlfsucursal,
+			usuarios.nombres AS nomusuario
+			FROM conteo_inicial_diario
+			INNER JOIN sucursales ON conteo_inicial_diario.codsucursal = sucursales.codsucursal
+			LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+			WHERE conteo_inicial_diario.idconteo = ?";
 
-	$stmt = $this->dbh->prepare($sql);
-	$stmt->execute(array($idconteo));
-	$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($idconteo));
+		$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
 
-	if (!$cabecera) {
+		if (!$cabecera) {
+			return false;
+		}
+
+		$sqlDet = "SELECT * FROM detalle_conteo_inicial WHERE idconteo = ? ORDER BY producto ASC";
+		$stmtDet = $this->dbh->prepare($sqlDet);
+		$stmtDet->execute(array($idconteo));
+		$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
+
+		return array(
+			'cabecera' => $cabecera,
+			'detalles' => $detalles
+		);
+	} catch (Exception $e) {
+		error_log("Error en BuscarConteoInicialPorId: " . $e->getMessage());
 		return false;
 	}
-
-	$sqlDet = "SELECT * FROM detalle_conteo_inicial WHERE idconteo = ? ORDER BY producto ASC";
-	$stmtDet = $this->dbh->prepare($sqlDet);
-	$stmtDet->execute(array($idconteo));
-	$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
-
-	return array(
-		'cabecera' => $cabecera,
-		'detalles' => $detalles
-	);
 }
 
 ######################## FIN FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
