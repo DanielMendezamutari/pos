@@ -12181,6 +12181,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 									<th style="min-width: 65px;">Trasp. (+)</th>
 									<th style="min-width: 95px;" class="text-danger">Ventas (-)</th>
 									<th style="min-width: 65px;" class="text-warning">Trasp. (-)</th>
+									<th style="min-width: 65px;" class="text-info" title="Retiros de Dueña, Consumo Interno, Mermas autorizadas">Bajas (-)</th>
 									<th style="min-width: 85px;" class="bg-primary text-white">Stock Teór.</th>
 									<th style="min-width: 95px;">Físico Final ✍️</th>
 									<th style="min-width: 85px;">Diferencia</th>
@@ -12197,6 +12198,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 									$entradas_traspasos = (float)$p['traspasos_entradas'];
 									$salidas_ventas = (float)$p['ventas_pos'];
 									$salidas_traspasos = (float)$p['traspasos_salidas'];
+									$salidas_bajas = (float)($p['bajas_salidas'] ?? 0);
 									$precioventa = (float)$p['precioxpublico'];
 									$preciocompra = (float)$p['preciocompra'];
 									$conteo_cajero_ini = (!empty($p['conteo_cajero']) && (float)$p['conteo_cajero'] > 0) ? (float)$p['conteo_cajero'] : 0;
@@ -12213,6 +12215,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 										<input type="hidden" name="entradas_traspasos[]" id="entradas_traspasos_<?php echo $i; ?>" value="<?php echo $entradas_traspasos; ?>">
 										<input type="hidden" name="salidas_ventas[]" id="salidas_ventas_<?php echo $i; ?>" value="<?php echo $salidas_ventas; ?>">
 										<input type="hidden" name="salidas_traspasos[]" id="salidas_traspasos_<?php echo $i; ?>" value="<?php echo $salidas_traspasos; ?>">
+										<input type="hidden" name="salidas_bajas[]" id="salidas_bajas_<?php echo $i; ?>" value="<?php echo $salidas_bajas; ?>">
 										
 										<strong><?php echo htmlspecialchars($p['producto']); ?></strong>
 										<br><small class="text-muted">Cód: <?php echo htmlspecialchars($p['codproducto']); ?> | Stock Sistema: <strong><?php echo number_format($p['existencia'], 0); ?></strong></small>
@@ -12253,6 +12256,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 										<?php } ?>
 									</td>
 									<td class="text-center align-middle text-warning font-weight-bold"><?php echo $salidas_traspasos > 0 ? "-".number_format($salidas_traspasos, 0) : "0"; ?></td>
+									<td class="text-center align-middle text-info font-weight-bold" title="Retiros autorizados de Dueña / Consumo / Mermas"><?php echo $salidas_bajas > 0 ? "-".number_format($salidas_bajas, 0) : "0"; ?></td>
 									<td class="text-center align-middle">
 										<input type="hidden" name="stock_teorico[]" id="stock_teorico_<?php echo $i; ?>" value="0">
 										<span class="badge badge-primary p-2 font-13" id="badge_teorico_<?php echo $i; ?>">0.00</span>
@@ -12789,4 +12793,332 @@ if (isset($_GET['BuscaHistorialConteosIniciales'])) {
 	exit;
 }
 ########################## FIN MODAL Y PROCESO CONTEO INICIAL CAJERO ##########################
+
+########################## MODULO DE RETIROS Y BAJAS DE INVENTARIO ##########################
+
+// Búsqueda de productos disponibles de la sucursal para la Baja (JSON para Select2 / Autocomplete)
+if (isset($_GET['BuscaProductosParaBaja'])) {
+	$codsucursal = 0;
+	if (isset($_GET['codsucursal']) && !empty($_GET['codsucursal'])) {
+		$raw = $_GET['codsucursal'];
+		if (is_numeric($raw)) {
+			$codsucursal = (int)$raw;
+		} else {
+			$dec = decrypt($raw);
+			if (is_numeric($dec)) {
+				$codsucursal = (int)$dec;
+			}
+		}
+	}
+	if ($codsucursal <= 0 && isset($_SESSION['codsucursal']) && !empty($_SESSION['codsucursal'])) {
+		$codsucursal = (int)$_SESSION['codsucursal'];
+	}
+
+	$q = isset($_GET['q']) ? trim($_GET['q']) : (isset($_GET['term']) ? trim($_GET['term']) : "");
+
+	$login = new Login();
+	$prods = $login->BuscarProductosParaBaja($codsucursal, $q);
+
+	$results = array();
+	foreach ($prods as $p) {
+		$results[] = array(
+			"id" => $p['idproducto'],
+			"idproducto" => $p['idproducto'],
+			"codproducto" => $p['codproducto'],
+			"producto" => $p['producto'],
+			"existencia" => (float)$p['existencia'],
+			"preciocompra" => (float)$p['preciocompra'],
+			"precioxpublico" => (float)$p['precioxpublico'],
+			"text" => $p['codproducto'] . " - " . $p['producto'] . " (Stock: " . number_format($p['existencia'], 0) . " | Costo: Bs. " . number_format($p['preciocompra'], 2) . ")"
+		);
+	}
+	if (ob_get_length()) { @ob_clean(); }
+	header('Content-Type: application/json');
+	echo json_encode(array("results" => $results));
+	exit;
+}
+
+// Cargar catálogo de productos en Modal para Baja de Inventario
+if (isset($_GET['CargarModalProductosBaja'])) {
+	$codsucursal = 0;
+	if (isset($_GET['codsucursal']) && !empty($_GET['codsucursal'])) {
+		$raw = $_GET['codsucursal'];
+		if (is_numeric($raw)) {
+			$codsucursal = (int)$raw;
+		} else {
+			$dec = decrypt($raw);
+			if (is_numeric($dec)) {
+				$codsucursal = (int)$dec;
+			}
+		}
+	}
+	if ($codsucursal <= 0 && isset($_SESSION['codsucursal']) && !empty($_SESSION['codsucursal'])) {
+		$codsucursal = (int)$_SESSION['codsucursal'];
+	}
+
+	$login = new Login();
+	$prods = $login->BuscarProductosParaBaja($codsucursal, "");
+?>
+	<div class="table-responsive">
+		<table id="tabla_modal_catalogo_baja" class="table table-hover table-bordered table-striped" style="font-size: 13px;">
+			<thead class="bg-dark text-white text-center">
+				<tr>
+					<th>#</th>
+					<th>Cód.</th>
+					<th class="text-left">Producto</th>
+					<th>Stock</th>
+					<th>Precio Costo</th>
+					<th>Precio Venta</th>
+					<th>Acción</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php
+				$n = 1;
+				foreach ($prods as $p) {
+					$jsonProd = htmlspecialchars(json_encode(array(
+						"idproducto" => $p['idproducto'],
+						"codproducto" => $p['codproducto'],
+						"producto" => $p['producto'],
+						"existencia" => (float)$p['existencia'],
+						"preciocompra" => (float)$p['preciocompra'],
+						"precioxpublico" => (float)$p['precioxpublico']
+					)), ENT_QUOTES, 'UTF-8');
+				?>
+				<tr>
+					<td class="text-center font-weight-bold"><?php echo $n++; ?></td>
+					<td class="text-center"><span class="badge badge-light border text-dark font-12"><?php echo htmlspecialchars($p['codproducto']); ?></span></td>
+					<td class="font-weight-bold"><?php echo htmlspecialchars($p['producto']); ?></td>
+					<td class="text-center">
+						<span class="badge <?php echo ((float)$p['existencia'] > 0) ? 'badge-success' : 'badge-danger'; ?> font-12">
+							<?php echo number_format($p['existencia'], 0); ?> u.
+						</span>
+					</td>
+					<td class="text-right font-weight-bold">Bs. <?php echo number_format($p['preciocompra'], 2, '.', ','); ?></td>
+					<td class="text-right">Bs. <?php echo number_format($p['precioxpublico'], 2, '.', ','); ?></td>
+					<td class="text-center">
+						<button type="button" class="btn btn-danger btn-sm font-weight-bold" onclick='AgregarProductoBajaDesdeModal(<?php echo $jsonProd; ?>)'>
+							<i class="fa fa-plus-circle"></i> Agregar
+						</button>
+					</td>
+				</tr>
+				<?php } ?>
+			</tbody>
+		</table>
+	</div>
+<?php
+	exit;
+}
+
+// Historial de Bajas / Retiros para DataTable
+if (isset($_GET['BuscaBajasInventario'])) {
+	$codsucursal = isset($_GET['codsucursal']) ? (int)decrypt($_GET['codsucursal']) : 0;
+	if ($codsucursal <= 0 && isset($_GET['codsucursal']) && is_numeric($_GET['codsucursal'])) {
+		$codsucursal = (int)$_GET['codsucursal'];
+	}
+	$desde = isset($_GET['desde']) ? limpiar($_GET['desde']) : "";
+	$hasta = isset($_GET['hasta']) ? limpiar($_GET['hasta']) : "";
+
+	$login = new Login();
+	$bajas = $login->ListarBajasInventario($codsucursal, $desde, $hasta);
+?>
+	<div class="table-responsive">
+		<table id="tabla_bajas_historial" class="table table-striped table-bordered display" style="font-size: 13px;">
+			<thead class="bg-dark text-white text-center">
+				<tr>
+					<th># Código</th>
+					<th>Sucursal</th>
+					<th>Fecha y Hora</th>
+					<th>Motivo / Tipo</th>
+					<th>Autorizado Por</th>
+					<th>Total Ítems</th>
+					<th>Costo Total</th>
+					<th>Estado</th>
+					<th style="width: 180px;">Acciones</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php
+				if (!empty($bajas)) {
+					foreach ($bajas as $b) {
+						$badgeMotivo = "badge-secondary";
+						$txtMotivo = htmlspecialchars($b['tipomotivo']);
+						if (strpos($b['tipomotivo'], 'DUENA') !== false || strpos($b['tipomotivo'], 'DUEÑA') !== false) {
+							$badgeMotivo = "badge-danger";
+							$txtMotivo = "👑 RETIRO DE DUEÑA";
+						} elseif (strpos($b['tipomotivo'], 'CONSUMO') !== false) {
+							$badgeMotivo = "badge-warning text-dark";
+							$txtMotivo = "🍽️ CONSUMO INTERNO";
+						} elseif (strpos($b['tipomotivo'], 'MERMA') !== false) {
+							$badgeMotivo = "badge-dark";
+							$txtMotivo = "💔 MERMA / ROTURA";
+						} elseif (strpos($b['tipomotivo'], 'VENCIDO') !== false) {
+							$badgeMotivo = "badge-danger";
+							$txtMotivo = "⏳ VENCIMIENTO";
+						} elseif (strpos($b['tipomotivo'], 'DEGUSTACION') !== false || strpos($b['tipomotivo'], 'PROMOCION') !== false) {
+							$badgeMotivo = "badge-info";
+							$txtMotivo = "🎁 DEGUSTACIÓN / MUESTRA";
+						}
+
+						$isAnulada = ($b['statusbaja'] == 'ANULADA');
+				?>
+				<tr class="<?php echo $isAnulada ? 'table-danger text-muted' : ''; ?>">
+					<td class="font-weight-bold text-center align-middle">
+						<span class="badge badge-light border text-dark font-12 font-weight-bold">
+							<?php echo htmlspecialchars($b['codbaja']); ?>
+						</span>
+					</td>
+					<td class="align-middle font-weight-bold">
+						<i class="fa fa-home text-muted mr-1"></i> <?php echo htmlspecialchars($b['nomsucursal']); ?>
+					</td>
+					<td class="align-middle text-center">
+						<span class="font-12">
+							<i class="fa fa-calendar text-danger mr-1"></i> <?php echo date("d/m/Y h:i A", strtotime($b['fechabaja'])); ?>
+						</span>
+					</td>
+					<td class="align-middle text-center">
+						<span class="badge <?php echo $badgeMotivo; ?> font-12 px-2 py-1">
+							<?php echo $txtMotivo; ?>
+						</span>
+					</td>
+					<td class="align-middle">
+						<i class="fa fa-user-circle text-muted mr-1"></i> <?php echo htmlspecialchars($b['persona_autoriza']); ?>
+					</td>
+					<td class="align-middle text-center font-weight-bold">
+						<?php echo $b['total_items']; ?> prod.
+					</td>
+					<td class="align-middle text-right font-weight-bold text-dark">
+						Bs. <?php echo number_format($b['total_costo'], 2, '.', ','); ?>
+					</td>
+					<td class="align-middle text-center">
+						<?php if ($isAnulada) { ?>
+							<span class="badge badge-danger font-11"><i class="fa fa-ban"></i> ANULADA</span>
+						<?php } else { ?>
+							<span class="badge badge-success font-11"><i class="fa fa-check"></i> PROCESADA</span>
+						<?php } ?>
+					</td>
+					<td class="align-middle text-center">
+						<div class="btn-group btn-group-sm" role="group">
+							<button type="button" class="btn btn-info font-weight-bold" title="Ver Detalle de Productos" onclick="VerDetalleBaja('<?php echo encrypt($b['idbaja']); ?>')">
+								<i class="fa fa-eye"></i> Detalle
+							</button>
+							<a href="reportepdf?idbaja=<?php echo encrypt($b['idbaja']); ?>&tipo=<?php echo encrypt('BAJAINVENTARIO'); ?>" target="_blank" class="btn btn-danger font-weight-bold" title="Descargar Comprobante PDF">
+								<i class="fa fa-file-pdf-o"></i> PDF
+							</a>
+							<?php if (!$isAnulada && ($_SESSION['acceso'] == 'administradorG' || $_SESSION['acceso'] == 'administradorS')) { ?>
+								<button type="button" class="btn btn-outline-danger font-weight-bold" title="Anular Baja y Reincorporar Stock" onclick="AnularBaja('<?php echo encrypt($b['idbaja']); ?>', '<?php echo htmlspecialchars($b['codbaja']); ?>')">
+									<i class="fa fa-ban"></i>
+								</button>
+							<?php } ?>
+						</div>
+					</td>
+				</tr>
+				<?php
+					}
+				}
+				?>
+			</tbody>
+		</table>
+	</div>
+<?php
+	exit;
+}
+
+// Modal Ver Detalle de Baja
+if (isset($_GET['VerDetalleBajaInventario']) && isset($_GET['idbaja'])) {
+	$idbaja = (int)decrypt($_GET['idbaja']);
+	$login = new Login();
+	$data = $login->BuscarBajaInventarioPorId($idbaja);
+
+	if (!$data || empty($data['cabecera'])) {
+		echo '<div class="alert alert-danger">No se encontró el registro solicitado.</div>';
+		exit;
+	}
+
+	$cab = $data['cabecera'];
+	$det = $data['detalles'];
+?>
+	<div class="row mb-3">
+		<div class="col-md-6">
+			<p class="mb-1"><strong>Código de Baja:</strong> <span class="badge badge-dark font-13"><?php echo htmlspecialchars($cab['codbaja']); ?></span></p>
+			<p class="mb-1"><strong>Sucursal:</strong> <?php echo htmlspecialchars($cab['nomsucursal']); ?></p>
+			<p class="mb-1"><strong>Fecha y Hora:</strong> <?php echo date("d/m/Y h:i A", strtotime($cab['fechabaja'])); ?></p>
+			<p class="mb-1"><strong>Registrado Por:</strong> <?php echo htmlspecialchars($cab['nomusuario'] ?? 'Admin'); ?></p>
+		</div>
+		<div class="col-md-6">
+			<p class="mb-1"><strong>Motivo / Tipo:</strong> <span class="badge badge-danger font-13"><?php echo htmlspecialchars($cab['tipomotivo']); ?></span></p>
+			<p class="mb-1"><strong>Autorizado Por:</strong> <span class="text-primary font-weight-bold"><?php echo htmlspecialchars($cab['persona_autoriza']); ?></span></p>
+			<p class="mb-1"><strong>Estado:</strong> 
+				<?php if ($cab['statusbaja'] == 'ANULADA') { ?>
+					<span class="badge badge-danger">ANULADA</span>
+				<?php } else { ?>
+					<span class="badge badge-success">PROCESADA</span>
+				<?php } ?>
+			</p>
+			<p class="mb-1"><strong>Observaciones:</strong> <em><?php echo !empty($cab['observaciones']) ? nl2br(htmlspecialchars($cab['observaciones'])) : 'Ninguna'; ?></em></p>
+		</div>
+	</div>
+
+	<div class="table-responsive">
+		<table class="table table-bordered table-striped table-sm" style="font-size: 13px;">
+			<thead class="bg-dark text-white text-center">
+				<tr>
+					<th>#</th>
+					<th>Cód. Producto</th>
+					<th class="text-left">Descripción del Producto</th>
+					<th>Cantidad Retirada</th>
+					<th>Costo Unit.</th>
+					<th>Precio Público</th>
+					<th>Subtotal Costo</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php
+				$n = 1;
+				$totalCant = 0;
+				$totalSub = 0;
+				foreach ($det as $d) {
+					$totalCant += (float)$d['cantidad'];
+					$totalSub += (float)$d['subtotal_costo'];
+				?>
+				<tr>
+					<td class="text-center font-weight-bold"><?php echo $n++; ?></td>
+					<td class="text-center"><?php echo htmlspecialchars($d['codproducto']); ?></td>
+					<td><?php echo htmlspecialchars($d['producto']); ?></td>
+					<td class="text-center font-weight-bold text-danger">-<?php echo number_format($d['cantidad'], 2); ?></td>
+					<td class="text-right">Bs. <?php echo number_format($d['preciocompra'], 2, '.', ','); ?></td>
+					<td class="text-right">Bs. <?php echo number_format($d['precioxpublico'], 2, '.', ','); ?></td>
+					<td class="text-right font-weight-bold">Bs. <?php echo number_format($d['subtotal_costo'], 2, '.', ','); ?></td>
+				</tr>
+				<?php } ?>
+			</tbody>
+			<tfoot class="bg-light font-weight-bold">
+				<tr>
+					<td colspan="3" class="text-right">TOTALES:</td>
+					<td class="text-center text-danger font-14">-<?php echo number_format($totalCant, 2); ?> u.</td>
+					<td colspan="2"></td>
+					<td class="text-right text-dark font-14">Bs. <?php echo number_format($totalSub, 2, '.', ','); ?></td>
+				</tr>
+			</tfoot>
+		</table>
+	</div>
+<?php
+	exit;
+}
+
+// Endpoint para guardar baja vía AJAX
+if (isset($_GET['GuardarBajaInventario']) && $_GET['GuardarBajaInventario'] == 'si') {
+	$login = new Login();
+	$login->RegistrarBajaInventario();
+	exit;
+}
+
+// Endpoint para anular baja vía AJAX
+if (isset($_GET['AnularBajaInventario']) && $_GET['AnularBajaInventario'] == 'si') {
+	$login = new Login();
+	$login->AnularBajaInventario();
+	exit;
+}
+
+########################## FIN MODULO DE RETIROS Y BAJAS DE INVENTARIO ##########################
 ?>

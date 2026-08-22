@@ -488,6 +488,7 @@ case 'administradorG':  ?>
                                 <li class="sidebar-item"><a href="productosvalorizadosxfechas" class="sidebar-link"><i class="mdi mdi-priority-low"></i><span class="hide-menu"> Valorizado por Fechas</span></a></li>
 
                                 <li class="sidebar-item"><a href="productosvendidos" class="sidebar-link"><i class="mdi mdi-cart-plus"></i><span class="hide-menu"> Productos Vendidos </span></a></li>  
+                                <li class="sidebar-item"><a href="bajas" class="sidebar-link"><i class="mdi mdi-minus-circle text-danger"></i><span class="hide-menu font-weight-bold"> Bajas / Retiros </span></a></li>
 
                             </ul>
                         </li>
@@ -543,6 +544,8 @@ case 'administradorG':  ?>
                         <li class="sidebar-item"><a href="auditorias" class="sidebar-link"><i class="mdi mdi-clipboard-text"></i><span class="hide-menu"> Nueva Auditoría</span></a></li>
                         <li class="sidebar-item"><a href="auditoriasxfechas" class="sidebar-link"><i class="mdi mdi-history"></i><span class="hide-menu"> Historial de Auditorías</span></a></li>
                         <li class="sidebar-item"><a href="conteosiniciales" class="sidebar-link"><i class="mdi mdi-lock-open-outline text-warning"></i><span class="hide-menu font-weight-bold"> Conteos Iniciales (Desbloqueo)</span></a></li>
+                        <li class="sidebar-item"><a href="forbaja" class="sidebar-link"><i class="mdi mdi-minus-box text-danger"></i><span class="hide-menu font-weight-bold text-danger"> Retiro / Baja Mercadería</span></a></li>
+                        <li class="sidebar-item"><a href="bajas" class="sidebar-link"><i class="mdi mdi-clipboard-alert"></i><span class="hide-menu"> Historial Bajas / Retiros</span></a></li>
                     </ul>
                 </li>
                 <!-- ============================================================== -->

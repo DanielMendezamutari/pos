@@ -23623,7 +23623,140 @@ public function TablaAuditoriaAperturaDiscrepancias()
     $this->SetFont('Courier','I',7);
     $this->Cell(0,4,_u8d("Documento probatorio oficial emitido en Bolivianos (Bs.) para deducciones, aclaración de inventario y notificación a gerencia."),0,1,'C');
 }
-########################## FIN FUNCION INFORME DE DISCREPANCIAS DE INVENTARIO INICIAL ##############################
+########################## FUNCION COMPROBANTE OFICIAL DE RETIRO / BAJA DE INVENTARIO ##############################
+public function TablaBajaInventario()
+{
+    $raw = isset($_GET['idbaja']) ? $_GET['idbaja'] : '';
+    $idbaja = 0;
+    if (is_numeric($raw)) {
+        $idbaja = (int)$raw;
+    } else if (!empty($raw)) {
+        $dec = decrypt($raw);
+        if (is_numeric($dec)) {
+            $idbaja = (int)$dec;
+        }
+    }
+    if (empty($idbaja)) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ EL FOLIO DE BAJA"),0,1,'C');
+        return;
+    }
+
+    $login = new Login();
+    $data = $login->BuscarBajaInventarioPorId($idbaja);
+
+    if (!$data || empty($data['cabecera'])) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("REGISTRO DE BAJA NO ENCONTRADO"),0,1,'C');
+        return;
+    }
+
+    $cab = $data['cabecera'];
+    $detalles = $data['detalles'];
+    $simbolo = "Bs.";
+
+    // Encabezado
+    $logo = ( file_exists("./fotos/logo_pdf.png") == "" ? "./assets/images/null.png" : "./fotos/logo_pdf.png");
+    $this->Ln(2);
+    $this->SetFont('Courier','B',12);
+    $this->SetTextColor(3,3,3);
+    $this->Cell(35,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 26),0,0,'C');
+    $this->Cell(155,5,_u8d($cab['nomsucursal']),0,0,'C');
+    $this->Ln(6);
+    $this->SetFont('Courier','B',11);
+    $this->SetTextColor(180,0,0);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(155,5,_u8d("COMPROBANTE OFICIAL DE SALIDA / BAJA DE MERCADERÍA"),0,0,'C');
+    $this->Ln(4);
+    $this->SetFont('Courier','I',8);
+    $this->SetTextColor(80,80,80);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(155,5,_u8d("(Documento de Descargo de Inventario y Auditoría)"),0,0,'C');
+    $this->Ln(6);
+
+    $this->SetTextColor(0,0,0);
+    $this->SetFont('Courier','',8);
+    $this->Cell(110,4,_u8d("SUCURSAL: ".$cab['cuitsucursal']." - ".$cab['nomsucursal']),0,0,'L');
+    $this->Cell(80,4,_u8d("FOLIO Nº: ".$cab['codbaja']),0,1,'R');
+
+    $this->Cell(110,4,_u8d("MOTIVO DE SALIDA: ".$cab['tipomotivo']),0,0,'L');
+    $this->Cell(80,4,_u8d("FECHA Y HORA: ".date("d/m/Y h:i A", strtotime($cab['fechabaja']))),0,1,'R');
+
+    $this->Cell(110,4,_u8d("AUTORIZADO / RETIRADO POR: ".$cab['persona_autoriza']),0,0,'L');
+    $this->Cell(80,4,_u8d("ESTADO: ".$cab['statusbaja']),0,1,'R');
+
+    $this->Cell(110,4,_u8d("REGISTRADO EN SISTEMA POR: ".($cab['nomusuario'] ?? 'Admin')),0,0,'L');
+    $this->Cell(80,4,_u8d("TELÉFONO: ".$cab['tlfsucursal']),0,1,'R');
+    $this->Ln(3);
+
+    // Cabecera de Tabla
+    $this->SetWidths(array(10, 25, 80, 25, 25, 25));
+    $this->SetAligns(array('C', 'C', 'L', 'C', 'R', 'R'));
+
+    $this->SetFont('Courier','B',8);
+    $this->SetFillColor(230, 230, 230);
+    $this->SetTextColor(0, 0, 0);
+    
+    $this->Cell(10, 6, "#", 1, 0, 'C', true);
+    $this->Cell(25, 6, _u8d("CÓDIGO"), 1, 0, 'C', true);
+    $this->Cell(80, 6, _u8d("DESCRIPCIÓN DEL PRODUCTO"), 1, 0, 'L', true);
+    $this->Cell(25, 6, _u8d("CANTIDAD"), 1, 0, 'C', true);
+    $this->Cell(25, 6, _u8d("COSTO U."), 1, 0, 'R', true);
+    $this->Cell(25, 6, _u8d("SUBTOTAL"), 1, 1, 'R', true);
+
+    $this->SetFont('Courier','',8);
+    $this->SetTextColor(3,3,3);
+
+    $n = 1;
+    $total_unidades = 0;
+    $total_costo = 0;
+    foreach ($detalles as $d) {
+        $cant = (float)$d['cantidad'];
+        $costo = (float)$d['preciocompra'];
+        $sub = (float)$d['subtotal_costo'];
+        $total_unidades += $cant;
+        $total_costo += $sub;
+
+        $this->Row(array(
+            $n++,
+            _u8d($d['codproducto']),
+            _u8d($d['producto']),
+            "-".number_format($cant, 0),
+            $simbolo." ".number_format($costo, 2, '.', ','),
+            $simbolo." ".number_format($sub, 2, '.', ',')
+        ));
+    }
+
+    $this->Ln(3);
+
+    // Totales
+    $this->SetFont('Courier','B',9);
+    $this->SetFillColor(245, 245, 245);
+    $this->Cell(95,6,_u8d("TOTAL ÍTEMS RETIRADOS: ").number_format($total_unidades, 0)." u.",1,0,'L',true);
+    $this->Cell(95,6,_u8d("VALOR TOTAL COSTO: ").$simbolo." ".number_format($total_costo, 2, '.', ','),1,1,'R',true);
+
+    if (!empty($cab['observaciones'])) {
+        $this->Ln(2);
+        $this->SetFont('Courier','I',8);
+        $this->MultiCell(0,4,_u8d("OBSERVACIONES / JUSTIFICACIÓN: ".$cab['observaciones']),0,'L');
+    }
+
+    // Firmas
+    $this->Ln(15);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(95,4,'__________________________________________',0,0,'C');
+    $this->Cell(95,4,'__________________________________________',0,1,'C');
+
+    $this->Cell(95,4,_u8d("RETIRADO / AUTORIZADO POR"),0,0,'C');
+    $this->Cell(95,4,_u8d("RESPONSABLE SUCURSAL / ADMINISTRADOR"),0,1,'C');
+
+    $this->SetFont('Courier','I',7);
+    $this->Cell(95,3,_u8d("(".$cab['persona_autoriza'].")"),0,0,'C');
+    $this->Cell(95,3,_u8d("(".($cab['nomusuario'] ?? 'Admin').")"),0,1,'C');
+    $this->Ln(2);
+    $this->Cell(0,4,_u8d("Este comprobante respalda la salida física de inventario para que no compute como faltante en la auditoría."),0,1,'C');
+}
+########################## FIN FUNCION COMPROBANTE OFICIAL DE RETIRO / BAJA DE INVENTARIO ##############################
 
  // FIN Class PDF
 }

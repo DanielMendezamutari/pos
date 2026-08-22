@@ -38241,6 +38241,7 @@ public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fech
 		$fechadesde, $fechahasta, // compras
 		$fechadesde, $fechahasta, // traspasos entrada
 		$fechadesde, $fechahasta, // traspasos salida
+		$fechadesde, $fechahasta, // bajas_salidas (retiros dueña, consumo interno, mermas)
 		$fechadesde,              // conteo inicial cajero
 		$codsucursal
 	);
@@ -38325,6 +38326,15 @@ public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fech
 			AND t.sucursal_envia = productos.codsucursal 
 			AND t.fechatraspaso BETWEEN ? AND ?
 		), 0) AS traspasos_salidas,
+		COALESCE((
+			SELECT SUM(dbi.cantidad) 
+			FROM detalle_bajas_inventario dbi 
+			INNER JOIN bajas_inventario bi ON dbi.idbaja = bi.idbaja 
+			WHERE dbi.idproducto = productos.idproducto 
+			AND bi.codsucursal = productos.codsucursal 
+			AND bi.statusbaja != 'ANULADA' 
+			AND bi.fechabaja BETWEEN ? AND ?
+		), 0) AS bajas_salidas,
 		COALESCE((
 			SELECT dci.cantidad_fisica 
 			FROM detalle_conteo_inicial dci 
@@ -38917,6 +38927,265 @@ public function ListarConteosInicialesDiarios($codsucursal = 0, $desde = "", $ha
 }
 
 ######################## FIN FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
+
+######################## FUNCIONES DE RETIROS Y BAJAS DE INVENTARIO ###########################
+
+public function BuscarProductosParaBaja($codsucursal = 0, $q = "")
+{
+	self::SetNames();
+	$codsucursal = (int)$codsucursal;
+	if ($codsucursal <= 0 && isset($_SESSION['codsucursal'])) {
+		$codsucursal = (int)$_SESSION['codsucursal'];
+	}
+
+	try {
+		if (!empty($q)) {
+			$sql = "SELECT idproducto, codproducto, producto, existencia, preciocompra, precioxpublico 
+					FROM productos 
+					WHERE (codsucursal = ? OR ? = 0) AND (producto LIKE ? OR codproducto LIKE ? OR codigobarra LIKE ?)
+					ORDER BY producto ASC LIMIT 60";
+			$term = "%" . trim($q) . "%";
+			$stmt = $this->dbh->prepare($sql);
+			$stmt->execute(array($codsucursal, $codsucursal, $term, $term, $term));
+		} else {
+			$sql = "SELECT idproducto, codproducto, producto, existencia, preciocompra, precioxpublico 
+					FROM productos 
+					WHERE (codsucursal = ? OR ? = 0)
+					ORDER BY producto ASC LIMIT 100";
+			$stmt = $this->dbh->prepare($sql);
+			$stmt->execute(array($codsucursal, $codsucursal));
+		}
+		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+	} catch (Exception $e) {
+		error_log("Error en BuscarProductosParaBaja: " . $e->getMessage());
+		return array();
+	}
+}
+
+public function RegistrarBajaInventario()
+{
+	self::SetNames();
+	if (empty($_POST["codsucursal"]) || empty($_POST["tipomotivo"]) || empty($_POST["idproducto"]) || !is_array($_POST["idproducto"])) {
+		echo json_encode(array("status" => 0, "msg" => "Faltan datos obligatorios para procesar el retiro / baja de inventario."));
+		exit;
+	}
+
+	$codsucursal = (int)decrypt($_POST["codsucursal"]);
+	if ($codsucursal <= 0 && is_numeric($_POST["codsucursal"])) {
+		$codsucursal = (int)$_POST["codsucursal"];
+	}
+	$tipomotivo = limpiar($_POST["tipomotivo"]);
+	$persona_autoriza = isset($_POST["persona_autoriza"]) ? limpiar($_POST["persona_autoriza"]) : (isset($_SESSION["nombres"]) ? $_SESSION["nombres"] : "Administrador");
+	$observaciones = isset($_POST["observaciones"]) ? limpiar($_POST["observaciones"]) : "";
+	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
+	$fechabaja = date("Y-m-d H:i:s");
+
+	// Generar código correlativo de baja
+	$prefijo = "BAJ-" . date("Ym") . "-";
+	$sqlSec = "SELECT COALESCE(MAX(idbaja), 0) + 1 AS sig FROM bajas_inventario";
+	$stmtSec = $this->dbh->query($sqlSec);
+	$rowSec = $stmtSec->fetch(PDO::FETCH_ASSOC);
+	$codbaja = $prefijo . str_pad($rowSec["sig"], 4, "0", STR_PAD_LEFT);
+
+	$total_items = 0;
+	$total_costo = 0.00;
+
+	try {
+		$this->dbh->beginTransaction();
+
+		$sqlCab = "INSERT INTO bajas_inventario 
+			(codbaja, codsucursal, codusuario, fechabaja, tipomotivo, persona_autoriza, total_items, total_costo, observaciones, statusbaja) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'PROCESADA')";
+		$stmtCab = $this->dbh->prepare($sqlCab);
+		$stmtCab->execute(array($codbaja, $codsucursal, $codusuario, $fechabaja, $tipomotivo, $persona_autoriza, 0, 0.00, $observaciones));
+		$idbaja = $this->dbh->lastInsertId();
+
+		$sqlDet = "INSERT INTO detalle_bajas_inventario 
+			(idbaja, codbaja, idproducto, codproducto, producto, cantidad, preciocompra, precioxpublico, subtotal_costo) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+		$stmtDet = $this->dbh->prepare($sqlDet);
+
+		$sqlUpdStock = "UPDATE productos SET existencia = existencia - ? WHERE idproducto = ? AND codsucursal = ?";
+		$stmtUpdStock = $this->dbh->prepare($sqlUpdStock);
+
+		foreach ($_POST["idproducto"] as $i => $idprod) {
+			$idproducto = (int)$idprod;
+			$codproducto = limpiar($_POST["codproducto"][$i] ?? '');
+			$producto = limpiar($_POST["producto"][$i] ?? '');
+			$cantidad = (float)($_POST["cantidad"][$i] ?? 0);
+			$preciocompra = (float)($_POST["preciocompra"][$i] ?? 0);
+			$precioxpublico = (float)($_POST["precioxpublico"][$i] ?? 0);
+			$subtotal = $cantidad * $preciocompra;
+
+			if ($cantidad > 0) {
+				$stmtDet->execute(array($idbaja, $codbaja, $idproducto, $codproducto, $producto, $cantidad, $preciocompra, $precioxpublico, $subtotal));
+				$stmtUpdStock->execute(array($cantidad, $idproducto, $codsucursal));
+				$total_items += 1;
+				$total_costo += $subtotal;
+			}
+		}
+
+		// Actualizar totales en cabecera
+		$sqlUpdCab = "UPDATE bajas_inventario SET total_items = ?, total_costo = ? WHERE idbaja = ?";
+		$stmtUpdCab = $this->dbh->prepare($sqlUpdCab);
+		$stmtUpdCab->execute(array($total_items, $total_costo, $idbaja));
+
+		$this->dbh->commit();
+
+		echo json_encode(array(
+			"status" => 1,
+			"idbaja" => encrypt($idbaja),
+			"codbaja" => $codbaja,
+			"msg" => "¡Retiro / Baja de Inventario procesada exitosamente! Se descontó el stock de la sucursal."
+		));
+		exit;
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en RegistrarBajaInventario: " . $e->getMessage());
+		echo json_encode(array("status" => 0, "msg" => "Error interno al procesar el retiro: " . $e->getMessage()));
+		exit;
+	}
+}
+
+public function ListarBajasInventario($codsucursal = 0, $desde = "", $hasta = "")
+{
+	self::SetNames();
+	$this->p = array();
+	$where = " WHERE 1=1 ";
+	$params = array();
+
+	if (!empty($codsucursal) && $codsucursal != "0") {
+		$where .= " AND bajas_inventario.codsucursal = ? ";
+		$params[] = $codsucursal;
+	} elseif (isset($_SESSION['acceso']) && $_SESSION['acceso'] != "administradorG" && !empty($_SESSION['codsucursal'])) {
+		$where .= " AND bajas_inventario.codsucursal = ? ";
+		$params[] = $_SESSION['codsucursal'];
+	}
+
+	if (!empty($desde) && !empty($hasta)) {
+		$where .= " AND DATE(bajas_inventario.fechabaja) BETWEEN ? AND ? ";
+		$params[] = $desde;
+		$params[] = $hasta;
+	}
+
+	try {
+		$sql = "SELECT 
+			bajas_inventario.*,
+			sucursales.cuitsucursal,
+			sucursales.nomsucursal,
+			usuarios.nombres AS nomusuario
+			FROM bajas_inventario
+			INNER JOIN sucursales ON bajas_inventario.codsucursal = sucursales.codsucursal
+			LEFT JOIN usuarios ON bajas_inventario.codusuario = usuarios.codigo
+			" . $where . "
+			ORDER BY bajas_inventario.idbaja DESC";
+
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute($params);
+		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+	} catch (Exception $e) {
+		error_log("Error en ListarBajasInventario: " . $e->getMessage());
+		return array();
+	}
+}
+
+public function BuscarBajaInventarioPorId($idbaja)
+{
+	self::SetNames();
+	try {
+		$sql = "SELECT 
+			bajas_inventario.*,
+			sucursales.cuitsucursal,
+			sucursales.nomsucursal,
+			sucursales.direcsucursal,
+			sucursales.tlfsucursal,
+			usuarios.nombres AS nomusuario
+			FROM bajas_inventario
+			INNER JOIN sucursales ON bajas_inventario.codsucursal = sucursales.codsucursal
+			LEFT JOIN usuarios ON bajas_inventario.codusuario = usuarios.codigo
+			WHERE bajas_inventario.idbaja = ?";
+
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($idbaja));
+		$cabecera = $stmt->fetch(PDO::FETCH_ASSOC);
+
+		if (!$cabecera) {
+			return null;
+		}
+
+		$sqlDet = "SELECT * FROM detalle_bajas_inventario WHERE idbaja = ? ORDER BY iddetallebaja ASC";
+		$stmtDet = $this->dbh->prepare($sqlDet);
+		$stmtDet->execute(array($idbaja));
+		$detalles = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
+
+		return array(
+			"cabecera" => $cabecera,
+			"detalles" => $detalles
+		);
+	} catch (Exception $e) {
+		error_log("Error en BuscarBajaInventarioPorId: " . $e->getMessage());
+		return null;
+	}
+}
+
+public function AnularBajaInventario()
+{
+	self::SetNames();
+	if (empty($_SESSION["acceso"]) || ($_SESSION["acceso"] != "administradorG" && $_SESSION["acceso"] != "administradorS")) {
+		echo json_encode(array("status" => 0, "msg" => "No tienes permisos para anular retiros de inventario."));
+		exit;
+	}
+
+	if (empty($_POST["idbaja"])) {
+		echo json_encode(array("status" => 0, "msg" => "No se recibió la baja a anular."));
+		exit;
+	}
+
+	$idbaja = (int)decrypt($_POST["idbaja"]);
+
+	try {
+		$this->dbh->beginTransaction();
+
+		$data = $this->BuscarBajaInventarioPorId($idbaja);
+		if (!$data || empty($data['cabecera'])) {
+			throw new Exception("El registro de baja no existe.");
+		}
+
+		if ($data['cabecera']['statusbaja'] == 'ANULADA') {
+			throw new Exception("Este registro ya se encuentra anulado.");
+		}
+
+		$codsucursal = $data['cabecera']['codsucursal'];
+
+		// Reincorporar existencias
+		$sqlStock = "UPDATE productos SET existencia = existencia + ? WHERE idproducto = ? AND codsucursal = ?";
+		$stmtStock = $this->dbh->prepare($sqlStock);
+		foreach ($data['detalles'] as $det) {
+			$stmtStock->execute(array($det['cantidad'], $det['idproducto'], $codsucursal));
+		}
+
+		// Cambiar status a ANULADA
+		$nomadmin = isset($_SESSION['nombres']) ? $_SESSION['nombres'] : 'Admin';
+		$sqlAnul = "UPDATE bajas_inventario SET statusbaja = 'ANULADA', observaciones = CONCAT(COALESCE(observaciones, ''), '\n[ANULADO el " . date("d/m/Y h:i A") . " por " . $nomadmin . "]') WHERE idbaja = ?";
+		$stmtAnul = $this->dbh->prepare($sqlAnul);
+		$stmtAnul->execute(array($idbaja));
+
+		$this->dbh->commit();
+
+		echo json_encode(array(
+			"status" => 1,
+			"msg" => "¡Retiro / Baja anulada exitosamente! Las existencias fueron reincorporadas a la sucursal."
+		));
+		exit;
+	} catch (Exception $e) {
+		$this->dbh->rollBack();
+		error_log("Error en AnularBajaInventario: " . $e->getMessage());
+		echo json_encode(array("status" => 0, "msg" => $e->getMessage()));
+		exit;
+	}
+}
+
+######################## FIN FUNCIONES DE RETIROS Y BAJAS DE INVENTARIO ###########################
 
 ######################## FIN FUNCIONES PARA AUDITORIA DE PRODUCTOS ###########################
 

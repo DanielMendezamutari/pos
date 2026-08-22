@@ -40,10 +40,11 @@ function CalcularFila(i) {
     var trasp_in = parseFloat($("#entradas_traspasos_" + i).val()) || 0;
     var ventas = parseFloat($("#salidas_ventas_" + i).val()) || 0;
     var trasp_out = parseFloat($("#salidas_traspasos_" + i).val()) || 0;
+    var bajas_out = parseFloat($("#salidas_bajas_" + i).val()) || 0;
     var precio = parseFloat($("#precioventa_" + i).val()) || 0;
 
-    // Stock Teórico = Inicial + Compras + Traspasos Entrada - Ventas - Traspasos Salida
-    var teorico = (inicial + compras + trasp_in) - (ventas + trasp_out);
+    // Stock Teórico = Inicial + Compras + Traspasos Entrada - Ventas - Traspasos Salida - Retiros/Bajas Dueña
+    var teorico = (inicial + compras + trasp_in) - (ventas + trasp_out + bajas_out);
     $("#stock_teorico_" + i).val(teorico.toFixed(2));
     $("#badge_teorico_" + i).text(teorico.toFixed(2));
 
