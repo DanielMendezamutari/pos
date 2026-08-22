@@ -167,7 +167,7 @@ class Json
 		$condicion_sucursal = "";
 		if (!empty($codsucursal) && $codsucursal != "0") {
 			$condicion_sucursal = " AND productos.codsucursal = '".strip_tags($codsucursal)."' ";
-		} elseif (isset($_SESSION["codsucursal"]) && !empty($_SESSION["codsucursal"]) && (isset($_SESSION["acceso"]) && $_SESSION["acceso"] != "administradorG")) {
+		} elseif (isset($_SESSION["codsucursal"]) && !empty($_SESSION["codsucursal"])) {
 			$condicion_sucursal = " AND productos.codsucursal = '".strip_tags($_SESSION["codsucursal"])."' ";
 		}
 

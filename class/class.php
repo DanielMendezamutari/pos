@@ -5182,10 +5182,11 @@ public function CargarClientes()
    //si es correcto, entonces damos permisos de lectura para subir
    $filename = $_FILES['sel_file']['tmp_name'];
    $handle = fopen($filename, "r");
-   $this->dbh->beginTransaction();
-    
    $primera = true;
-   while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
+   try {
+		$this->dbh->beginTransaction();
+
+	while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
    // Evitamos la primer línea
    if ($primera){
       $primera = false;
@@ -5229,9 +5230,16 @@ public function CargarClientes()
 
 		$codcliente++;
    }
-   $this->dbh->commit();
    //cerramos la lectura del archivo "abrir archivo" con un "cerrar archivo"
-   fclose($handle);
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en CargarClientes: " . $e->getMessage());
+		if (isset($handle) && is_resource($handle)) fclose($handle); echo "2"; exit;
+	}
+
+	fclose($handle);
 	        
 	   echo "<span class='fa fa-check-square-o'></span> LA CARGA MASIVA DE CLIENTES FUE REALIZADA EXITOSAMENTE";
 	   exit;
@@ -5798,10 +5806,11 @@ public function CargarProveedores()
    //si es correcto, entonces damos permisos de lectura para subir
    $filename = $_FILES['sel_file']['tmp_name'];
    $handle = fopen($filename, "r");
-   $this->dbh->beginTransaction();
-    
    $primera = true;
-   while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
+   try {
+		$this->dbh->beginTransaction();
+
+	while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
    // Evitamos la primer línea
    if ($primera){
       $primera = false;
@@ -5841,9 +5850,16 @@ public function CargarProveedores()
 
 	   $codproveedor++;
    }
-   $this->dbh->commit();
    //cerramos la lectura del archivo "abrir archivo" con un "cerrar archivo"
-   fclose($handle);
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en CargarProveedores: " . $e->getMessage());
+		if (isset($handle) && is_resource($handle)) fclose($handle); echo "2"; exit;
+	}
+
+	fclose($handle);
 	        
 	   echo "<span class='fa fa-check-square-o'></span> LA CARGA MASIVA DE PROVEEDORES FUE REALIZADA EXITOSAMENTE";
 	   exit;
@@ -6316,9 +6332,11 @@ public function RegistrarPedidos()
    $procesada = limpiar("1");
 	$codigo = limpiar($_SESSION["codigo"]);
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
+	try {
+		$this->dbh->beginTransaction();
+
 	$stmt->execute();
 	
-	$this->dbh->beginTransaction();
 	$detalle = $_SESSION["CarritoPedido"];
 	for($i=0;$i<count($detalle);$i++){
 
@@ -6386,7 +6404,13 @@ public function RegistrarPedidos()
         
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
 	unset($_SESSION["CarritoPedido"]);
-   $this->dbh->commit();
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarPedidos: " . $e->getMessage());
+		echo "2"; exit;
+	}
 
 	echo "<span class='fa fa-check-square-o'></span> EL PEDIDO DE PRODUCTOS HA SIDO REGISTRADO EXITOSAMENTE <a href='reportepdf?codpedido=".encrypt($codpedido)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURAPEDIDO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a>";
 	echo "<script>window.open('reportepdf?codpedido=".encrypt($codpedido)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURAPEDIDO")."', '_blank');</script>";
@@ -6696,6 +6720,9 @@ public function ActualizarPedidos()
 		echo "1";
 		exit;
 	}
+	try {
+		$this->dbh->beginTransaction();
+
 	for($i=0;$i<count($_POST['coddetallepedido']);$i++){  //recorro el array
       if (!empty($_POST['coddetallepedido'][$i])) {
 
@@ -6708,8 +6735,7 @@ public function ActualizarPedidos()
    }
 
 
-   $this->dbh->beginTransaction();
-	for($i=0;$i<count($_POST['coddetallepedido']);$i++){  //recorro el array
+   for($i=0;$i<count($_POST['coddetallepedido']);$i++){  //recorro el array
 	   if (!empty($_POST['coddetallepedido'][$i])) {
 
 			################## OBTENGO CANTIDAD DE DETALLE ##################
@@ -6765,8 +6791,6 @@ public function ActualizarPedidos()
 	      }
       }
    }
-   $this->dbh->commit();
-
    ############ ACTUALIZO LOS TOTALES EN PEDIDO ##############
 	$sql = " UPDATE pedidos SET "
 	." codproveedor = ?, "
@@ -6811,6 +6835,13 @@ public function ActualizarPedidos()
 	$stmt->execute();
 	############ ACTUALIZO LOS TOTALES EN PEDIDO ##############
 
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarPedidos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
 	echo "<span class='fa fa-check-square-o'></span> EL PEDIDO DE PRODUCTOS HA SIDO ACTUALIZADO EXITOSAMENTE <a href='reportepdf?codpedido=".encrypt($codpedido)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURAPEDIDO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a>";
 	echo "<script>window.open('reportepdf?codpedido=".encrypt($codpedido)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURAPEDIDO")."', '_blank');</script>";
 	exit;
@@ -6849,8 +6880,10 @@ public function AgregarDetallesPedidos()
 	$totalpagobd = $row['totalpago'];
 	############ CONSULTO TOTAL ACTUAL DE PEDIDO ##############
 
-	$this->dbh->beginTransaction();
-   $detalle = $_SESSION["CarritoPedido"];
+	try {
+		$this->dbh->beginTransaction();
+
+	$detalle = $_SESSION["CarritoPedido"];
 	for($i=0;$i<count($detalle);$i++){
 
 	$sql = "SELECT * 
@@ -7002,8 +7035,6 @@ public function AgregarDetallesPedidos()
    
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
 	unset($_SESSION["CarritoPedido"]);
-   $this->dbh->commit();
-
    ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
    $sql3 = "SELECT SUM(totaldescuentoc) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto FROM detallepedidos WHERE codpedido = '".limpiar(decrypt($_POST["codpedido"]))."' AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."' AND ivaproducto != '0.00'";
    foreach ($this->dbh->query($sql3) as $row3)
@@ -7069,6 +7100,13 @@ public function AgregarDetallesPedidos()
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
 	$stmt->execute();
 	############ ACTUALIZO LOS TOTALES EN PEDIDO ##############
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarDetallesPedidos: " . $e->getMessage());
+		echo "2"; exit;
+	}
 
 	echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS AL PEDIDO EXITOSAMENTE <a href='reportepdf?codpedido=".encrypt($codpedido)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURAPEDIDO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a>";
 	echo "<script>window.open('reportepdf?codpedido=".encrypt($codpedido)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURAPEDIDO")."', '_blank');</script>";
@@ -7183,11 +7221,13 @@ public function ProcesarPedidos()
 	   $observaciones = limpiar($_POST["observaciones"]);
 		$codigo = limpiar($_SESSION["codigo"]);
 		$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
-		$stmt->execute();
+		try {
+		$this->dbh->beginTransaction();
+
+	$stmt->execute();
 		############################ REGISTRO COMPRAS ############################
 
-   $this->dbh->beginTransaction();
-	for($i=0;$i<count($_POST['coddetallepedido']);$i++){  //recorro el array
+   for($i=0;$i<count($_POST['coddetallepedido']);$i++){  //recorro el array
 	   if (!empty($_POST['coddetallepedido'][$i])) {
 
 			############### VERIFICO LA EXISTENCIA DEL PRODUCTO EN ALMACEN ################
@@ -7377,8 +7417,6 @@ public function ProcesarPedidos()
 			##################### REGISTRAMOS LOS DATOS DE PRODUCTOS EN KARDEX #####################
       }
    }
-   $this->dbh->commit();
-
    ##################### ACTUALIZO PEDIDO A PROCESADO ####################
 	$sql = "UPDATE pedidos set "
 	." procesada = ? "
@@ -7393,7 +7431,14 @@ public function ProcesarPedidos()
 	$stmt->execute();
    ##################### ACTUALIZO PEDIDO A PROCESADO ####################
 
-	   echo "<span class='fa fa-check-square-o'></span> LA COMPRA DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ProcesarPedidos: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR PEDIDO: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA COMPRA DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a>";
 
       echo "<script>window.open('reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."', '_blank');</script>";
 	   exit;
@@ -7436,7 +7481,10 @@ public function EliminarDetallesPedidos()
 	if($num > 1)
 	{
 		########## ELIMINAMOS EL PRODUCTO EN DETALLE DE PEDIDO ###########
-		$sql = "DELETE FROM detallepedidos WHERE coddetallepedido = ? AND codsucursal = ?";
+		try {
+		$this->dbh->beginTransaction();
+
+	$sql = "DELETE FROM detallepedidos WHERE coddetallepedido = ? AND codsucursal = ?";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1,$coddetallepedido);
 		$stmt->bindParam(2,$codsucursal);
@@ -7497,7 +7545,14 @@ public function EliminarDetallesPedidos()
 		$stmt->execute();
 		############ ACTUALIZO LOS TOTALES EN PEDIDO ##############
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetallesPedidos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -7531,7 +7586,10 @@ public function EliminarPedidos()
 		#################### ELIMINO PEDIDO ####################
 
 		#################### ELIMINO DETALLE DE PEDIDO ####################
-		$sql = "DELETE FROM detallepedidos WHERE codpedido = ? AND codsucursal = ?";
+		try {
+		$this->dbh->beginTransaction();
+
+	$sql = "DELETE FROM detallepedidos WHERE codpedido = ? AND codsucursal = ?";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1,$codpedido);
 		$stmt->bindParam(2,$codsucursal);
@@ -7540,7 +7598,14 @@ public function EliminarPedidos()
 		$stmt->execute();
 		#################### ELIMINO DETALLE DE PEDIDO ####################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarPedidos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -7795,10 +7860,11 @@ public function CargarProductos()
    //si es correcto, entonces damos permisos de lectura para subir
    $filename = $_FILES['sel_file']['tmp_name'];
    $handle = fopen($filename, "r");
-   $this->dbh->beginTransaction();
-    
    $primera = true;
-   while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
+   try {
+		$this->dbh->beginTransaction();
+
+	while (($data = fgetcsv($handle, 1000, ";")) !== FALSE) {
    // Evitamos la primer línea
    if ($primera){
       $primera = false;
@@ -7931,9 +7997,16 @@ public function CargarProductos()
 		##################### REGISTRAMOS LOS DATOS DE PRODUCTOS EN KARDEX #####################
    }
            
-   $this->dbh->commit();
    //cerramos la lectura del archivo "abrir archivo" con un "cerrar archivo"
-   fclose($handle);
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en CargarProductos: " . $e->getMessage());
+		if (isset($handle) && is_resource($handle)) fclose($handle); echo "2"; exit;
+	}
+
+	fclose($handle);
 	        
 	echo "<span class='fa fa-check-square-o'></span> LA CARGA MASIVA DE PRODUCTOS FUE REALIZADA EXITOSAMENTE";
 	exit;
@@ -8077,7 +8150,10 @@ public function RegistrarProductos()
 		$stockteorico = limpiar("0");
 		$motivoajuste = limpiar("NINGUNO");
 		$codsucursal = decrypt($_POST["codsucursal"]);
-		$stmt->execute();
+		try {
+		$this->dbh->beginTransaction();
+
+	$stmt->execute();
 		##################### REGISTRO DE PRODUCTO #####################
 
 		##################### REGISTRAMOS DATOS DE PRODUCTOS EN KARDEX #####################
@@ -8143,7 +8219,14 @@ public function RegistrarProductos()
 		}
 		############################## SUBIR FOTO DE PRODUCTO ##############################
 
-		echo "<span class='fa fa-check-square-o'></span> EL PRODUCTO HA SIDO REGISTRADO EXITOSAMENTE";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarProductos: " . $e->getMessage());
+		echo "3"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL PRODUCTO HA SIDO REGISTRADO EXITOSAMENTE";
 		exit;
 
 	} else {
@@ -8471,7 +8554,7 @@ public function ListarProductos()
       (SELECT
       codcambio, descripcioncambio, montocambio, codmoneda       
       FROM tiposcambio
-      ORDER BY codcambio DESC LIMIT 1) valor_cambio ON valor_cambio.codmoneda = sucursales.codmoneda2
+      ORDER BY codcambio DESC LIMIT 1) valor_cambio ON valor_cambio.codmoneda = sucursales.codmoneda2 
 	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."'";
 	foreach ($this->dbh->query($sql) as $row)
 	{
@@ -8654,7 +8737,7 @@ public function ListarProductosOptimo()
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
 	LEFT JOIN provincias ON sucursales.id_provincia = provincias.id_provincia
 	LEFT JOIN departamentos ON sucursales.id_departamento = departamentos.id_departamento
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
 	AND CAST(productos.existencia AS DECIMAL(10,2)) <= CAST(productos.stockoptimo AS DECIMAL(10,2)) 
 	AND CAST(productos.existencia AS DECIMAL(10,2)) > CAST(productos.stockmedio AS DECIMAL(10,2))";
 	foreach ($this->dbh->query($sql) as $row)
@@ -8838,7 +8921,7 @@ public function ListarProductosMedio()
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
 	LEFT JOIN provincias ON sucursales.id_provincia = provincias.id_provincia
 	LEFT JOIN departamentos ON sucursales.id_departamento = departamentos.id_departamento
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
 	AND CAST(productos.existencia AS DECIMAL(10,2)) <= CAST(productos.stockmedio AS DECIMAL(10,2)) 
 	AND CAST(productos.existencia AS DECIMAL(10,2)) > CAST(productos.stockminimo AS DECIMAL(10,2))";
 	foreach ($this->dbh->query($sql) as $row)
@@ -9020,7 +9103,7 @@ public function ListarProductosMinimo()
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
 	LEFT JOIN provincias ON sucursales.id_provincia = provincias.id_provincia
 	LEFT JOIN departamentos ON sucursales.id_departamento = departamentos.id_departamento
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
 	AND CAST(productos.existencia AS DECIMAL(10,2)) <= CAST(productos.stockminimo AS DECIMAL(10,2))";
 	foreach ($this->dbh->query($sql) as $row)
 	{
@@ -9202,7 +9285,7 @@ public function ListarProductosFechasOptimo()
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
 	LEFT JOIN provincias ON sucursales.id_provincia = provincias.id_provincia
 	LEFT JOIN departamentos ON sucursales.id_departamento = departamentos.id_departamento
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
 	AND '".date("Y-m-d")."' <= DATE_FORMAT(productos.fechaoptimo,'%Y-%m-%d')
 	AND CAST(productos.existencia AS DECIMAL(10,2)) > 0";
 	foreach ($this->dbh->query($sql) as $row)
@@ -9387,7 +9470,7 @@ public function ListarProductosFechasMedio()
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
 	LEFT JOIN provincias ON sucursales.id_provincia = provincias.id_provincia
 	LEFT JOIN departamentos ON sucursales.id_departamento = departamentos.id_departamento
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
 	AND '".date("Y-m-d")."' > DATE_FORMAT(productos.fechaoptimo,'%Y-%m-%d')
 	AND '".date("Y-m-d")."' <= DATE_FORMAT(productos.fechamedio,'%Y-%m-%d')
 	AND CAST(productos.existencia AS DECIMAL(10,2)) > 0";
@@ -9573,7 +9656,7 @@ public function ListarProductosFechasMinimo()
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
 	LEFT JOIN provincias ON sucursales.id_provincia = provincias.id_provincia
 	LEFT JOIN departamentos ON sucursales.id_departamento = departamentos.id_departamento
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."' 
 	AND fechaminimo != '0000-00-00' 
 	AND DATE_FORMAT(productos.fechaminimo,'%Y-%m-%d') <= '".date("Y-m-d")."'
 	AND CAST(productos.existencia AS DECIMAL(10,2)) > 0";
@@ -9593,8 +9676,7 @@ public function BuscarPrecioProductoxCodigo()
 	self::SetNames();
 	$sql = "SELECT GROUP_CONCAT('PRECIO MENOR', '_', precioxmenor, '|', 'PRECIO MAYOR', '_', precioxmayor, '|', 'PRECIO PUBLICO', '_', precioxpublico SEPARATOR '<br>') AS precioventa 
 	FROM productos 
-	WHERE idproducto = ? 
-	AND codsucursal = '".limpiar($_SESSION["codsucursal"])."'";
+	WHERE idproducto = ?";
 	$stmt = $this->dbh->prepare($sql);
 	$stmt->execute(array($_GET["idproducto"]));
 	$num = $stmt->rowCount();
@@ -9758,7 +9840,7 @@ public function ListarCodigoBarra()
 	documentos.documento 
 	FROM productos INNER JOIN sucursales ON productos.codsucursal = sucursales.codsucursal 
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento 
-   WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."'
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."'
 	AND codigobarra != ''";
 	foreach ($this->dbh->query($sql) as $row)
 	{
@@ -10261,7 +10343,10 @@ public function ActualizarProductos()
 		$codproducto = limpiar($_POST["codproducto"]);
 		$idproducto = limpiar(decrypt($_POST["idproducto"]));
 		$codsucursal = decrypt($_POST["codsucursal"]);
-		$stmt->execute();
+		try {
+		$this->dbh->beginTransaction();
+
+	$stmt->execute();
 		##################### ACTUALIZO LOS DATOS DE PRODUCTOS #####################
 
 	if($_POST['existencia'] != $_POST['existencia2']){
@@ -10329,7 +10414,14 @@ public function ActualizarProductos()
 	   ## se puede dar otro aviso 
 	}
 	############################## SUBIR FOTO DE PRODUCTO ##############################
-        
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarProductos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
 	echo "<span class='fa fa-check-square-o'></span> EL PRODUCTO HA SIDO ACTUALIZADO EXITOSAMENTE";
 	exit;
 
@@ -10385,7 +10477,10 @@ public function EliminarProductos()
 	if($num == 0)
 	{
 		################### ELIMINO PRODUCTO ###################
-		$sql = "DELETE FROM productos WHERE codproducto = ? AND codsucursal = ?";
+		try {
+		$this->dbh->beginTransaction();
+
+	$sql = "DELETE FROM productos WHERE codproducto = ? AND codsucursal = ?";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1,$codproducto);
 		$stmt->bindParam(2,$codsucursal);
@@ -10428,7 +10523,14 @@ public function EliminarProductos()
 		unlink($archivos);
 		}
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarProductos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -10759,7 +10861,7 @@ public function ListarKardexProductosValorizado()
       codcambio, descripcioncambio, montocambio, codmoneda       
       FROM tiposcambio
       ORDER BY codcambio DESC LIMIT 1) valor_cambio ON valor_cambio.codmoneda = sucursales.codmoneda2 
-	WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."'";
+    WHERE productos.codsucursal = '".limpiar($_SESSION["codsucursal"])."'";
 	foreach ($this->dbh->query($sql) as $row)
 	{
 		$this->p[] = $row;
@@ -11151,7 +11253,10 @@ public function RegistrarCombos()
 		$ivacombo = limpiar($_POST["ivacombo"]);
 		$desccombo = limpiar($_POST["desccombo"]);
 	   $codsucursal = limpiar(decrypt($_POST["codsucursal"]));
-		$stmt->execute();
+		try {
+		$this->dbh->beginTransaction();
+
+	$stmt->execute();
 
 	   ##################### REGISTRAMOS LOS DATOS DE COMBOS EN KARDEX #####################
 		$query = "INSERT INTO kardex values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
@@ -11218,8 +11323,6 @@ public function RegistrarCombos()
 	if(!empty($_SESSION["CarritoProducto"])){
 
 	################## PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ####################
-	$this->dbh->beginTransaction();
-
 	$detalle = $_SESSION["CarritoProducto"];
 	for($i=0;$i<count($detalle);$i++){
 
@@ -11238,11 +11341,18 @@ public function RegistrarCombos()
 		$stmt->execute();
 	}
 	unset($_SESSION["CarritoProducto"]);
-   $this->dbh->commit();
-	################### PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ##################
+   ################### PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ##################
 
    }
-		echo "<span class='fa fa-check-square-o'></span> EL COMBO HA SIDO REGISTRADO EXITOSAMENTE";
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarCombos: " . $e->getMessage());
+		echo "4"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL COMBO HA SIDO REGISTRADO EXITOSAMENTE";
 		exit;
 
 	} else {
@@ -11947,7 +12057,6 @@ public function ActualizarCombos()
 	}
 
 	################## PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ####################
-	$this->dbh->beginTransaction();
 	if (isset($_POST["codproducto"])) {
 	   for($i=0;$i<count($_POST['codproducto']);$i++){  //recorro el array
 		   if (!empty($_POST['codproducto'][$i])) {
@@ -11960,7 +12069,6 @@ public function ActualizarCombos()
 		   }
       }
 	}
-	$this->dbh->commit();
 	################### PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ##################
 
 	$sql = "SELECT codcombo FROM combos WHERE idcombo != ? AND codcombo = ? AND codsucursal = ?";
@@ -12006,7 +12114,10 @@ public function ActualizarCombos()
 		$codcombo = limpiar(decrypt($_POST["codcombo"]));
 		$idcombo = limpiar(decrypt($_POST["idcombo"]));
 		$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
-		$stmt->execute();
+		try {
+		$this->dbh->beginTransaction();
+
+	$stmt->execute();
 
 	############################## SUBIR FOTO DE COMBO ##############################
 	$permitidos = array("image/jpg", "image/jpeg", "image/png");
@@ -12031,7 +12142,6 @@ public function ActualizarCombos()
 	############################## SUBIR FOTO DE COMBO ##############################
 
 	################## PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ####################
-	$this->dbh->beginTransaction();
 	if (isset($_POST["codproducto"])) {
 	   for($i=0;$i<count($_POST['codproducto']);$i++){  //recorro el array
 		   if (!empty($_POST['codproducto'][$i])) {
@@ -12058,9 +12168,15 @@ public function ActualizarCombos()
 		   }
       }
 	}
-	$this->dbh->commit();
 	################### PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ##################
-        
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarCombos: " . $e->getMessage());
+		echo "3"; exit;
+	}
+
 	echo "<span class='fa fa-check-square-o'></span> EL COMBO HA SIDO ACTUALIZADO EXITOSAMENTE";
 	exit;
 
@@ -12112,7 +12228,8 @@ public function AgregarProductosxCombo()
 	############ VALIDO SI LA CANTIDAD ES MAYOR QUE LA EXISTENCIA #############
 
 	################## PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ####################
-	$this->dbh->beginTransaction();
+	try {
+		$this->dbh->beginTransaction();
 
 	$detalle = $_SESSION["CarritoProducto"];
 	for($i=0;$i<count($detalle);$i++){
@@ -12184,8 +12301,7 @@ public function AgregarProductosxCombo()
 		}
 	}
 	unset($_SESSION["CarritoProducto"]);
-   $this->dbh->commit();
-	################### PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ##################
+   ################### PROCESO DE REGISTRO DE PRODUCTOS A COMBOS ##################
 
 	############## ACTUALIZAMOS LOS PRECIO DEL COMBO ###################
    /*$sql2 = " UPDATE combos set "
@@ -12206,7 +12322,14 @@ public function AgregarProductosxCombo()
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
    $stmt->execute();*/
    ############## ACTUALIZAMOS LOS PRECIO DEL COMBO ###################
-        
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarProductosxCombo: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
 	echo "<span class='fa fa-check-square-o'></span> LOS PRODUCTOS FUERON AGREGADOS AL COMBO EXITOSAMENTE";
 	exit;
 }
@@ -12234,7 +12357,10 @@ public function EliminarDetalleCombo()
 	$totalracioncompra = number_format($racionbd * $preciocomprabd, 2, '.', '');
 	$totalracionventa = number_format($racionbd * $precioventabd, 2, '.', '');
     
-   $sql = "DELETE FROM combosxproductos 
+   try {
+		$this->dbh->beginTransaction();
+
+	$sql = "DELETE FROM combosxproductos 
    WHERE codcombo = ? 
    AND idproducto = ? 
    AND codproducto = ?
@@ -12271,7 +12397,14 @@ public function EliminarDetalleCombo()
    $stmt->execute();*/
    ############ ACTUALIZAMOS PRECIO DEL COMBO ################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetalleCombo: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -12295,7 +12428,10 @@ public function EliminarCombos()
 	if($num == 0)
 	{
 		################### ELIMINO COMBO ###################
-		$sql = "DELETE FROM combos WHERE codcombo = ? AND codsucursal = ?";
+		try {
+		$this->dbh->beginTransaction();
+
+	$sql = "DELETE FROM combos WHERE codcombo = ? AND codsucursal = ?";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1,$codcombo);
 		$stmt->bindParam(2,$codsucursal);
@@ -12341,7 +12477,14 @@ public function EliminarCombos()
 		unlink($archivos);
 		}
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarCombos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -13359,6 +13502,9 @@ public function ActualizarTraspasos()
 	}
 
 	############ VERIFICO QUE CANTIDAD NO SEA IGUAL A CERO #############
+	try {
+		$this->dbh->beginTransaction();
+
 	for($i=0;$i<count($_POST['coddetalletraspaso']);$i++){  //recorro el array
       if (!empty($_POST['coddetalletraspaso'][$i])) {
 
@@ -13371,7 +13517,6 @@ public function ActualizarTraspasos()
    }
    ############ VERIFICO QUE CANTIDAD NO SEA IGUAL A CERO #############
 
-	$this->dbh->beginTransaction();
 	for($i=0;$i<count($_POST['coddetalletraspaso']);$i++){  //recorro el array
 	if (!empty($_POST['coddetalletraspaso'][$i])) {
 
@@ -13502,8 +13647,6 @@ public function ActualizarTraspasos()
 	      }
       }
    }
-   $this->dbh->commit();
-
    ################### ACTUALIZO TRASPASO ####################
 	$sql = " UPDATE traspasos SET "
 	." nombres_responsable = ?, "
@@ -13554,7 +13697,14 @@ public function ActualizarTraspasos()
 	$stmt->execute();
 	################### ACTUALIZO TRASPASO ####################
 
-   echo "<span class='fa fa-check-square-o'></span> EL TRASPASO DE PRODUCTOS HA SIDO ACTUALIZADO EXITOSAMENTE <a href='reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarTraspasos: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL TRASPASO DE PRODUCTOS HA SIDO ACTUALIZADO EXITOSAMENTE <a href='reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
 	echo "<script>window.open('reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."', '_blank');</script>";
 	exit;
@@ -13593,8 +13743,10 @@ public function AgregarDetallesTraspasos()
 	$totalpagobd = $row['totalpago'];
 	############ CONSULTO TOTAL ACTUAL DE TRASPASOS ##############
 
-   $this->dbh->beginTransaction();
-   $detalle = $_SESSION["CarritoTraspaso"];
+   try {
+		$this->dbh->beginTransaction();
+
+	$detalle = $_SESSION["CarritoTraspaso"];
 	for($i=0;$i<count($detalle);$i++){
 
    ############### VERIFICO AL EXISTENCIA DEL PRODUCTO AGREGADO ################
@@ -13854,8 +14006,6 @@ public function AgregarDetallesTraspasos()
     
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
    unset($_SESSION["CarritoTraspaso"]);
-   $this->dbh->commit();
-
    ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
 	$sql3 = "SELECT SUM(totaldescuentov) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto, SUM(valorneto2) AS valorneto2 FROM detalletraspasos WHERE codtraspaso = '".limpiar(decrypt($_POST["codtraspaso"]))."' AND codsucursal = '".limpiar(decrypt($_POST["sucursal_envia"]))."' AND ivaproducto != '0.00'";
 	foreach ($this->dbh->query($sql3) as $row3)
@@ -13928,7 +14078,14 @@ public function AgregarDetallesTraspasos()
 	$stmt->execute();
 	################### ACTUALIZO TRASPASO ####################
 
-   echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS AL TRASPASO EXITOSAMENTE <a href='reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarDetallesTraspasos: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS AL TRASPASO EXITOSAMENTE <a href='reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
 	echo "<script>window.open('reportepdf?codtraspaso=".encrypt($codtraspaso)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURATRASPASO")."', '_blank');</script>";
 	exit;
@@ -14011,6 +14168,9 @@ public function EliminarDetallesTraspasos()
 	}
 	$existenciabd = $row['existencia'];
 	############ OBTENGO LA EXISTENCIA DE PRODUCTO EN ALMACEN #############
+
+	try {
+		$this->dbh->beginTransaction();
 
 	############ ACTUALIZAMOS LA EXISTENCIA DE PRODUCTO EN ALMACEN #############
 	$sql = "UPDATE productos SET "
@@ -14143,7 +14303,14 @@ public function EliminarDetallesTraspasos()
 	$stmt->execute();
 	################### ACTUALIZO EL TRASPASO ####################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetallesTraspasos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -14174,6 +14341,9 @@ public function EliminarTraspasos()
 	FROM traspasos 
 	WHERE codtraspaso = '".limpiar(decrypt($_GET["codtraspaso"]))."' 
 	AND sucursal_envia = '".limpiar(decrypt($_GET["codsucursal"]))."'";
+	try {
+		$this->dbh->beginTransaction();
+
 	foreach ($this->dbh->query($sql) as $row)
 	{
 		$this->p[] = $row;
@@ -14301,7 +14471,14 @@ public function EliminarTraspasos()
 	$stmt->execute();
 	########################## ELIMINO DETALLES TRASPASOS ##########################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarTraspasos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -14529,6 +14706,9 @@ public function ProcesarTraspaso()
 	$agregar_stock = limpiar($_POST["agregar_stock"]);
    $codtraspaso = limpiar(decrypt($_POST['codtraspaso']));
    $codsucursal = limpiar(decrypt($_POST['codsucursal']));
+	try {
+		$this->dbh->beginTransaction();
+
 	$stmt->execute();
 	############################ PROCESO EL TRASPASO ############################
 
@@ -14539,8 +14719,6 @@ public function ProcesarTraspaso()
 	#                                   PROCESO DE PRODUCTOS ENTRANTES                                       #
 	#                                                                                                        #
 	##########################################################################################################
-	$this->dbh->beginTransaction();
-
 	$sql = "SELECT * FROM detalletraspasos 
 	WHERE codtraspaso = '".limpiar(decrypt($_POST["codtraspaso"]))."'
 	AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."'";
@@ -14758,7 +14936,6 @@ public function ProcesarTraspaso()
 			############## REGISTRAMOS LOS PRODUCTOS ENTRANTES EN KARDEX ###############
 		}
    }//FIN SESSION DETALLES
-   $this->dbh->commit();
    ##########################################################################################################
 	#                                                                                                        #
 	#                                   PROCESO DE PRODUCTOS ENTRANTES                                       #
@@ -14767,7 +14944,14 @@ public function ProcesarTraspaso()
 
    }
 
-   echo "<span class='fa fa-check-square-o'></span> EL TRASPASO HA SIDO PROCESADO EXITOSAMENTE";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ProcesarTraspaso: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR TRASPASO: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL TRASPASO HA SIDO PROCESADO EXITOSAMENTE";
 	exit;
 }
 ############################ FUNCION PROCESAR TRASPASOS ############################
@@ -15915,6 +16099,9 @@ public function RegistrarPagoCompra()
 	$codabono = (empty($num) ? "1" : $num + 1);
    ######################### CODIGO DE ABONO #########################
 
+	try {
+		$this->dbh->beginTransaction();
+
 	####################### REGISTRO ABONOS DE COMPRAS #######################
 	$query = "INSERT INTO abonoscreditoscompras values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?); ";
 	$stmt = $this->dbh->prepare($query);
@@ -15986,7 +16173,14 @@ public function RegistrarPagoCompra()
 	}
    ############## ACTUALIZAMOS EL STATUS DE LA FACTURA ##################
 
-   echo "<span class='fa fa-check-square-o'></span> EL ABONO AL CR&Eacute;DITO DE COMPRA HA SIDO REGISTRADO EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETCOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarPagoCompra: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL ABONO AL CR&Eacute;DITO DE COMPRA HA SIDO REGISTRADO EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETCOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETCOMPRA")."', '_blank');</script>";
 	exit;
@@ -16208,6 +16402,9 @@ public function ActualizarCompras()
 		exit;
 	}
 
+	try {
+		$this->dbh->beginTransaction();
+
 	for($i=0;$i<count($_POST['coddetallecompra']);$i++){  //recorro el array
       if (!empty($_POST['coddetallecompra'][$i])) {
 
@@ -16230,8 +16427,6 @@ public function ActualizarCompras()
 	      exit;
       }
    }
-
-   $this->dbh->beginTransaction();
 
    for($i=0;$i<count($_POST['coddetallecompra']);$i++){  //recorro el array
       if (!empty($_POST['coddetallecompra'][$i])) {
@@ -16336,9 +16531,7 @@ public function ActualizarCompras()
       }
    }
 
-   $this->dbh->commit();
-
-      ############ ACTUALIZO LOS TOTALES EN LA COMPRA ##############
+   ############ ACTUALIZO LOS TOTALES EN LA COMPRA ##############
 		$sql = " UPDATE compras SET "
 		." codfactura = ?, "
 		." codproveedor = ?, "
@@ -16398,7 +16591,14 @@ public function ActualizarCompras()
 		$stmt->execute();
 		############ ACTUALIZO LOS TOTALES EN LA COMPRA ##############
 
-   echo "<span class='fa fa-check-square-o'></span> LA COMPRA DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarCompras: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA COMPRA DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."', '_blank');</script>";
 	exit;
@@ -16437,8 +16637,10 @@ public function AgregarDetallesCompras()
 	$totalpagobd = $row['totalpago'];
 	############ CONSULTO TOTAL ACTUAL DE COMPRA ##############
 
-   $this->dbh->beginTransaction();
-   $detalle = $_SESSION["CarritoCompra"];
+   try {
+		$this->dbh->beginTransaction();
+
+	$detalle = $_SESSION["CarritoCompra"];
 	for($i=0;$i<count($detalle);$i++){
 
   	############### VERIFICO LA EXISTENCIA DEL PRODUCTO EN ALMACEN ################
@@ -16780,8 +16982,6 @@ public function AgregarDetallesCompras()
    
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
 	unset($_SESSION["CarritoCompra"]);
-   $this->dbh->commit();
-
    ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
    $sql3 = "SELECT SUM(totaldescuentoc) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto FROM detallecompras WHERE codcompra = '".limpiar(decrypt($_POST["codcompra"]))."' AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."' AND ivaproducto != '0.00'";
    foreach ($this->dbh->query($sql3) as $row3)
@@ -16863,8 +17063,15 @@ public function AgregarDetallesCompras()
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
 	$stmt->execute();
 	################### ACTUALIZO LA COMPRA ####################
-		
-   echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA COMPRA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarDetallesCompras: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA COMPRA EXITOSAMENTE <a href='reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codcompra=".encrypt($codcompra)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("FACTURACOMPRA")."', '_blank');</script>";
 	exit;
@@ -16928,7 +17135,10 @@ public function EliminarDetallesCompras()
 		}
 		$existenciabd = $row['existencia'];
 
-		############# ACTUALIZAMOS LA EXISTENCIA DE PRODUCTO EN ALMACEN #############
+		try {
+		$this->dbh->beginTransaction();
+
+	############# ACTUALIZAMOS LA EXISTENCIA DE PRODUCTO EN ALMACEN #############
 		$sql = "UPDATE productos SET "
 		." existencia = ? "
 		." WHERE "
@@ -17045,7 +17255,14 @@ public function EliminarDetallesCompras()
 		$stmt->execute();
 		############ ACTUALIZO LOS TOTALES EN LA COMPRAS ##############
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetallesCompras: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -17074,6 +17291,9 @@ public function EliminarCompras()
 	FROM compras 
 	WHERE codcompra = '".limpiar(decrypt($_GET["codcompra"]))."' 
 	AND codsucursal = '".limpiar(decrypt($_GET["codsucursal"]))."'";
+	try {
+		$this->dbh->beginTransaction();
+
 	foreach ($this->dbh->query($sql) as $row)
 	{
 		$this->p[] = $row;
@@ -17181,7 +17401,14 @@ public function EliminarCompras()
 		$stmt->execute();
 		#################### ELIMINO DETALLE DE COMPRA ####################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarCompras: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -18678,10 +18905,12 @@ public function RegistrarCotizaciones()
 	$procesada = limpiar("1");
 	$codigo = limpiar($_SESSION["codigo"]);
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
+	try {
+		$this->dbh->beginTransaction();
+
 	$stmt->execute();
 	################### REGISTRO LA COTIZACION ####################
 	
-	$this->dbh->beginTransaction();
 	$detalle = $_SESSION["CarritoCotizacion"];
 	for($i=0;$i<count($detalle);$i++){
 
@@ -18749,9 +18978,15 @@ public function RegistrarCotizaciones()
         
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
 	unset($_SESSION["CarritoCotizacion"]);
-   $this->dbh->commit();
-		
-   echo "<span class='fa fa-check-square-o'></span> LA COTIZACI&Oacute;N DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarCotizaciones: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA COTIZACI&Oacute;N DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -19358,6 +19593,9 @@ public function ActualizarCotizaciones()
 		exit;
 	}
 
+	try {
+		$this->dbh->beginTransaction();
+
 	for($i=0;$i<count($_POST['coddetallecotizacion']);$i++){  //recorro el array
       if (!empty($_POST['coddetallecotizacion'][$i])) {
 
@@ -19409,8 +19647,7 @@ public function ActualizarCotizaciones()
    $limitecredito = (empty($row['limitecredito']) ? "0.00" : $row['limitecredito']);
    ################### SELECCIONE LOS DATOS DEL CLIENTE ######################
 
-   $this->dbh->beginTransaction();
-	for($i=0;$i<count($_POST['coddetallecotizacion']);$i++){  //recorro el array
+   for($i=0;$i<count($_POST['coddetallecotizacion']);$i++){  //recorro el array
 	if (!empty($_POST['coddetallecotizacion'][$i])) {
 
 	$sql = "SELECT cantcotizacion 
@@ -19470,8 +19707,6 @@ public function ActualizarCotizaciones()
 	      }
       }
    }
-   $this->dbh->commit();
-
    ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
 	$sql3 = "SELECT SUM(totaldescuentov) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto, SUM(valorneto2) AS valorneto2 FROM detallecotizaciones WHERE codcotizacion = '".limpiar(decrypt($_POST["codcotizacion"]))."' AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."' AND ivaproducto != '0.00'";
 	foreach ($this->dbh->query($sql3) as $row3)
@@ -19541,7 +19776,14 @@ public function ActualizarCotizaciones()
 	$stmt->execute();
 	################### ACTUALIZO COTIZACION ####################
 
-   echo "<span class='fa fa-check-square-o'></span> LA COTIZACI&Oacute;N DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarCotizaciones: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA COTIZACI&Oacute;N DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -19618,8 +19860,10 @@ public function AgregarDetallesCotizaciones()
 	$totalpagobd = $row['totalpago'];
 	############ CONSULTO TOTAL ACTUAL DE COTIZACION ##############
 
-   $this->dbh->beginTransaction();
-   $detalle = $_SESSION["CarritoCotizacion"];
+   try {
+		$this->dbh->beginTransaction();
+
+	$detalle = $_SESSION["CarritoCotizacion"];
 	for($i=0;$i<count($detalle);$i++){
 
 	$sql = "SELECT codcotizacion, codproducto 
@@ -19763,9 +20007,7 @@ public function AgregarDetallesCotizaciones()
    }    
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
 	unset($_SESSION["CarritoCotizacion"]);
-   $this->dbh->commit();
-
-      ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
+   ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
       $sql3 = "SELECT SUM(totaldescuentov) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto, SUM(valorneto2) AS valorneto2 FROM detallecotizaciones WHERE codcotizacion = '".limpiar(decrypt($_POST["codcotizacion"]))."' AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."' AND ivaproducto != '0.00'";
       foreach ($this->dbh->query($sql3) as $row3)
       {
@@ -19834,8 +20076,15 @@ public function AgregarDetallesCotizaciones()
       $codsucursal = limpiar(decrypt($_POST["codsucursal"]));
       $stmt->execute();
       ################### ACTUALIZO LA COTIZACION ####################
-		
-   echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA COTIZACI&Oacute;N EXITOSAMENTE <a href='reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarDetallesCotizaciones: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA COTIZACI&Oacute;N EXITOSAMENTE <a href='reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codcotizacion=".encrypt($codcotizacion)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -19874,7 +20123,10 @@ public function EliminarDetallesCotizaciones()
 	if($num > 1)
 	{
 		################## ELIMINO DETALLE DE COTIZACION ##################
-		$sql = "DELETE FROM detallecotizaciones WHERE coddetallecotizacion = ? AND codsucursal = ?";
+		try {
+		$this->dbh->beginTransaction();
+
+	$sql = "DELETE FROM detallecotizaciones WHERE coddetallecotizacion = ? AND codsucursal = ?";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1,$coddetallecotizacion);
 		$stmt->bindParam(2,$codsucursal);
@@ -19940,7 +20192,14 @@ public function EliminarDetallesCotizaciones()
 		$stmt->execute();
 		############ ACTUALIZO LOS TOTALES EN LA COTIZACION ##############
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetallesCotizaciones: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -19963,7 +20222,10 @@ public function EliminarCotizaciones()
 	self::SetNames();
 	if ($_SESSION["acceso"]=="administradorS") {
 
-		################## ELIMINO COTIZACION ##################
+		try {
+		$this->dbh->beginTransaction();
+
+	################## ELIMINO COTIZACION ##################
 		$sql = "DELETE FROM cotizaciones WHERE codcotizacion = ? AND codsucursal = ?";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1,$codcotizacion);
@@ -19983,7 +20245,14 @@ public function EliminarCotizaciones()
 		$stmt->execute();
 		################## ELIMINO DETALLE DE COTIZACION ##################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarCotizaciones: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -20833,6 +21102,9 @@ public function ProcesarCotizaciones()
 	################### SELECCIONO DETALLES DE LA COTIZACION ######################
 
 	##################### ACTUALIZO COTIZACION A PROCESADO ####################
+	try {
+		$this->dbh->beginTransaction();
+
 	$sql = "UPDATE cotizaciones set "
 	." procesada = ? "
 	." WHERE "
@@ -20937,7 +21209,14 @@ public function ProcesarCotizaciones()
 	}
 	################ AGREGAMOS EL INGRESO Y ABONOS A CREDITO ################
 
-   echo "<span class='fa fa-check-square-o'></span> LA COTIZACION HA SIDO PROCESADA COMO VENTA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ProcesarCotizaciones: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA COTIZACION HA SIDO PROCESADA COMO VENTA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -21528,10 +21807,12 @@ public function RegistrarPreventas()
 	$procesada = limpiar("1");
 	$codigo = limpiar($_SESSION["codigo"]);
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
+	try {
+		$this->dbh->beginTransaction();
+
 	$stmt->execute();
 	################### REGISTRO LA PREVENTA ####################
 	
-	$this->dbh->beginTransaction();
 	$detalle = $_SESSION["CarritoPreventa"];
 	for($i=0;$i<count($detalle);$i++){
 
@@ -21875,9 +22156,15 @@ public function RegistrarPreventas()
    }  
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
 	unset($_SESSION["CarritoPreventa"]);
-    $this->dbh->commit();
-		
-    echo "<span class='fa fa-check-square-o'></span> LA PREVENTA DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarPreventas: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA PREVENTA DE PRODUCTOS HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
     echo "<script>window.open('reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."', '_blank');</script>";
 	exit;
@@ -22576,7 +22863,10 @@ public function ActualizarPreventas()
    $limitecredito = (empty($row['limitecredito']) ? "0.00" : $row['limitecredito']);
    ################### SELECCIONE LOS DATOS DEL CLIENTE ######################
 
-   for($i=0;$i<count($_POST['coddetallepreventa']);$i++){  //recorro el array
+   try {
+		$this->dbh->beginTransaction();
+
+	for($i=0;$i<count($_POST['coddetallepreventa']);$i++){  //recorro el array
       if (!empty($_POST['coddetallepreventa'][$i])) {
 
 	       if($_POST['cantpreventa'][$i]==0){
@@ -22587,7 +22877,6 @@ public function ActualizarPreventas()
       }
    }
 
-	$this->dbh->beginTransaction();
 	for($i=0;$i<count($_POST['coddetallepreventa']);$i++){  //recorro el array
 	if (!empty($_POST['coddetallepreventa'][$i])) {
 
@@ -22758,8 +23047,6 @@ public function ActualizarPreventas()
 		      }
 	      }
       }
-      $this->dbh->commit();
-
       ################### ACTUALIZO PREVENTA ####################
 		$sql = " UPDATE preventas SET "
 		." codcliente = ?, "
@@ -22802,6 +23089,13 @@ public function ActualizarPreventas()
 		$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
 		$stmt->execute();
 		################### ACTUALIZO PREVENTA ####################
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarPreventas: " . $e->getMessage());
+		echo "2"; exit;
+	}
 
 	echo "<span class='fa fa-check-square-o'></span> LA PREVENTA DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
@@ -22971,8 +23265,10 @@ public function AgregarDetallesPreventas()
 	$totalpagobd = $row['totalpago'];
 	############ CONSULTO TOTAL ACTUAL DE PREVENTA ##############
    
-   $this->dbh->beginTransaction();
-   $detalle = $_SESSION["CarritoPreventa"];
+   try {
+		$this->dbh->beginTransaction();
+
+	$detalle = $_SESSION["CarritoPreventa"];
 	for($i=0;$i<count($detalle);$i++){
 
 	$sql = "SELECT 
@@ -23672,8 +23968,6 @@ public function AgregarDetallesPreventas()
    }    
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
    unset($_SESSION["CarritoPreventa"]);
-   $this->dbh->commit();
-
    ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
 	$sql3 = "SELECT SUM(totaldescuentov) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto, SUM(valorneto2) AS valorneto2 FROM detallepreventas WHERE codpreventa = '".limpiar(decrypt($_POST["codpreventa"]))."' AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."' AND ivaproducto != '0.00'";
 	foreach ($this->dbh->query($sql3) as $row3)
@@ -23741,7 +24035,14 @@ public function AgregarDetallesPreventas()
 	$stmt->execute();
 	############ ACTUALIZO LOS TOTALES EN LA PREVENTA ##############
 
-   echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA PREVENTA EXITOSAMENTE <a href='reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarDetallesPreventas: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA PREVENTA EXITOSAMENTE <a href='reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codpreventa=".encrypt($codpreventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETPREVENTA")."', '_blank');</script>";
 	exit;
@@ -23792,7 +24093,10 @@ public function EliminarDetallesPreventas()
 		$descproductobd = $row['descproducto'];
 		$tipodetallebd = $row['tipodetalle'];
 
-		if(limpiar($tipodetallebd) == 1){// SSI EL DETALLE ES UN PRODCUTO
+		try {
+		$this->dbh->beginTransaction();
+
+	if(limpiar($tipodetallebd) == 1){// SSI EL DETALLE ES UN PRODCUTO
 
 			############ OBTENGO LA EXISTENCIA DE PRODUCTO EN ALMACEN #############
 			$sql2 = "SELECT existencia FROM productos WHERE codproducto = ? AND codsucursal = ?";
@@ -24147,7 +24451,14 @@ public function EliminarDetallesPreventas()
 		$stmt->execute();
 		################### ACTUALIZO LA PREVENTA ####################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetallesPreventas: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -24172,6 +24483,9 @@ public function EliminarPreventas()
 
    ############ CONSULTO DATOS DE TRASPASO ##############
 	$sql = "SELECT * FROM preventas WHERE codpreventa = '".limpiar(decrypt($_GET["codpreventa"]))."' AND codsucursal = '".limpiar(decrypt($_GET["codsucursal"]))."'";
+	try {
+		$this->dbh->beginTransaction();
+
 	foreach ($this->dbh->query($sql) as $row)
 	{
 		$this->p[] = $row;
@@ -24504,7 +24818,14 @@ public function EliminarPreventas()
 		$stmt->execute();
 		################## ELIMINO DETALLE DE PREVENTA ##################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarPreventas: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -24991,6 +25312,9 @@ public function ProcesarPreventas()
 	}
 
 	##################### ACTUALIZO PREVENTA A PROCESADO ####################
+	try {
+		$this->dbh->beginTransaction();
+
 	$sql = "UPDATE preventas set "
 	." procesada = ? "
 	." WHERE "
@@ -25095,7 +25419,14 @@ public function ProcesarPreventas()
 	}
 	################ AGREGAMOS EL INGRESO Y ABONOS A CREDITO ################
 
-   echo "<span class='fa fa-check-square-o'></span> LA PREVENTA HA SIDO PROCESADA COMO VENTA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ProcesarPreventas: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA PREVENTA HA SIDO PROCESADA COMO VENTA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -26729,6 +27060,9 @@ public function RegistrarMovimientos()
 	}
     ################ CREO Nº DE MOVIMIENTO ###############
 
+	try {
+		$this->dbh->beginTransaction();
+
 	//REALIZO LA CONDICION SI EL MOVIMIENTO ES UN INGRESO
 	if($_POST["tipomovimiento"]=="INGRESO"){ 
 
@@ -26818,6 +27152,13 @@ public function RegistrarMovimientos()
 		$codsucursal = limpiar($_SESSION["codsucursal"]);
 		$stmt->execute();
 		######################## REGISTRO EL MOVIMIENTOS EN CAJA ########################
+	}
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarMovimientos: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
 	}
 
 	echo "<span class='fa fa-check-square-o'></span> EL MOVIMIENTO EN CAJA HA SIDO REGISTRADO EXITOSAMENTE <a href='reportepdf?numero=".encrypt($numero)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETMOVIMIENTO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
@@ -27046,6 +27387,9 @@ public function ActualizarMovimientos()
 
 	if($statusBD == 1) {
 
+	try {
+		$this->dbh->beginTransaction();
+
 	//REALIZO LA CONDICION SI EL MOVIMIENTO ES UN INGRESO
 	if($_POST["tipomovimiento"]=="INGRESO"){ 
 
@@ -27143,7 +27487,14 @@ public function ActualizarMovimientos()
 		######################## ACTUALIZO EL MOVIMIENTOS EN CAJA ########################
 	}
 
-	   echo "<span class='fa fa-check-square-o'></span> EL MOVIMIENTO EN CAJA HA SIDO ACTUALIZADO EXITOSAMENTE <a href='reportepdf?numero=".encrypt($numero)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETMOVIMIENTO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarMovimientos: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL MOVIMIENTO EN CAJA HA SIDO ACTUALIZADO EXITOSAMENTE <a href='reportepdf?numero=".encrypt($numero)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETMOVIMIENTO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
 
       echo "<script>window.open('reportepdf?numero=".encrypt($numero)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETMOVIMIENTO")."', '_blank');</script>";
       exit;	
@@ -27191,7 +27542,10 @@ public function EliminarMovimientos()
 
    if($status == 1) {
 
-      //REALIZO LA CONDICION SI EL MOVIMIENTO ES UN INGRESO
+	try {
+		$this->dbh->beginTransaction();
+
+	//REALIZO LA CONDICION SI EL MOVIMIENTO ES UN INGRESO
       if($tipomovimiento=="INGRESO"){
 
 		######################## ACTUALIZO DATOS EN ARQUEO ########################
@@ -27235,7 +27589,14 @@ public function EliminarMovimientos()
 		$stmt->execute();
 		######################## ELIMINO EL MOVIMIENTO EN CAJA ########################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarMovimientos: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 		   
 	} else {
@@ -29067,6 +29428,9 @@ public function ActualizarVentas()
 	}
 
 	################## VERIFICO STOCK DISPONIBLE ##################
+	try {
+		$this->dbh->beginTransaction();
+
 	for($i=0;$i<count($_POST['coddetalleventa']);$i++){  //recorro el array
       if (!empty($_POST['coddetalleventa'][$i])) {
 
@@ -29231,7 +29595,6 @@ public function ActualizarVentas()
 	$totalpagobd = $row['totalpago'];
 	############ CONSULTO TOTAL ACTUAL ##############
 
-   $this->dbh->beginTransaction();
    for($i=0;$i<count($_POST['coddetalleventa']);$i++){  //recorro el array
    if (!empty($_POST['coddetalleventa'][$i])) {
 
@@ -29498,8 +29861,6 @@ public function ActualizarVentas()
 	      }
       } 
    }    
-   $this->dbh->commit();
-
    ################### ACTUALIZO LA VENTA ####################
    $sql = " UPDATE ventas SET "
    ." codcliente = ?, "
@@ -29643,7 +30004,14 @@ public function ActualizarVentas()
 	}
    ############## AGREGAMOS O QUITAMOS LA DIFERENCIA EN CAJA ##################
 
-   echo "<span class='fa fa-check-square-o'></span> LA VENTA DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en ActualizarVentas: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LA VENTA DE PRODUCTOS HA SIDO ACTUALIZADA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -29697,8 +30065,10 @@ public function AgregarDetallesVentas()
 		exit;
 	}
 
-	$this->dbh->beginTransaction();
-   $detalle = $_SESSION["CarritoVenta"];
+	try {
+		$this->dbh->beginTransaction();
+
+	$detalle = $_SESSION["CarritoVenta"];
 	for($i=0;$i<count($detalle);$i++){
 
 	   if(limpiar($detalle[$i]['tipodetalle']) == 1){//SI EL DETALLE ES UN PRODUCTO
@@ -30558,8 +30928,6 @@ public function AgregarDetallesVentas()
    }
    ####################### DESTRUYO LA VARIABLE DE SESSION #####################
    unset($_SESSION["CarritoVenta"]);
-   $this->dbh->commit();
-
    ############ SUMO LOS IMPORTE DE PRODUCTOS CON IVA ##############
 	$sql3 = "SELECT SUM(totaldescuentov) AS totaldescuentosi, SUM(subtotalimpuestos) AS subtotalimpuestos, SUM(valorneto-subtotalimpuestos) AS valorneto, SUM(valorneto2) AS valorneto2 FROM detalleventas WHERE codventa = '".limpiar(decrypt($_POST["codventa"]))."' AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."' AND ivaproducto != '0.00'";
 	foreach ($this->dbh->query($sql3) as $row3)
@@ -30709,7 +31077,14 @@ public function AgregarDetallesVentas()
    }
    ############## AGREGAMOS O QUITAMOS LA DIFERENCIA EN CAJA ##################
 
-   echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA VENTA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en AgregarDetallesVentas: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> LOS DETALLES DE PRODUCTOS FUERON AGREGADOS A LA VENTA EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR REPORTE</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt($tipodocumento)."', '_blank');</script>";
 	exit;
@@ -30791,7 +31166,10 @@ public function EliminarDetallesVentas()
 		$descproductobd = $row['descproducto'];
 		$tipodetallebd = $row['tipodetalle'];
 
-	   if(limpiar($tipodetallebd) == 1){// SSI EL DETALLE ES UN PRODCUTO
+	   try {
+		$this->dbh->beginTransaction();
+
+	if(limpiar($tipodetallebd) == 1){// SSI EL DETALLE ES UN PRODCUTO
 
 			############ OBTENGO LA EXISTENCIA DE PRODUCTO EN ALMACEN #############
 			$sql2 = "SELECT existencia FROM productos WHERE codproducto = ? AND codsucursal = ?";
@@ -31223,7 +31601,14 @@ public function EliminarDetallesVentas()
 		}
 	   ############## QUITAMOS LA DIFERENCIA EN CAJA ##################
 
-		echo "1";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en EliminarDetallesVentas: " . $e->getMessage());
+		echo "2"; exit;
+	}
+
+	echo "1";
 		exit;
 
 	} else {
@@ -33877,6 +34262,9 @@ public function RegistrarPagoVenta()
     ################### VERIFICO MONTO DE CREDITO DEL CLIENTE ######################
 
 	################### INGRESOS EL ABONO DEL CREDITO ######################
+	try {
+		$this->dbh->beginTransaction();
+
 	$query = "INSERT INTO abonoscreditosventas values (null, ?, ?, ?, ?, ?, ?, ?, ?); ";
 	$stmt = $this->dbh->prepare($query);
 	$stmt->bindParam(1, $codarqueo);
@@ -33974,8 +34362,15 @@ public function RegistrarPagoVenta()
 		######################### ACTUALIZO DATOS EN VENTA #########################
 	}
    ############## ACTUALIZAMOS EL STATUS DE LA FACTURA ##################
-	
-   echo "<span class='fa fa-check-square-o'></span> EL ABONO AL CR&Eacute;DITO DE VENTA HA SIDO REGISTRADO EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETCREDITO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
+
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarPagoVenta: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL PROCESAR: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL ABONO AL CR&Eacute;DITO DE VENTA HA SIDO REGISTRADO EXITOSAMENTE <a href='reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETCREDITO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR TICKET</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codventa=".encrypt($codventa)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("TICKETCREDITO")."', '_blank');</script>";
 	exit;
@@ -35629,7 +36024,6 @@ public function RegistrarNotaCredito()
 		exit;
 	}
 
-	$this->dbh->beginTransaction();
 	for($i=0;$i<count($_POST['devuelto']);$i++){
       if (!empty($_POST['devuelto'][$i])) {
 
@@ -35640,9 +36034,7 @@ public function RegistrarNotaCredito()
         	}
       }//fin de if
 	}//fin de for
-   $this->dbh->commit();
-
-	################# OBTENGO DATOS DE SUCURSAL #################
+   ################# OBTENGO DATOS DE SUCURSAL #################
 	$sql = " SELECT 
 	cuitsucursal, 
 	nroactividadsucursal, 
@@ -35739,10 +36131,12 @@ public function RegistrarNotaCredito()
 	$observaciones = limpiar($_POST["observaciones"]);
 	$codigo = limpiar($_SESSION["codigo"]);
 	$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
+	try {
+		$this->dbh->beginTransaction();
+
 	$stmt->execute();
 	################### REGISTRO LA NOTA DE CREDITO ####################
 
-	$this->dbh->beginTransaction();
 	for($i=0;$i<count($_POST['devuelto']);$i++){
         if (!empty($_POST['devuelto'][$i])) {
 
@@ -36083,9 +36477,7 @@ public function RegistrarNotaCredito()
 
       }//fin de if
 	}//fin de for
-    $this->dbh->commit();
-
-	############## ACTUALIZAMOS STATUS DE FACTURA ###############
+    ############## ACTUALIZAMOS STATUS DE FACTURA ###############
 	$sql = "UPDATE ventas set "
 	." notacredito = ? "
 	." WHERE "
@@ -36169,7 +36561,7 @@ public function RegistrarNotaCredito()
 		########################## DESCUENTO EL MONTO EN CAJA ##########################
 	   $sql = "UPDATE arqueocaja set "
 		." ingresos = ?, "
-		." creditos = ?, "
+		." creditos = ? "
 		." WHERE "
 		." codarqueo = ?;
 		";
@@ -36185,7 +36577,14 @@ public function RegistrarNotaCredito()
 	}
    ################ DESCONTAMOS EL TOTAL DE DOCUMENTO CAJA ##############
 
-   echo "<span class='fa fa-check-square-o'></span> EL NOTA DE CR&Eacute;DITO HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codnota=".encrypt($codnota)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("NOTACREDITO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR DOCUMENTO</strong></font color></a></div>";
+		$this->dbh->commit();
+	} catch (Exception $e) {
+		if ($this->dbh->inTransaction()) { $this->dbh->rollBack(); }
+		error_log("Error en RegistrarNotaCredito: " . $e->getMessage());
+		echo "<span class='fa fa-exclamation-triangle'></span> ERROR AL REGISTRAR NOTA DE CREDITO: " . $e->getMessage(); exit;
+	}
+
+	echo "<span class='fa fa-check-square-o'></span> EL NOTA DE CR&Eacute;DITO HA SIDO REGISTRADA EXITOSAMENTE <a href='reportepdf?codnota=".encrypt($codnota)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("NOTACREDITO")."' class='on-default' data-placement='left' data-toggle='tooltip' data-original-title='Imprimir Documento' target='_black' rel='noopener noreferrer'><font color='black'><strong>IMPRIMIR DOCUMENTO</strong></font color></a></div>";
 
    echo "<script>window.open('reportepdf?codnota=".encrypt($codnota)."&codsucursal=".encrypt($codsucursal)."&tipo=".encrypt("NOTACREDITO")."', '_blank');</script>";
 	exit;

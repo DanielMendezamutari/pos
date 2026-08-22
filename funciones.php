@@ -448,28 +448,35 @@ $proveedor = $new->ListarProveedores();
 if (isset($_GET['BuscaPreciosProductos']) && isset($_GET['idproducto'])) {
   
 $idproducto = limpiar($_GET['idproducto']);
-$producto = $new->BuscarPrecioProductoxCodigo();
 
-if($idproducto=="") { ?>
+if(empty($idproducto)) { ?>
 
 <option style="color:#000;font-weight:bold;" value=""> -- SIN RESULTADOS -- </option>
   
+<?php } else { 
+$producto = $new->BuscarPrecioProductoxCodigo();
+if(empty($producto) || empty($producto[0]['precioventa'])) { ?>
+
+<option style="color:#000;font-weight:bold;" value=""> -- SIN RESULTADOS -- </option>
+
 <?php } else { ?>
 
 <option style="color:#000;font-weight:bold;" value=""> -- SELECCIONE -- </option>
 
 <?php
 $explode = explode("|",$producto[0]['precioventa']);
-$listaSimple = array_values(array_unique($explode));
-# Recorremos el array para despues separar en 2 partes.
+$listaSimple = array_values(array_filter(array_unique($explode)));
 for($cont=0; $cont<COUNT($listaSimple); $cont++):
-list($nombre,$precio) = explode("_",$listaSimple[$cont]);
+$partes = explode("_",$listaSimple[$cont]);
+$nombre = $partes[0] ?? '';
+$precio = (isset($partes[1]) && is_numeric($partes[1])) ? (float)$partes[1] : 0.00;
 ?>
 <option style="color:#000;font-weight:bold;" value="<?php echo number_format($precio, 2, '.', ''); ?>"<?php if (!(strcmp("PRECIO PUBLICO", htmlentities($nombre)))) { echo "selected=\"selected\""; } ?>><?php echo $nombre.": ".number_format($precio, 2, '.', ''); ?></option>
-    <?php 
-    endfor;
-    //}
+<?php 
+endfor;
   }
+}
+exit;
 }
 ######################## BUSCA PRECIOS DE PRODUCTO ########################
 ?>

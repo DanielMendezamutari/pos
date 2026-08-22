@@ -1,13 +1,21 @@
 <?php
 if (!function_exists('_u8d')) {
-    function _u8d($s) { return iconv('UTF-8', 'ISO-8859-1//TRANSLIT//IGNORE', (string)$s); }
+    function _u8d($s) {
+    if (!is_string($s) || $s === "") return $s;
+    if (mb_check_encoding($s, "UTF-8") && !mb_check_encoding($s, "ASCII")) {
+        $c = @iconv("UTF-8", "windows-1252//TRANSLIT//IGNORE", $s);
+        if ($c !== false) return $c;
+        return utf8_decode($s);
+    }
+    return $s;
+}
 }
 
 define('FPDF_FONTPATH','fpdf/font/');
 define('EURO', chr(128));
 require 'pdf_js.php';
 
-############## VARIABLE PARA TAMA�O DE LOGO ##############
+############## VARIABLE PARA TAMAÑOO DE LOGO ##############
 $GLOBALS['logo1_vertical'] = 30;
 $GLOBALS['logo1_vertical_X'] = 8;
 $GLOBALS['logo1_vertical_Y'] = 2;
@@ -31,7 +39,7 @@ $GLOBALS['logo1_letter'] = 24;
 $GLOBALS['logo2_letter_X'] = 18;
 $GLOBALS['logo2_letter_Y'] = 2;
 $GLOBALS['logo2_letter'] = 24;
-############## VARIABLE PARA TAMA�O DE LOGO ##############
+############## VARIABLE PARA TAMAÑOO DE LOGO ##############
 
 ############## VARIABLE PARA TEXTO DE GARANTIA ##############
 $GLOBALS['texto_global'] = "";
@@ -47,25 +55,20 @@ protected $B = 0;
 protected $I = 0;
 protected $U = 0;
 protected $HREF = '';
-//$Tamhoriz = 88;
-
 
 ########################### FUNCION PARA MOSTRAR CODIGO QR ###########################
 function QR($reg, $xpos, $ypos){
     require_once("phpqrcode/qrlib.php");
-    //echo json_encode($reg[0]); exit;
 
     $con = new Login();
     $con = $con->ConfiguracionPorId();
-    //$simbolo = $con[0]['simbolo'] ?? $con[0]['simbolo'];
 
-    $jo = new StdClass();
     $textoQR = portales('No Tracking: '.$reg[0]['numero_tracking']);
 
     $tempfile = tempnam(sys_get_temp_dir(), '');
     try {
         QRcode::png($textoQR, $tempfile);
-         $this->Image($tempfile, $xpos, $this->GetY() + 0, 30, 30, "png");
+        $this->Image($tempfile, $xpos, $this->GetY() + 0, 30, 30, "png");
     } finally {
         unlink($tempfile);
     }
@@ -75,14 +78,15 @@ function QR($reg, $xpos, $ypos){
 ########################### FUNCION PARA MOSTRAR EL FOOTER ###########################
 function Footer() 
 {
-  if(!in_array(decrypt($_GET['tipo']), ['TICKETCOMPRA', 'TICKETCREDITO', 'TICKETCOTIZACION', 'TICKETPREVENTA', 'TICKETCIERRE', 'TICKETMOVIMIENTO', 'BOLETA', 'FACTURA', 'NOTA DE VENTA', 'NOTASCREDITO'])){
+  $tipo_doc = isset($_GET['tipo']) ? decrypt($_GET['tipo']) : '';
+  if(!in_array($tipo_doc, ['TICKETCOMPRA', 'TICKETCREDITO', 'TICKETCOTIZACION', 'TICKETPREVENTA', 'TICKETCIERRE', 'TICKETMOVIMIENTO', 'BOLETA', 'FACTURA', 'NOTA DE VENTA', 'NOTASCREDITO'])){
   //footer code
   $this->Ln();
   $this->SetY(-12);
   //Courier B 10
   $this->SetFont('courier','B',10);
   //Titulo de Footer
-  $this->Cell(190,5,'FACTURACI�N E INVENTARIOS (Administraci�n, Compras y Ventas)','T',0,'L');
+  $this->Cell(190,5,'FACTURACIÓN E INVENTARIOS (Administración, Compras y Ventas)','T',0,'L');
   //$this->AliasNbPages();
   //Numero de Pagina
   $this->Cell(0,5,'Pagina '.$this->PageNo(),'T',1,'R'); 
@@ -108,9 +112,6 @@ function AutoPrint($printer='')
     $this->IncludeJS($script);
 }
 ######################## FUNCION PARA CARGAR AUTOPRINT ########################
-
-
-
 
 
 
@@ -161,7 +162,7 @@ function TablaListarProvincias()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -204,7 +205,7 @@ function TablaListarProvincias()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -224,7 +225,7 @@ function TablaListarProvincias()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
     $this->Cell(180,8,'NOMBRE DE PROVINCIA',1,1,'C', True);
     
     $tra = new Login();
@@ -304,7 +305,7 @@ function TablaListarDepartamentos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -347,7 +348,7 @@ function TablaListarDepartamentos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -367,7 +368,7 @@ function TablaListarDepartamentos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(80,8,'NOMBRE DE PROVINCIA',1,0,'C', True);
     $this->Cell(95,8,'NOMBRE DE DEPARTAMENTO',1,1,'C', True);
     
@@ -447,7 +448,7 @@ function TablaListarDocumentos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -490,7 +491,7 @@ function TablaListarDocumentos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -510,9 +511,9 @@ function TablaListarDocumentos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(50,8,'NOMBRE DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(125,8,'DESCRIPCI�N DE DOCUMENTO',1,1,'C', True);
+    $this->Cell(125,8,'DESCRIPCIÓN DE DOCUMENTO',1,1,'C', True);
     
     $tra = new Login();
     $reg = $tra->ListarDocumentos();
@@ -590,7 +591,7 @@ function TablaListarTiposMonedas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -633,7 +634,7 @@ function TablaListarTiposMonedas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -654,7 +655,7 @@ function TablaListarTiposMonedas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(85,8,'NOMBRE DE MONEDA',1,0,'C', True);
     $this->Cell(45,8,'SIGLAS',1,0,'C', True);
     $this->Cell(45,8,'SIMBOLO',1,1,'C', True);
@@ -737,7 +738,7 @@ function TablaListarTiposCambio()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -780,7 +781,7 @@ function TablaListarTiposCambio()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -799,7 +800,7 @@ function TablaListarTiposCambio()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -811,8 +812,8 @@ function TablaListarTiposCambio()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE CAMBIO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE CAMBIO',1,0,'C', True);
     $this->Cell(35,8,'MONTO DE CAMBIO',1,0,'C', True);
     $this->Cell(35,8,'TIPO DE MONEDA',1,0,'C', True);
     $this->Cell(35,8,'FECHA DE INGRESO',1,1,'C', True);
@@ -892,7 +893,7 @@ function TablaListarMediosPagos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -935,7 +936,7 @@ function TablaListarMediosPagos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -954,7 +955,7 @@ function TablaListarMediosPagos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -966,7 +967,7 @@ function TablaListarMediosPagos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(175,8,'NOMBRE DE PAGO',1,1,'C', True);
 
     if($reg==""){
@@ -1044,7 +1045,7 @@ function TablaListarImpuestos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1087,7 +1088,7 @@ function TablaListarImpuestos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1106,7 +1107,7 @@ function TablaListarImpuestos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -1118,7 +1119,7 @@ function TablaListarImpuestos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(70,8,'NOMBRE DE IMPUESTO',1,0,'C', True);
     $this->Cell(35,8,'VALOR(%)',1,0,'C', True);
     $this->Cell(35,8,'ESTADO',1,0,'C', True);
@@ -1199,7 +1200,7 @@ function TablaListarBancos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1242,7 +1243,7 @@ function TablaListarBancos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1261,7 +1262,7 @@ function TablaListarBancos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -1273,7 +1274,7 @@ function TablaListarBancos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(175,8,'NOMBRE DE BANCO',1,1,'C', True);
 
     if($reg==""){
@@ -1351,7 +1352,7 @@ function TablaListarFamilias()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1394,7 +1395,7 @@ function TablaListarFamilias()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1413,7 +1414,7 @@ function TablaListarFamilias()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -1425,7 +1426,7 @@ function TablaListarFamilias()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(175,8,'NOMBRE DE FAMILIA',1,1,'C', True);
 
     if($reg==""){
@@ -1503,7 +1504,7 @@ function TablaListarSubfamilias()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1546,7 +1547,7 @@ function TablaListarSubfamilias()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1565,7 +1566,7 @@ function TablaListarSubfamilias()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -1577,7 +1578,7 @@ function TablaListarSubfamilias()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
     $this->Cell(90,8,'NOMBRE DE FAMILIA',1,0,'C', True);
     $this->Cell(90,8,'NOMBRE DE SUBFAMILIA',1,1,'C', True);
 
@@ -1655,7 +1656,7 @@ function TablaListarMarcas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1698,7 +1699,7 @@ function TablaListarMarcas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1717,7 +1718,7 @@ function TablaListarMarcas()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -1729,7 +1730,7 @@ function TablaListarMarcas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(175,8,'NOMBRE DE MARCA',1,1,'C', True);
 
     if($reg==""){
@@ -1806,7 +1807,7 @@ function TablaListarModelos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1849,7 +1850,7 @@ function TablaListarModelos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -1868,7 +1869,7 @@ function TablaListarModelos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -1880,7 +1881,7 @@ function TablaListarModelos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
     $this->Cell(90,8,'NOMBRE DE MARCA',1,0,'C', True);
     $this->Cell(90,8,'NOMBRE DE MODELO',1,1,'C', True);
 
@@ -1958,7 +1959,7 @@ function TablaListarPresentaciones()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -2001,7 +2002,7 @@ function TablaListarPresentaciones()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -2020,7 +2021,7 @@ function TablaListarPresentaciones()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -2032,8 +2033,8 @@ function TablaListarPresentaciones()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(175,8,'NOMBRE DE PRESENTACI�N',1,1,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(175,8,'NOMBRE DE PRESENTACIÓN',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -2110,7 +2111,7 @@ function TablaListarColores()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -2153,7 +2154,7 @@ function TablaListarColores()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -2172,7 +2173,7 @@ function TablaListarColores()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -2184,7 +2185,7 @@ function TablaListarColores()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(175,8,'NOMBRE DE COLOR',1,1,'C', True);
 
     if($reg==""){
@@ -2262,7 +2263,7 @@ function TablaListarOrigenes()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -2305,7 +2306,7 @@ function TablaListarOrigenes()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -2324,7 +2325,7 @@ function TablaListarOrigenes()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -2336,7 +2337,7 @@ function TablaListarOrigenes()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(175,8,'NOMBRE DE ORIGEN',1,1,'C', True);
 
     if($reg==""){
@@ -2409,7 +2410,7 @@ function TablaListarSucursales()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2428,14 +2429,14 @@ function TablaListarSucursales()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(60,8,'RAZ�N SOCIAL',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(60,8,'RAZÓN SOCIAL',1,0,'C', True);
     $this->Cell(20,8,'PROVINCIA',1,0,'C', True);
     $this->Cell(30,8,'DEPARTAMENTO',1,0,'C', True);
-    $this->Cell(55,8,'DIRECCI�N',1,0,'C', True);
-    $this->Cell(40,8,'N� DE TEL�FONO',1,0,'C', True);
-    $this->Cell(35,8,'N� DE DNI ',1,0,'C', True);
+    $this->Cell(55,8,'DIRECCIÓN',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE TELÉFONO',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE DNI ',1,0,'C', True);
     $this->Cell(45,8,'ENCARGADO',1,1,'C', True);
     
     $tra = new Login();
@@ -2517,7 +2518,7 @@ function TablaListarUsuarios()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2560,7 +2561,7 @@ function TablaListarUsuarios()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2583,10 +2584,10 @@ function TablaListarUsuarios()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DOCUMENTO',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DOCUMENTO',1,0,'C', True);
     $this->Cell(70,8,'NOMBRES Y APELLIDOS',1,0,'C', True);
-    $this->Cell(25,8,'N� TEL�FONO',1,0,'C', True);
+    $this->Cell(25,8,'Nº TELÉFONO',1,0,'C', True);
     $this->Cell(60,8,'EMAIL',1,0,'C', True);
     $this->Cell(40,8,'USUARIO',1,0,'C', True);
     $this->Cell(40,8,'NIVEL',1,0,'C', True);
@@ -2613,11 +2614,11 @@ function TablaListarUsuarios()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'N� DOCUMENTO',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'Nº DOCUMENTO',1,0,'C', True);
     $this->Cell(80,8,'NOMBRES Y APELLIDOS',1,0,'C', True);
     $this->Cell(25,8,'SEXO',1,0,'C', True);
-    $this->Cell(45,8,'N� DE TEL�FONO',1,0,'C', True);
+    $this->Cell(45,8,'Nº DE TELÉFONO',1,0,'C', True);
     $this->Cell(60,8,'EMAIL',1,0,'C', True);
     $this->Cell(40,8,'USUARIO',1,0,'C', True);
     $this->Cell(40,8,'NIVEL',1,1,'C', True);
@@ -2696,7 +2697,7 @@ function TablaListarUsuarios()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2739,7 +2740,7 @@ function TablaListarUsuarios()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2760,11 +2761,11 @@ function TablaListarUsuarios()
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(10,8,'N�',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
     $this->Cell(35,8,'IP EQUIPO',1,0,'C', True);
     $this->Cell(45,8,'TIEMPO ENTRADA',1,0,'C', True);
     $this->Cell(145,8,'NAVEGADOR DE ACCESO',1,0,'C', True);
-    $this->Cell(60,8,'P�GINAS DE ACCESO',1,0,'C', True);
+    $this->Cell(60,8,'PÁGINAS DE ACCESO',1,0,'C', True);
     $this->Cell(35,8,'USUARIO',1,1,'C', True);
     
 
@@ -2888,7 +2889,7 @@ function TablaListarClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2931,7 +2932,7 @@ function TablaListarClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -2950,7 +2951,7 @@ function TablaListarClientes()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -2962,14 +2963,14 @@ function TablaListarClientes()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE DOCUMENTO',1,0,'C', True);
     $this->Cell(60,8,'NOMBRES Y APELLIDOS',1,0,'C', True);
-    $this->Cell(35,8,'N� DE TELEFONO',1,0,'C', True);
-    $this->Cell(75,8,'DIRECCI�N DOMICILIARIA',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE TELEFONO',1,0,'C', True);
+    $this->Cell(75,8,'DIRECCIÓN DOMICILIARIA',1,0,'C', True);
     $this->Cell(60,8,'EMAIL',1,0,'C', True);
     $this->Cell(25,8,'TIPO',1,0,'C', True);
-    $this->Cell(25,8,'CR�DITO',1,1,'C', True);
+    $this->Cell(25,8,'CRÉDITO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -3052,7 +3053,7 @@ function TablaListarClientesxCreditos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3095,7 +3096,7 @@ function TablaListarClientesxCreditos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3114,7 +3115,7 @@ function TablaListarClientesxCreditos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -3126,14 +3127,14 @@ function TablaListarClientesxCreditos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE DOCUMENTO',1,0,'C', True);
     $this->Cell(60,8,'NOMBRES Y APELLIDOS',1,0,'C', True);
-    $this->Cell(35,8,'N� DE TELEFONO',1,0,'C', True);
-    $this->Cell(60,8,'DIRECCI�N DOMICILIARIA',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE TELEFONO',1,0,'C', True);
+    $this->Cell(60,8,'DIRECCIÓN DOMICILIARIA',1,0,'C', True);
     $this->Cell(60,8,'EMAIL',1,0,'C', True);
     $this->Cell(25,8,'TIPO',1,0,'C', True);
-    $this->Cell(40,8,'CR�DITO PENDIENTE',1,1,'C', True);
+    $this->Cell(40,8,'CRÉDITO PENDIENTE',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -3227,7 +3228,7 @@ function TablaListarProveedores()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3270,7 +3271,7 @@ function TablaListarProveedores()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3289,7 +3290,7 @@ function TablaListarProveedores()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -3301,14 +3302,14 @@ function TablaListarProveedores()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE DOCUMENTO',1,0,'C', True);
     $this->Cell(60,8,'NOMBRE DE PROVEEDOR',1,0,'C', True);
-    $this->Cell(25,8,'N� DE TLF',1,0,'C', True);
-    $this->Cell(75,8,'DIRECCI�N DOMICILIARIA',1,0,'C', True);
+    $this->Cell(25,8,'Nº DE TLF',1,0,'C', True);
+    $this->Cell(75,8,'DIRECCIÓN DOMICILIARIA',1,0,'C', True);
     $this->Cell(60,8,'EMAIL',1,0,'C', True);
     $this->Cell(35,8,'VENDEDOR',1,0,'C', True);
-    $this->Cell(25,8,'N� DE TLF',1,1,'C', True);
+    $this->Cell(25,8,'Nº DE TLF',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -3365,7 +3366,7 @@ function FacturaPedido()
         }                                      
     }
 
-    ######################## BLOQUE N� 1 FACTURA ##########################   
+    ######################## BLOQUE Nº 1 FACTURA ##########################   
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.1);
@@ -3390,7 +3391,7 @@ function FacturaPedido()
     
     $this->SetFont($TipoLetra,'B',11);
     $this->SetXY(124, 12);
-    $this->Cell(20, 5, 'N� DE FACTURA ', 0, 0);
+    $this->Cell(20, 5, 'Nº DE FACTURA ', 0, 0);
     $this->SetFont($TipoLetra,'B',11);
     $this->SetXY(176, 12);
     $this->Cell(22, 5,_u8d($reg[0]['codfactura']), 0, 0, "R");
@@ -3404,13 +3405,13 @@ function FacturaPedido()
 
     $this->SetFont($TipoLetra,'B',9);
     $this->SetXY(124, 20);
-    $this->Cell(20, 5, 'FECHA DE EMISI�N', 0, 0);
+    $this->Cell(20, 5, 'FECHA DE EMISIÓN', 0, 0);
     $this->SetFont($TipoLetra,'',9);
     $this->SetXY(177, 20);
     $this->Cell(20, 5,_u8d(date("d-m-Y H:i:s")), 0, 0, "R");
-    ############################### BLOQUE N� 1 FACTURA ############################### 
+    ############################### BLOQUE Nº 1 FACTURA ############################### 
 
-    ############################### BLOQUE N� 2 SUCURSAL ##############################   
+    ############################### BLOQUE Nº 2 SUCURSAL ##############################   
     //Bloque de datos de empresa
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -3425,21 +3426,21 @@ function FacturaPedido()
     //DATOS DE SUCURSAL LINEA 2
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(10, 34);
-    $this->Cell(25, 4, 'RAZ�N SOCIAL:', 0, 0);
+    $this->Cell(25, 4, 'RAZÓN SOCIAL:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(35, 34);
     $this->CellFitSpace(60, 4,_u8d($reg[0]['nomsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(95, 34);
-    $this->Cell(40, 4, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->Cell(40, 4, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(135, 34);
     $this->CellFitSpace(20, 4,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(155, 34);
-    $this->Cell(20, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(20, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(175, 34);
     $this->CellFitSpace(25, 4,_u8d($tlf = ($reg[0]['tlfsucursal'] == '' ? " " : $reg[0]['tlfsucursal'])), 0, 0);
@@ -3448,7 +3449,7 @@ function FacturaPedido()
     //DATOS DE SUCURSAL LINEA 3
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(10, 38);
-    $this->Cell(25, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(25, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(35, 38);
     $this->CellFitSpace(100, 4,_u8d($provincia = ($reg[0]['id_provincia'] == '0' ? "" : $reg[0]['provincia']." ").$departamento = ($reg[0]['id_departamento'] == '0' ? "" : $reg[0]['departamento']." ").$reg[0]['direcsucursal']), 0, 0);
@@ -3471,21 +3472,21 @@ function FacturaPedido()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(95, 42);
-    $this->CellFitSpace(40, 4, 'N� DE '.$documento = ($reg[0]['documencargado'] == '0' ? "DOC.:" : $reg[0]['documento2'].":"), 0, 0);
+    $this->CellFitSpace(40, 4, 'Nº DE '.$documento = ($reg[0]['documencargado'] == '0' ? "DOC.:" : $reg[0]['documento2'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(135, 42);
     $this->CellFitSpace(20, 4,_u8d($reg[0]['dniencargado']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(155, 42);
-    $this->Cell(20, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(20, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(175, 42);
     $this->CellFitSpace(25, 4,_u8d($tlf = ($reg[0]['tlfencargado'] == '' ? " " : $reg[0]['tlfencargado'])), 0, 0);
     //DATOS DE SUCURSAL LINEA 4
-    ############################# BLOQUE N� 2 SUCURSAL ##############################   
+    ############################# BLOQUE Nº 2 SUCURSAL ##############################   
 
-    ############################# BLOQUE N� 3 PROVEEDOR #################################  
+    ############################# BLOQUE Nº 3 PROVEEDOR #################################  
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.1);
@@ -3504,21 +3505,21 @@ function FacturaPedido()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(95, 54);
-    $this->CellFitSpace(30, 4, 'N� DE '.$documento = ($reg[0]['documproveedor'] == '0' ? "DOC.:" : $reg[0]['documento3'].":"), 0, 0);
+    $this->CellFitSpace(30, 4, 'Nº DE '.$documento = ($reg[0]['documproveedor'] == '0' ? "DOC.:" : $reg[0]['documento3'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(125, 54);
     $this->Cell(30, 4,_u8d($reg[0]['cuitproveedor']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(155, 54);
-    $this->Cell(20, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(20, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(175, 54);
     $this->Cell(25, 4,_u8d($reg[0]['tlfproveedor']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(10, 58);
-    $this->Cell(20, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(20, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(30, 58);
     $this->CellFitSpace(65, 4,getSubString(_u8d($provincia = ($reg[0]['id_provincia2'] == '' ? "" : $reg[0]['provincia2']." ").$departamento = ($reg[0]['id_departamento2'] == '' ? "" : $reg[0]['departamento2']." ").$reg[0]['direcproveedor']),38), 0, 0);
@@ -3536,15 +3537,15 @@ function FacturaPedido()
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(168, 58);
     $this->CellFitSpace(32, 4,getSubString(_u8d($reg[0]['vendedor']),22), 0, 0); 
-    ############################## BLOQUE N� 3 PROVEEDOR ###############################  
+    ############################## BLOQUE Nº 3 PROVEEDOR ###############################  
 
-    ################################# BLOQUE N� 4 #######################################   
+    ################################# BLOQUE Nº 4 #######################################   
     $this->SetFont($TipoLetra,'B',9);
     $this->SetXY(10, 65);
     $this->SetTextColor(3,3,3);
     $this->SetFillColor(229, 229, 229); // establece el color del fondo de la celda (en este caso es GRIS)
-    $this->CellFitSpace(8, 10,"N�", 1, 0, 'C', True);
-    $this->CellFitSpace(55, 10,"DESCRIPCI�N DE PRODUCTO", 1, 0, 'C', True);
+    $this->CellFitSpace(8, 10,"Nº", 1, 0, 'C', True);
+    $this->CellFitSpace(55, 10,"DESCRIPCIÓN DE PRODUCTO", 1, 0, 'C', True);
     $this->CellFitSpace(15, 10,"MARCA", 1, 0, 'C', True);
     $this->CellFitSpace(15, 10,"MODELO", 1, 0, 'C', True);
     $this->CellFitSpace(10, 10,"CANT", 1, 0, 'C', True);
@@ -3553,9 +3554,9 @@ function FacturaPedido()
     $this->CellFitSpace(15, 10,"DESC %", 1, 0, 'C', True);
     $this->CellFitSpace(12, 10,$impuesto, 1, 0, 'C', True);
     $this->MultiAlignCell2(20, 10,"VALOR NETO", 1, 1, 'C', True);
-    ################################# BLOQUE N� 4 ####################################### 
+    ################################# BLOQUE Nº 4 ####################################### 
 
-    ################################# BLOQUE N� 5 #######################################
+    ################################# BLOQUE Nº 5 #######################################
     $tra = new Login();
     $detalle = $tra->VerDetallesPedidos();
     $cantidad = 0;
@@ -3585,16 +3586,16 @@ function FacturaPedido()
         _u8d($detalle[$i]["ivaproducto"] == '0.00' ? "(E)" : number_format($detalle[$i]["ivaproducto"], 2, '.', ',')),
         _u8d($simbolo.number_format($detalle[$i]['valorneto'], 2, '.', ','))));
     }
-    ################################# BLOQUE N� 5 ####################################### 
+    ################################# BLOQUE Nº 5 ####################################### 
 
-    ########################### BLOQUE N� 6 #############################
+    ########################### BLOQUE Nº 6 #############################
     $this->Ln();
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'INFORMACI�N ADICIONAL',1,0,'C', True);
+    $this->CellFitSpace(110,5,'INFORMACIÓN ADICIONAL',1,0,'C', True);
     $this->Cell(4,5,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(36,5,'SUBTOTAL ',1,0,'L', True);
@@ -3675,7 +3676,7 @@ function FacturaPedido()
     $this->SetFont($TipoLetra,'B',10);
     $this->MultiCell(190,5,$this->SetFont($TipoLetra,'B',10).'OBSERVACIONES: '._u8d($reg[0]['observaciones'] == '' ? "**********" : $reg[0]['observaciones']),0,'J');
     }
-    ################################# BLOQUE N� 6 ####################################### 
+    ################################# BLOQUE Nº 6 ####################################### 
     $this->Ln();
 }
 ########################## FUNCION FACTURA PEDIDO ##############################
@@ -3730,7 +3731,7 @@ function ListarPedidos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3773,7 +3774,7 @@ function ListarPedidos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3792,7 +3793,7 @@ function ListarPedidos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -3804,11 +3805,11 @@ function ListarPedidos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(30,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(30,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(45,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -3920,7 +3921,7 @@ function TablaListarPedidosxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3963,7 +3964,7 @@ function TablaListarPedidosxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -3982,7 +3983,7 @@ function TablaListarPedidosxProveedor()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -3991,21 +3992,21 @@ function TablaListarPedidosxProveedor()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." PROVEEDOR: "._u8d($reg[0]["cuitproveedor"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." PROVEEDOR: "._u8d($reg[0]["cuitproveedor"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"PROVEEDOR: ".portales(_u8d($reg[0]["nomproveedor"])),0,0,'L'); 
     $this->Ln();
-    $this->Cell(335,6,"N� TEL�FONO: ".portales(_u8d($reg[0]['tlfproveedor'] == '' ? "******" : $reg[0]["tlfproveedor"])),0,0,'L');
+    $this->Cell(335,6,"Nº TELÉFONO: ".portales(_u8d($reg[0]['tlfproveedor'] == '' ? "******" : $reg[0]["tlfproveedor"])),0,0,'L');
 
     $this->Ln(10);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
     $this->Cell(70,8,'OBSERVACIONES',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(30,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(30,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(45,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -4116,7 +4117,7 @@ function TablaListarPedidosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4159,7 +4160,7 @@ function TablaListarPedidosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4178,7 +4179,7 @@ function TablaListarPedidosxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -4195,11 +4196,11 @@ function TablaListarPedidosxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(30,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(30,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(45,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -4337,7 +4338,7 @@ function TablaListarProductos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4380,7 +4381,7 @@ function TablaListarProductos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4400,7 +4401,7 @@ function TablaListarProductos()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(260,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(260,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(260,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -4412,9 +4413,9 @@ function TablaListarProductos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(25,8,'PRESENTAC',1,0,'C', True);
     $this->Cell(25,8,'MARCA',1,0,'C', True);
     $this->Cell(25,8,'MODELO',1,0,'C', True);
@@ -4424,7 +4425,7 @@ function TablaListarProductos()
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -4543,7 +4544,7 @@ function TablaListarProductosOptimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4586,7 +4587,7 @@ function TablaListarProductosOptimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4600,12 +4601,12 @@ function TablaListarProductosOptimo()
     
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(335,10,'LISTADO DE PRODUCTOS EN STOCK �PTIMO',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE PRODUCTOS EN STOCK ÓPTIMO',0,0,'C');
 
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -4617,20 +4618,20 @@ function TablaListarProductosOptimo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
     $this->Cell(15,8,'DCTO %',1,0,'C', True);
-    $this->Cell(25,8,'STOCK �PT.',1,0,'C', True);
+    $this->Cell(25,8,'STOCK ÓPT.',1,0,'C', True);
     $this->Cell(20,8,'EXIST.',1,0,'C', True);
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -4744,7 +4745,7 @@ function TablaListarProductosMedio()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4787,7 +4788,7 @@ function TablaListarProductosMedio()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4806,7 +4807,7 @@ function TablaListarProductosMedio()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -4819,10 +4820,10 @@ function TablaListarProductosMedio()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
@@ -4832,7 +4833,7 @@ function TablaListarProductosMedio()
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -4946,7 +4947,7 @@ function TablaListarProductosMinimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -4989,7 +4990,7 @@ function TablaListarProductosMinimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5008,7 +5009,7 @@ function TablaListarProductosMinimo()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -5020,10 +5021,10 @@ function TablaListarProductosMinimo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
@@ -5033,7 +5034,7 @@ function TablaListarProductosMinimo()
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -5147,7 +5148,7 @@ function TablaListarProductosFechasOptimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5190,7 +5191,7 @@ function TablaListarProductosFechasOptimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5204,12 +5205,12 @@ function TablaListarProductosFechasOptimo()
     
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(335,10,'LISTADO DE PRODUCTOS EN FECHAS �PTIMO',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE PRODUCTOS EN FECHAS ÓPTIMO',0,0,'C');
 
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -5221,20 +5222,20 @@ function TablaListarProductosFechasOptimo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
     $this->Cell(15,8,'DCTO %',1,0,'C', True);
-    $this->Cell(25,8,'STOCK �PT.',1,0,'C', True);
+    $this->Cell(25,8,'STOCK ÓPT.',1,0,'C', True);
     $this->Cell(20,8,'EXIST.',1,0,'C', True);
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -5348,7 +5349,7 @@ function TablaListarProductosFechasMedio()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5391,7 +5392,7 @@ function TablaListarProductosFechasMedio()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5410,7 +5411,7 @@ function TablaListarProductosFechasMedio()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -5423,10 +5424,10 @@ function TablaListarProductosFechasMedio()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
@@ -5436,7 +5437,7 @@ function TablaListarProductosFechasMedio()
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -5550,7 +5551,7 @@ function TablaListarProductosFechasMinimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5593,7 +5594,7 @@ function TablaListarProductosFechasMinimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5612,7 +5613,7 @@ function TablaListarProductosFechasMinimo()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -5624,10 +5625,10 @@ function TablaListarProductosFechasMinimo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
@@ -5637,7 +5638,7 @@ function TablaListarProductosFechasMinimo()
     $this->Cell(25,8,'P. COMPRA',1,0,'C', True);
     $this->Cell(25,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(25,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(25,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(25,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -5747,7 +5748,7 @@ function TablaListarCodigoBarras()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -5790,7 +5791,7 @@ function TablaListarCodigoBarras()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -5804,12 +5805,12 @@ function TablaListarCodigoBarras()
 
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(190,14,'LISTADO DE C�DIGO DE BARRAS DE PRODUCTOS',0,0,'C');
+    $this->Cell(190,14,'LISTADO DE CÓDIGO DE BARRAS DE PRODUCTOS',0,0,'C');
     $this->Ln();
 
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -5900,7 +5901,7 @@ function TablaListarProductosxMoneda()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5943,7 +5944,7 @@ function TablaListarProductosxMoneda()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -5962,7 +5963,7 @@ function TablaListarProductosxMoneda()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -5977,10 +5978,10 @@ function TablaListarProductosxMoneda()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(46,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(30,8,'PRESENTACI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(46,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(30,8,'PRESENTACIÓN',1,0,'C', True);
     $this->Cell(30,8,'MARCA',1,0,'C', True);
     $this->Cell(30,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,$impuesto,1,0,'C', True);
@@ -5988,7 +5989,7 @@ function TablaListarProductosxMoneda()
     $this->Cell(20,8,'EXIST.',1,0,'C', True);
     $this->Cell(33,8,'P. MAYOR',1,0,'C', True);
     $this->Cell(33,8,'P. MENOR',1,0,'C', True);
-    $this->Cell(33,8,'P. P�BLICO',1,1,'C', True);
+    $this->Cell(33,8,'P. PÚBLICO',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -6108,7 +6109,7 @@ function TablaListarKardexProducto()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6151,7 +6152,7 @@ function TablaListarKardexProducto()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6170,7 +6171,7 @@ function TablaListarKardexProducto()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($detalle[0]['documento'])." SUCURSAL: "._u8d($detalle[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($detalle[0]['documento'])." SUCURSAL: "._u8d($detalle[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($detalle[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -6182,12 +6183,12 @@ function TablaListarKardexProducto()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(35,8,'REALIZADO POR',1,0,'C', True);
     $this->Cell(30,8,'MOVIMIENTO',1,0,'C', True);
     $this->Cell(25,8,'ENTRADAS',1,0,'C', True);
     $this->Cell(25,8,'SALIDAS',1,0,'C', True);
-    $this->Cell(25,8,'DEVOLUCI�N',1,0,'C', True);
+    $this->Cell(25,8,'DEVOLUCIÓN',1,0,'C', True);
     $this->Cell(25,8,'EXISTENCIA',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DESCUENTO',1,0,'C', True);
@@ -6236,7 +6237,7 @@ function TablaListarKardexProducto()
     $this->CellFitSpace(120,5,'DETALLES DEL PRODUCTO',1,0,'C', True);
     $this->Ln();
     
-    $this->Cell(35,5,'C�DIGO',1,0,'C', True);
+    $this->Cell(35,5,'CÓDIGO',1,0,'C', True);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->CellFitSpace(85,5,_u8d($kardex[0]['codproducto']),1,0,'C');
@@ -6274,7 +6275,7 @@ function TablaListarKardexProducto()
 
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(35,5,'DEVOLUCI�N',1,0,'C', True);
+    $this->CellFitSpace(35,5,'DEVOLUCIÓN',1,0,'C', True);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->CellFitSpace(85,5,_u8d($TotalDevolucion),1,0,'C');
@@ -6314,7 +6315,7 @@ function TablaListarKardexProducto()
     
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(35,5,'P. VENTA P�BLICO',1,0,'C', True);
+    $this->Cell(35,5,'P. VENTA PÚBLICO',1,0,'C', True);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->CellFitSpace(85,5,_u8d($simbolo.number_format($detalle[0]['precioxpublico'], 2, '.', ',')),1,0,'C');
@@ -6384,7 +6385,7 @@ function TablaListarKardexProductosValorizado()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6427,7 +6428,7 @@ function TablaListarKardexProductosValorizado()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6446,7 +6447,7 @@ function TablaListarKardexProductosValorizado()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -6459,12 +6460,12 @@ function TablaListarKardexProductosValorizado()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
-    $this->Cell(30,8,"PRECIO P�BLICO",1,0,'C', True);
+    $this->Cell(30,8,"PRECIO PÚBLICO",1,0,'C', True);
     $this->Cell(15,8,'DCTO %',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'EXISTENCIA',1,0,'C', True);
@@ -6614,7 +6615,7 @@ function TablaListarProductosValorizadoxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6657,7 +6658,7 @@ function TablaListarProductosValorizadoxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6676,7 +6677,7 @@ function TablaListarProductosValorizadoxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -6695,9 +6696,9 @@ function TablaListarProductosValorizadoxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,'DCTO %',1,0,'C', True);
@@ -6853,7 +6854,7 @@ function TablaListarProductosVendidosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6896,7 +6897,7 @@ function TablaListarProductosVendidosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -6915,7 +6916,7 @@ function TablaListarProductosVendidosxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -6932,9 +6933,9 @@ function TablaListarProductosVendidosxFechas()
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(255, 255, 255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(20,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(75,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(20,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(75,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(25,8,'MARCA',1,0,'C', True);
     $this->Cell(25,8,'MODELO',1,0,'C', True);
     $this->Cell(30,8,"PRECIO VENTA",1,0,'C', True);
@@ -7102,7 +7103,7 @@ function TablaListarCombos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7145,7 +7146,7 @@ function TablaListarCombos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7164,7 +7165,7 @@ function TablaListarCombos()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -7176,9 +7177,9 @@ function TablaListarCombos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(20,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(40,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(20,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(40,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(18,8,'DESC %',1,0,'C', True);
     $this->Cell(124,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
@@ -7294,7 +7295,7 @@ function TablaListarCombosMinimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7337,7 +7338,7 @@ function TablaListarCombosMinimo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7356,7 +7357,7 @@ function TablaListarCombosMinimo()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -7368,9 +7369,9 @@ function TablaListarCombosMinimo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(20,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(40,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(20,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(40,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(18,8,'DESC %',1,0,'C', True);
     $this->Cell(110,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
@@ -7488,7 +7489,7 @@ function TablaListarCombosMaximo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7531,7 +7532,7 @@ function TablaListarCombosMaximo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7550,7 +7551,7 @@ function TablaListarCombosMaximo()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -7562,9 +7563,9 @@ function TablaListarCombosMaximo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(20,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(40,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(20,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(40,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(18,8,'DESC %',1,0,'C', True);
     $this->Cell(110,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
@@ -7685,7 +7686,7 @@ function TablaListarCombosxMoneda()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7728,7 +7729,7 @@ function TablaListarCombosxMoneda()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7747,7 +7748,7 @@ function TablaListarCombosxMoneda()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -7762,9 +7763,9 @@ function TablaListarCombosxMoneda()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(45,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(45,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DESCUENTO',1,0,'C', True);
     $this->Cell(125,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
@@ -7880,7 +7881,7 @@ function TablaListarKardexCombo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7923,7 +7924,7 @@ function TablaListarKardexCombo()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -7942,7 +7943,7 @@ function TablaListarKardexCombo()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($detalle[0]['documento'])." SUCURSAL: "._u8d($detalle[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($detalle[0]['documento'])." SUCURSAL: "._u8d($detalle[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($detalle[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -7954,12 +7955,12 @@ function TablaListarKardexCombo()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(35,8,'REALIZADO POR',1,0,'C', True);
     $this->Cell(30,8,'MOVIMIENTO',1,0,'C', True);
     $this->Cell(25,8,'ENTRADAS',1,0,'C', True);
     $this->Cell(25,8,'SALIDAS',1,0,'C', True);
-    $this->Cell(25,8,'DEVOLUCI�N',1,0,'C', True);
+    $this->Cell(25,8,'DEVOLUCIÓN',1,0,'C', True);
     $this->Cell(25,8,'EXISTENCIA',1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DESCUENTO',1,0,'C', True);
@@ -8008,7 +8009,7 @@ function TablaListarKardexCombo()
     $this->Cell(120,5,'DETALLES DEL COMBO',1,0,'C', True);
     $this->Ln();
     
-    $this->Cell(35,5,'C�DIGO',1,0,'C', True);
+    $this->Cell(35,5,'CÓDIGO',1,0,'C', True);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->CellFitSpace(85,5,_u8d($detalle[0]['codcombo']),1,0,'C');
@@ -8016,7 +8017,7 @@ function TablaListarKardexCombo()
     
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(35,5,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(35,5,'DESCRIPCIÓN',1,0,'C', True);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->CellFitSpace(85,5,portales(_u8d($detalle[0]['nomcombo'])),1,0,'C');
@@ -8040,7 +8041,7 @@ function TablaListarKardexCombo()
 
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(35,5,'DEVOLUCI�N',1,0,'C', True);
+    $this->Cell(35,5,'DEVOLUCIÓN',1,0,'C', True);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->Cell(85,5,_u8d(number_format($TotalDevolucion, 2, '.', ',')),1,0,'C');
@@ -8134,7 +8135,7 @@ function TablaListarKardexCombosValorizado()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -8177,7 +8178,7 @@ function TablaListarKardexCombosValorizado()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -8196,7 +8197,7 @@ function TablaListarKardexCombosValorizado()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -8208,9 +8209,9 @@ function TablaListarKardexCombosValorizado()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255, 255, 255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE COMBO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE COMBO',1,0,'C', True);
     $this->Cell(30,8,"PRECIO VENTA",1,0,'C', True);
     $this->Cell(20,8,$impuesto,1,0,'C', True);
     $this->Cell(15,8,'DESC %',1,0,'C', True);
@@ -8359,7 +8360,7 @@ function TablaListarCombosValorizadoxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -8402,7 +8403,7 @@ function TablaListarCombosValorizadoxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -8421,7 +8422,7 @@ function TablaListarCombosValorizadoxFechas()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -8438,9 +8439,9 @@ function TablaListarCombosValorizadoxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(20,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE COMBO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(20,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE COMBO',1,0,'C', True);
     $this->Cell(25,8,'DESC %',1,0,'C', True);
     $this->Cell(35,8,"PRECIO VENTA",1,0,'C', True);
     $this->Cell(30,8,'EXISTENCIA',1,0,'C', True);
@@ -8592,7 +8593,7 @@ function TablaListarCombosVendidosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -8635,7 +8636,7 @@ function TablaListarCombosVendidosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -8654,7 +8655,7 @@ function TablaListarCombosVendidosxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -8671,9 +8672,9 @@ function TablaListarCombosVendidosxFechas()
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(255, 255, 255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255, 118, 118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(15,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(90,8,'DESCRIPCI�N DE COMBO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(15,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(90,8,'DESCRIPCIÓN DE COMBO',1,0,'C', True);
     $this->Cell(45,8,"PRECIO VENTA",1,0,'C', True);
     $this->Cell(30,8,'EXISTENCIA',1,0,'C', True);
     $this->Cell(30,8,'VENDIDO',1,0,'C', True);
@@ -8819,7 +8820,7 @@ function FacturaTraspaso()
     $estado = "RECHAZADA";
     }
 
-    ############################# BLOQUE N� 1 FACTURA ###############################   
+    ############################# BLOQUE Nº 1 FACTURA ###############################   
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.1);
@@ -8827,14 +8828,14 @@ function FacturaTraspaso()
     
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(115, 11);
-    $this->Cell(40, 4, 'N� DE FACTURA', 0, 0);
+    $this->Cell(40, 4, 'Nº DE FACTURA', 0, 0);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(155, 11);
     $this->CellFitSpace(45, 4,_u8d($reg[0]['codfactura']), 0, 0, "R");
 
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(115, 15);
-    $this->Cell(40, 4, 'N� DE TRACKING', 0, 0);
+    $this->Cell(40, 4, 'Nº DE TRACKING', 0, 0);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(155, 15);
     $this->CellFitSpace(45, 4,_u8d($reg[0]['numero_tracking']), 0, 0, "R");
@@ -8859,9 +8860,9 @@ function FacturaTraspaso()
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(155, 27);
     $this->CellFitSpace(45, 4,_u8d($estado), 0, 0, "R");
-    ################################# BLOQUE N� 1 FACTURA ################################
+    ################################# BLOQUE Nº 1 FACTURA ################################
 
-    ############################# BLOQUE N� 2 SUCURSAL ENVIA ###############################   
+    ############################# BLOQUE Nº 2 SUCURSAL ENVIA ###############################   
     //Bloque de datos de empresa
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -8876,21 +8877,21 @@ function FacturaTraspaso()
     //DATOS DE SUCURSAL LINEA 2
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 36);
-    $this->Cell(24, 4, 'RAZ�N SOCIAL:', 0, 0);
+    $this->Cell(24, 4, 'RAZÓN SOCIAL:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(36, 36);
     $this->CellFitSpace(66, 4,_u8d($reg[0]['nomsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(102, 36);
-    $this->CellFitSpace(22, 4, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->CellFitSpace(22, 4, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(124, 36);
     $this->CellFitSpace(28, 4,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(152, 36);
-    $this->Cell(18, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(18, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(170, 36);
     $this->Cell(28, 4,_u8d($reg[0]['tlfsucursal']), 0, 0);
@@ -8899,7 +8900,7 @@ function FacturaTraspaso()
     //DATOS DE SUCURSAL LINEA 3
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 40);
-    $this->Cell(24, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(24, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(36, 40);
     $this->CellFitSpace(96, 4,_u8d($provincia = ($reg[0]['id_provincia'] == '' ? "" : $reg[0]['provincia'])." ".$departamento = ($reg[0]['id_departamento'] == '' ? "" : $reg[0]['departamento'])." ".$reg[0]['direcsucursal']), 0, 0);
@@ -8922,14 +8923,14 @@ function FacturaTraspaso()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(152, 44);
-    $this->Cell(18, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(18, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(170, 44);
     $this->Cell(28, 4,_u8d($tlf = ($reg[0]['tlfencargado'] == '' ? "*********" : $reg[0]['tlfencargado'])), 0, 0);
     //DATOS DE SUCURSAL LINEA 4
-    ############################ BLOQUE N� 2 SUCURSAL ENVIA ###############################
+    ############################ BLOQUE Nº 2 SUCURSAL ENVIA ###############################
 
-    ############################# BLOQUE N� 3 SUCURSAL RECIBE ###############################   
+    ############################# BLOQUE Nº 3 SUCURSAL RECIBE ###############################   
     //Bloque de datos de empresa
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -8944,21 +8945,21 @@ function FacturaTraspaso()
     //DATOS DE SUCURSAL LINEA 2
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 54);
-    $this->Cell(24, 4, 'RAZ�N SOCIAL:', 0, 0);
+    $this->Cell(24, 4, 'RAZÓN SOCIAL:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(36, 54);
     $this->CellFitSpace(66, 4,_u8d($reg[0]['nomsucursal2']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(102, 54);
-    $this->CellFitSpace(22, 4, 'N� DE '.$documento = ($reg[0]['documsucursal2'] == '0' ? "REG.:" : $reg[0]['documento3'].":"), 0, 0);
+    $this->CellFitSpace(22, 4, 'Nº DE '.$documento = ($reg[0]['documsucursal2'] == '0' ? "REG.:" : $reg[0]['documento3'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(124, 54);
     $this->CellFitSpace(28, 4,_u8d($reg[0]['cuitsucursal2']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(152, 54);
-    $this->Cell(18, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(18, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(170, 54);
     $this->Cell(28, 4,_u8d($reg[0]['tlfsucursal2']), 0, 0);
@@ -8967,7 +8968,7 @@ function FacturaTraspaso()
     //DATOS DE SUCURSAL LINEA 3
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 58);
-    $this->Cell(24, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(24, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(36, 58);
     $this->CellFitSpace(96, 4,_u8d($provincia2 = ($reg[0]['id_provincia2'] == '' ? "" : $reg[0]['provincia2'])." ".$departamento2 = ($reg[0]['id_departamento2'] == '' ? "" : $reg[0]['departamento2'])." ".$reg[0]['direcsucursal2']), 0, 0);
@@ -8990,28 +8991,28 @@ function FacturaTraspaso()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(152, 62);
-    $this->Cell(18, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(18, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(170, 62);
     $this->Cell(28, 4,_u8d($tlf = ($reg[0]['tlfencargado2'] == '' ? "*********" : $reg[0]['tlfencargado2'])), 0, 0);
     //DATOS DE SUCURSAL LINEA 4
-    ############################ BLOQUE N� 3 SUCURSAL RECIBE ###############################
+    ############################ BLOQUE Nº 3 SUCURSAL RECIBE ###############################
 
-    ################################# BLOQUE N� 4 #######################################   
+    ################################# BLOQUE Nº 4 #######################################   
     $this->SetFont($TipoLetra,'B',9);
     $this->SetXY(10, 68);
     $this->SetTextColor(3,3,3);
     $this->SetFillColor(229, 229, 229); // establece el color del fondo de la celda (en este caso es GRIS)
-    $this->Cell(8, 8,"N�", 1, 0, 'C', True);
-    $this->Cell(83, 8,"DESCRIPCI�N DE PRODUCTO", 1, 0, 'C', True);
+    $this->Cell(8, 8,"Nº", 1, 0, 'C', True);
+    $this->Cell(83, 8,"DESCRIPCIÓN DE PRODUCTO", 1, 0, 'C', True);
     $this->Cell(20, 8,"MARCA", 1, 0, 'C', True);
     $this->Cell(20, 8,"MODELO", 1, 0, 'C', True);
     $this->Cell(14, 8,"CANT", 1, 0, 'C', True);
     $this->Cell(20, 8,"PRECIO", 1, 0, 'C', True);
     $this->Cell(25, 8,"IMPORTE", 1, 1, 'C', True);
-    ################################# BLOQUE N� 4 ####################################### 
+    ################################# BLOQUE Nº 4 ####################################### 
 
-    ################################# BLOQUE N� 5 ####################################### 
+    ################################# BLOQUE Nº 5 ####################################### 
     $tra = new Login();
     $detalle = $tra->VerDetallesTraspasos();
     $cantidad = 0;
@@ -9038,16 +9039,16 @@ function FacturaTraspaso()
         _u8d($simbolo.number_format($detalle[$i]['precioventa'], 2, '.', ',')),
         _u8d($simbolo.number_format($detalle[$i]['valorneto'], 2, '.', ','))));
     }
-    ################################# BLOQUE N� 5 ####################################### 
+    ################################# BLOQUE Nº 5 ####################################### 
 
-    ########################### BLOQUE N� 6 #############################
+    ########################### BLOQUE Nº 6 #############################
     $this->Ln();
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(113,5,'INFORMACI�N ADICIONAL',1,0,'C', True);
+    $this->CellFitSpace(113,5,'INFORMACIÓN ADICIONAL',1,0,'C', True);
     $this->Cell(2,5,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(35,5,'SUBTOTAL ',1,0,'L', True);
@@ -9081,7 +9082,7 @@ function FacturaTraspaso()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(113,5,'FECHA/HORA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(113,5,'FECHA/HORA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,5,"",0,0,'C');
     $this->CellFitSpace(35,5,$impuesto == '' ? "IMPUESTO" : "".$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -9189,7 +9190,7 @@ function TablaListarTraspasos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -9232,7 +9233,7 @@ function TablaListarTraspasos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -9251,7 +9252,7 @@ function TablaListarTraspasos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -9263,14 +9264,14 @@ function TablaListarTraspasos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(14,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(36,8,'N� DE TRACKING',1,0,'C', True);
+    $this->Cell(14,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(36,8,'Nº DE TRACKING',1,0,'C', True);
     $this->Cell(60,8,'SUCURSAL REMITENTE',1,0,'C', True);
     $this->Cell(60,8,'SUCURSAL DESTINATARIO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(30,8,'ESTADO',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'IMPORTE TOTAL',1,1,'C', True);
 
     if($reg==""){
@@ -9386,7 +9387,7 @@ function TablaListarTraspasosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -9429,7 +9430,7 @@ function TablaListarTraspasosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -9454,14 +9455,14 @@ function TablaListarTraspasosxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(14,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(36,8,'N� DE TRACKING',1,0,'C', True);
+    $this->Cell(14,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(36,8,'Nº DE TRACKING',1,0,'C', True);
     $this->Cell(60,8,'SUCURSAL REMITENTE',1,0,'C', True);
     $this->Cell(60,8,'SUCURSAL DESTINATARIO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(30,8,'ESTADO',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'IMPORTE TOTAL',1,1,'C', True);
 
     if($reg==""){
@@ -9577,7 +9578,7 @@ function TablaListarDetallesTraspasosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -9620,7 +9621,7 @@ function TablaListarDetallesTraspasosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -9639,7 +9640,7 @@ function TablaListarDetallesTraspasosxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -9656,9 +9657,9 @@ function TablaListarDetallesTraspasosxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(90,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(90,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(30,8,'MARCA',1,0,'C', True);
     $this->Cell(30,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DCTO %',1,0,'C', True);
@@ -9793,7 +9794,7 @@ function FacturaCompra()
        }                                      
     }
 
-   ######################### BLOQUE N� 1 ######################### 
+   ######################### BLOQUE Nº 1 ######################### 
    //BLOQUE DE DATOS DE PRINCIPAL
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -9802,21 +9803,21 @@ function FacturaCompra()
     
     $this->SetFont($TipoLetra,'B',14);
     $this->SetXY(250, 12);
-    $this->Cell(50, 5, 'N� DE COMPRA ', 0, 0);
+    $this->Cell(50, 5, 'Nº DE COMPRA ', 0, 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(300, 12);
     $this->CellFitSpace(42, 5,_u8d($reg[0]['codfactura']), 0, 0, "R");
     
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(250, 16);
-    $this->Cell(50, 5, 'FECHA DE EMISI�N', 0, 0);
+    $this->Cell(50, 5, 'FECHA DE EMISIÓN', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(300, 16);
     $this->CellFitSpace(42, 5,_u8d(date("d-m-Y",strtotime($reg[0]['fechaemision']))), 0, 0, "R");
     
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(250, 20);
-    $this->Cell(50, 5, 'FECHA DE RECEPCI�N', 0, 0);
+    $this->Cell(50, 5, 'FECHA DE RECEPCIÓN', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(300, 20);
     $this->CellFitSpace(42, 5,_u8d(date("d-m-Y",strtotime($reg[0]['fecharecepcion']))), 0, 0, "R");
@@ -9834,9 +9835,9 @@ function FacturaCompra()
     } elseif($reg[0]['fechavencecredito'] < date("Y-m-d")) { 
     $this->Cell(42, 5,_u8d("VENCIDA"), 0, 0, "R");
     }
-    ######################### BLOQUE N� 1 ######################### 
+    ######################### BLOQUE Nº 1 ######################### 
 
-    ############################## BLOQUE N� 2 #####################################   
+    ############################## BLOQUE Nº 2 #####################################   
     //BLOQUE DE DATOS DE PROVEEDOR
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -9852,28 +9853,28 @@ function FacturaCompra()
     //DATOS DE SUCURSAL LINEA 2
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(12, 38);
-    $this->CellFitSpace(32, 4, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->CellFitSpace(32, 4, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(44, 38);
     $this->CellFitSpace(30, 4,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(74, 38);
-    $this->Cell(30, 4, 'RAZ�N SOCIAL:', 0, 0);
+    $this->Cell(30, 4, 'RAZÓN SOCIAL:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(104, 38);
     $this->CellFitSpace(72, 4,_u8d($reg[0]['nomsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(176, 38);
-    $this->Cell(24, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(24, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(200, 38);
     $this->CellFitSpace(90, 4,_u8d($provincia = ($reg[0]['id_provincia'] == '0' ? "" : $reg[0]['provincia'])." ".$departamento = ($reg[0]['id_departamento'] == '0' ? "" : $reg[0]['departamento'])." ".$reg[0]['direcsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(290, 38);
-    $this->Cell(22, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(22, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(312, 38);
     $this->CellFitSpace(32, 4,_u8d($reg[0]['tlfsucursal']), 0, 0);
@@ -9898,21 +9899,21 @@ function FacturaCompra()
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(228, 42);
-    $this->CellFitSpace(28, 4,'N� DE '.$documento = ($reg[0]['documencargado'] == '0' ? "DOC.:" : $reg[0]['documento2'].":"), 0, 0);
+    $this->CellFitSpace(28, 4,'Nº DE '.$documento = ($reg[0]['documencargado'] == '0' ? "DOC.:" : $reg[0]['documento2'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(256, 42);
     $this->CellFitSpace(34, 4,_u8d($reg[0]['dniencargado']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(290, 42);
-    $this->Cell(22, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(22, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(312, 42);
     $this->CellFitSpace(32, 4,_u8d($tlf = ($reg[0]['tlfencargado'] == '' ? "*********" : $reg[0]['tlfencargado'])), 0, 0);
     //DATOS DE SUCURSAL LINEA 4
-    ################################# BLOQUE N� 2 #######################################   
+    ################################# BLOQUE Nº 2 #######################################   
 
-    ################################# BLOQUE N� 3 #######################################   
+    ################################# BLOQUE Nº 3 #######################################   
     //DATOS DE SUCURSAL LINEA 5
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(12, 48);
@@ -9922,14 +9923,14 @@ function FacturaCompra()
     //DATOS DE SUCURSAL LINEA 6
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(12, 52);
-    $this->CellFitSpace(50, 4, 'N� DE '.$documento = ($reg[0]['documproveedor'] == '0' ? "DOC.:" : $reg[0]['documento3'].":"), 0, 0);
+    $this->CellFitSpace(50, 4, 'Nº DE '.$documento = ($reg[0]['documproveedor'] == '0' ? "DOC.:" : $reg[0]['documento3'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(62, 52);
     $this->CellFitSpace(34, 4,_u8d($reg[0]['cuitproveedor']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(96, 52);
-    $this->Cell(30, 4, 'RAZ�N SOCIAL:', 0, 0);
+    $this->Cell(30, 4, 'RAZÓN SOCIAL:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(126, 52);
     $this->CellFitSpace(90, 4,_u8d($reg[0]['nomproveedor']), 0, 0);
@@ -9943,7 +9944,7 @@ function FacturaCompra()
 
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(12, 56);
-    $this->Cell(32, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(32, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(44, 56);
     $this->CellFitSpace(126, 4,_u8d($provincia2 = ($reg[0]['id_provincia2'] == '' ? "" : $reg[0]['provincia2'])." ".$departamento2 = ($reg[0]['departamento2'] == '' ? "" : $reg[0]['id_departamento2'])." ".$reg[0]['direcproveedor']), 0, 0);
@@ -9952,7 +9953,7 @@ function FacturaCompra()
     //DATOS DE SUCURSAL LINEA 7
     $this->SetFont($TipoLetra,'B',10);
     $this->SetXY(170, 56);
-    $this->Cell(26, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(26, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(196, 56);
     $this->CellFitSpace(38, 4,_u8d($reg[0]['tlfproveedor']), 0, 0);
@@ -9964,18 +9965,18 @@ function FacturaCompra()
     $this->SetXY(258, 56);
     $this->CellFitSpace(86, 4,_u8d($reg[0]['vendedor']), 0, 0);
     //DATOS DE SUCURSAL LINEA 7
-    ################################# BLOQUE N� 3 #######################################  
+    ################################# BLOQUE Nº 3 #######################################  
 
-    ################################# BLOQUE N� 4 #######################################   
+    ################################# BLOQUE Nº 4 #######################################   
     $this->SetFont($TipoLetra,'B',9);
     $this->SetXY(10, 64);
     $this->SetTextColor(3, 3, 3); // Establece el color del texto (en este caso es Negro)
     $this->SetFillColor(229, 229, 229); // establece el color del fondo de la celda (en este caso es GRIS)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(20,8,'C�DIGO',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(20,8,'CÓDIGO',1,0,'C', True);
     $this->Cell(15,8,'LOTE',1,0,'C', True);
-    $this->Cell(23,8,'F.VCTO �PT',1,0,'C', True);
-    $this->Cell(94,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(23,8,'F.VCTO ÓPT',1,0,'C', True);
+    $this->Cell(94,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,'CANT',1,0,'C', True);
@@ -9984,9 +9985,9 @@ function FacturaCompra()
     $this->Cell(28,8,'VALOR TOTAL',1,0,'C', True);
     $this->Cell(18,8,'DCTO %',1,0,'C', True);
     $this->Cell(32,8,'VALOR NETO',1,1,'C', True);
-    ################################# BLOQUE N� 4 ####################################### 
+    ################################# BLOQUE Nº 4 ####################################### 
 
-    ################################# BLOQUE N� 5 ####################################### 
+    ################################# BLOQUE Nº 5 ####################################### 
     $tra = new Login();
     $detalle = $tra->VerDetallesCompras();
     $cantidad = 0;
@@ -10020,16 +10021,16 @@ function FacturaCompra()
         _u8d(number_format($detalle[$i]['descfactura'], 2, '.', ',')),
         _u8d($simbolo.number_format($detalle[$i]['valorneto'], 2, '.', ','))));
     }
-    ################################# BLOQUE N� 5 ####################################### 
+    ################################# BLOQUE Nº 5 ####################################### 
 
-    ########################### BLOQUE N� 6 #############################
+    ########################### BLOQUE Nº 6 #############################
     $this->Ln();
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',14);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(220,5,'INFORMACI�N ADICIONAL',1,0,'C', True);
+    $this->CellFitSpace(220,5,'INFORMACIÓN ADICIONAL',1,0,'C', True);
     $this->Cell(5,5,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(50,5,'SUBTOTAL ',1,0,'L', True);
@@ -10106,7 +10107,7 @@ function FacturaCompra()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(220,5,'FECHA DE EMISI�N (IMPRESO): '.date("d-m-Y"),1,0,'L');
+    $this->Cell(220,5,'FECHA DE EMISIÓN (IMPRESO): '.date("d-m-Y"),1,0,'L');
     $this->Cell(5,5,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->Cell(50,5,'GASTO DE ENVIO:',1,0,'L', True);
@@ -10118,7 +10119,7 @@ function FacturaCompra()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(220,5,'HORA DE EMISI�N (IMPRESO): '.date("H:i:s"),1,0,'L');
+    $this->Cell(220,5,'HORA DE EMISIÓN (IMPRESO): '.date("H:i:s"),1,0,'L');
     $this->Cell(5,5,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->Cell(50,5,'IMPORTE TOTAL:',1,0,'L', True);
@@ -10130,7 +10131,7 @@ function FacturaCompra()
     $this->SetFont($TipoLetra,'B',10);
     $this->MultiCell(330,5,$this->SetFont($TipoLetra,'B',10).'OBSERVACIONES: '._u8d($reg[0]['observaciones'] == '' ? "**********" : $reg[0]['observaciones']),0,'J');
     }
-    ################################# BLOQUE N� 6 ####################################### 
+    ################################# BLOQUE Nº 6 ####################################### 
 }
 ########################## FUNCION FACTURA COMPRA ##############################
 
@@ -10158,7 +10159,7 @@ function TicketCreditoCompra()
     $this->SetX(2);
     $this->SetFont('Courier','B',12);
     $this->SetFillColor(2,157,116);
-    $this->Cell(70, 5, "TICKET DE CR�DITO", 0, 0, 'C');
+    $this->Cell(70, 5, "TICKET DE CRÉDITO", 0, 0, 'C');
     $this->Ln(5);
   
     $this->SetX(2);
@@ -10167,7 +10168,7 @@ function TicketCreditoCompra()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "N� ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
+    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "Nº ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
 
     if($reg[0]['id_departamento']!='0'){
 
@@ -10183,10 +10184,10 @@ function TicketCreditoCompra()
     $this->CellFitSpace(70,3,"OBLIGADO A LLEVAR CONTABILIDAD: "._u8d($reg[0]['llevacontabilidad']),0,1,'C');
 
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCI�N",0,1,'C');
+    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCIÓN",0,1,'C');
     
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"EMISI�N: NORMAL",0,1,'C');
+    $this->CellFitSpace(70,3,"EMISIÓN: NORMAL",0,1,'C');
 
      $this->SetX(2);
     $this->SetFont('Courier','B',12);
@@ -10195,7 +10196,7 @@ function TicketCreditoCompra()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$documento = ($reg[0]['documproveedor'] == '0' ? "N� DOC:" : "N� ".$reg[0]['documento3'].": ".$reg[0]['cuitproveedor']),0,1,'L');
+    $this->CellFitSpace(70,3,$documento = ($reg[0]['documproveedor'] == '0' ? "Nº DOC:" : "Nº ".$reg[0]['documento3'].": ".$reg[0]['cuitproveedor']),0,1,'L');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
@@ -10217,8 +10218,8 @@ function TicketCreditoCompra()
     $this->CellFitSpace(35,4,_u8d($reg[0]['codfactura']), 0, 1, 'R');
     $this->SetX(2);
     $this->SetFont($TipoLetra,'',9);
-    $this->CellFitSpace(33,4,"EMISI�N: "._u8d(date("d/m/Y",strtotime($reg[0]['fechaemision']))), 0, 0, 'J');
-    $this->CellFitSpace(37,4,"RECEPCI�N: "._u8d(date("d/m/Y",strtotime($reg[0]['fecharecepcion']))), 0, 1, 'R');
+    $this->CellFitSpace(33,4,"EMISIÓN: "._u8d(date("d/m/Y",strtotime($reg[0]['fechaemision']))), 0, 0, 'J');
+    $this->CellFitSpace(37,4,"RECEPCIÓN: "._u8d(date("d/m/Y",strtotime($reg[0]['fecharecepcion']))), 0, 1, 'R');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'',9);
@@ -10375,7 +10376,7 @@ function TablaListarCompras()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -10418,7 +10419,7 @@ function TablaListarCompras()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -10437,7 +10438,7 @@ function TablaListarCompras()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -10450,11 +10451,11 @@ function TablaListarCompras()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -10568,7 +10569,7 @@ function TablaListarCuentasxPagar()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -10611,7 +10612,7 @@ function TablaListarCuentasxPagar()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -10630,7 +10631,7 @@ function TablaListarCuentasxPagar()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -10642,11 +10643,11 @@ function TablaListarCuentasxPagar()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(65,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(65,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(30,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(30,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(30,8,'FECHA VENCE',1,0,'C', True);
     $this->Cell(45,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(45,8,'TOTAL ABONO',1,0,'C', True);
@@ -10760,7 +10761,7 @@ function TablaListarComprasxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -10803,7 +10804,7 @@ function TablaListarComprasxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -10822,7 +10823,7 @@ function TablaListarComprasxProveedor()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -10831,22 +10832,22 @@ function TablaListarComprasxProveedor()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." PROVEEDOR: "._u8d($reg[0]["cuitproveedor"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." PROVEEDOR: "._u8d($reg[0]["cuitproveedor"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"PROVEEDOR: ".portales(_u8d($reg[0]["nomproveedor"])),0,0,'L'); 
     $this->Ln();
-    $this->Cell(335,6,"N� TEL�FONO: ".portales(_u8d($reg[0]['tlfproveedor'] == '' ? "******" : $reg[0]["tlfproveedor"])),0,0,'L');
+    $this->Cell(335,6,"Nº TELÉFONO: ".portales(_u8d($reg[0]['tlfproveedor'] == '' ? "******" : $reg[0]["tlfproveedor"])),0,0,'L');
 
     $this->Ln(10);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(40,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(40,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(40,8,'ESTADO',1,0,'C', True);
     $this->Cell(40,8,'FECHA VENCE',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -10959,7 +10960,7 @@ function TablaListarComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11002,7 +11003,7 @@ function TablaListarComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11021,7 +11022,7 @@ function TablaListarComprasxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -11038,12 +11039,12 @@ function TablaListarComprasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(30,8,'ESTADO',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(35,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -11151,7 +11152,7 @@ function TablaListarAbonosCreditosComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11194,7 +11195,7 @@ function TablaListarAbonosCreditosComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11208,13 +11209,13 @@ function TablaListarAbonosCreditosComprasxFechas()
 
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(335,10,"LISTADO DE ABONOS DE COMPRAS A CR�DITOS POR FECHAS",0,0,'C');
+    $this->Cell(335,10,"LISTADO DE ABONOS DE COMPRAS A CRÉDITOS POR FECHAS",0,0,'C');
     $this->Ln();
 
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -11233,12 +11234,12 @@ function TablaListarAbonosCreditosComprasxFechas()
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(255, 255, 255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(45,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(75,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(45,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(75,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
     $this->Cell(45,8,'FECHA DE ABONO',1,0,'C', True);
-    $this->Cell(40,8,'N� DE COMPROBANTE',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE COMPROBANTE',1,0,'C', True);
     $this->Cell(40,8,'NOMBRE DE BANCO',1,0,'C', True);
     $this->Cell(45,8,'MONTO ABONO',1,1,'C', True);
 
@@ -11339,7 +11340,7 @@ function TablaListarCreditosComprasxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11382,7 +11383,7 @@ function TablaListarCreditosComprasxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11397,17 +11398,17 @@ function TablaListarCreditosComprasxProveedor()
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'LISTADO DE COMPRAS A CR�DITOS EN GENERAL POR PROVEEDOR',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE COMPRAS A CRÉDITOS EN GENERAL POR PROVEEDOR',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'LISTADO DE COMPRAS A CR�DITOS PAGADOS POR PROVEEDOR',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE COMPRAS A CRÉDITOS PAGADOS POR PROVEEDOR',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'LISTADO DE COMPRAS A CR�DITOS PENDIENTES POR PROVEEDOR',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE COMPRAS A CRÉDITOS PENDIENTES POR PROVEEDOR',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -11416,22 +11417,22 @@ function TablaListarCreditosComprasxProveedor()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." PROVEEDOR: "._u8d($reg[0]["cuitproveedor"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." PROVEEDOR: "._u8d($reg[0]["cuitproveedor"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"PROVEEDOR: ".portales(_u8d($reg[0]["nomproveedor"])),0,0,'L'); 
     $this->Ln();
-    $this->Cell(335,6,"N� TEL�FONO: ".portales(_u8d($reg[0]['tlfproveedor'] == '' ? "******" : $reg[0]["tlfproveedor"])),0,0,'L');
+    $this->Cell(335,6,"Nº TELÉFONO: ".portales(_u8d($reg[0]['tlfproveedor'] == '' ? "******" : $reg[0]["tlfproveedor"])),0,0,'L');
 
     $this->Ln(10);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(80,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(80,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
     $this->Cell(30,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'DIAS VENC',1,0,'C', True);
-    $this->Cell(50,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(50,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
     $this->Cell(35,8,'TOTAL DEBE',1,1,'C', True);
@@ -11551,7 +11552,7 @@ function TablaListarCreditosComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11594,7 +11595,7 @@ function TablaListarCreditosComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11609,17 +11610,17 @@ function TablaListarCreditosComprasxFechas()
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'LISTADO DE COMPRAS A CR�DITOS EN GENERAL POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE COMPRAS A CRÉDITOS EN GENERAL POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'LISTADO DE COMPRAS A CR�DITOS PAGADOS POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE COMPRAS A CRÉDITOS PAGADOS POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'LISTADO DE COMPRAS A CR�DITOS PENDIENTES POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE COMPRAS A CRÉDITOS PENDIENTES POR FECHAS',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -11636,12 +11637,12 @@ function TablaListarCreditosComprasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
-    $this->Cell(80,8,'DESCRIPCI�N DE PROVEEDOR',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
+    $this->Cell(80,8,'DESCRIPCIÓN DE PROVEEDOR',1,0,'C', True);
     $this->Cell(30,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'DIAS VENC',1,0,'C', True);
-    $this->Cell(50,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(50,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
     $this->Cell(35,8,'TOTAL DEBE',1,1,'C', True);
@@ -11755,7 +11756,7 @@ function TablaListarDetallesCreditosComprasxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11798,7 +11799,7 @@ function TablaListarDetallesCreditosComprasxProveedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11813,17 +11814,17 @@ function TablaListarDetallesCreditosComprasxProveedor()
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'DETALLES DE COMPRAS A CR�DITOS GENERAL POR PROVEEDOR',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE COMPRAS A CRÉDITOS GENERAL POR PROVEEDOR',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'DETALLES DE COMPRAS A CR�DITOS PAGADOS POR PROVEEDOR',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE COMPRAS A CRÉDITOS PAGADOS POR PROVEEDOR',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'DETALLES DE COMPRAS A CR�DITOS PENDIENTES POR PROVEEDOR',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE COMPRAS A CRÉDITOS PENDIENTES POR PROVEEDOR',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -11832,23 +11833,23 @@ function TablaListarDetallesCreditosComprasxProveedor()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� DE "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']).": ".$reg[0]["cuitproveedor"]),0,0,'L');
+    $this->Cell(335,6,"Nº DE "._u8d($documento = ($reg[0]['documproveedor'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']).": ".$reg[0]["cuitproveedor"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"PROVEEDOR: "._u8d($reg[0]['nomproveedor']),0,0,'L');
     $this->Ln();
-    $this->Cell(335,6,"N� DE TELEFONO: "._u8d($reg[0]['tlfproveedor'] == "" ? "********" : $reg[0]['tlfproveedor']),0,0,'L');
+    $this->Cell(335,6,"Nº DE TELEFONO: "._u8d($reg[0]['tlfproveedor'] == "" ? "********" : $reg[0]['tlfproveedor']),0,0,'L');
     $this->Ln();
-    $this->Cell(335,6,"DIRECCI�N DOMICILIARIA: ".portales(_u8d($reg[0]['direcproveedor'] == "" ? "********" : $reg[0]['direcproveedor'])),0,0,'L');
+    $this->Cell(335,6,"DIRECCIÓN DOMICILIARIA: ".portales(_u8d($reg[0]['direcproveedor'] == "" ? "********" : $reg[0]['direcproveedor'])),0,0,'L');
  
     $this->Ln(10);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE FACTURA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE FACTURA',1,0,'C', True);
     $this->Cell(40,8,'OBSERVACIONES',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(85,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
@@ -11947,7 +11948,7 @@ function TablaListarDetallesCreditosComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -11990,7 +11991,7 @@ function TablaListarDetallesCreditosComprasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -12005,17 +12006,17 @@ function TablaListarDetallesCreditosComprasxFechas()
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'DETALLES DE COMPRAS A CR�DITOS EN GENERAL POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE COMPRAS A CRÉDITOS EN GENERAL POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'DETALLES DE COMPRAS A CR�DITOS PAGADOS POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE COMPRAS A CRÉDITOS PAGADOS POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'DETALLES DE COMPRAS A CR�DITOS PENDIENTES POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE COMPRAS A CRÉDITOS PENDIENTES POR FECHAS',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -12032,11 +12033,11 @@ function TablaListarDetallesCreditosComprasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'N� DE FACTURA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'Nº DE FACTURA',1,0,'C', True);
     $this->Cell(45,8,'NOMBRE DE PROVEEDOR',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(90,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
@@ -12164,7 +12165,7 @@ function TicketCotizacion()
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetFillColor(2,157,116);
-    $this->Cell(70, 5, "TICKET DE COTIZACI�N", 0, 0, 'C');
+    $this->Cell(70, 5, "TICKET DE COTIZACIÓN", 0, 0, 'C');
     $this->Ln(5);
   
     $this->SetX(2);
@@ -12173,7 +12174,7 @@ function TicketCotizacion()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "N� ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
+    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "Nº ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
 
     if($reg[0]['id_departamento']!='0'){
 
@@ -12188,10 +12189,10 @@ function TicketCotizacion()
     $this->CellFitSpace(70,3,"OBLIGADO A LLEVAR CONTABILIDAD: "._u8d($reg[0]['llevacontabilidad']),0,1,'C');
 
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCI�N",0,1,'C');
+    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCIÓN",0,1,'C');
     
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"EMISI�N: NORMAL",0,1,'C');
+    $this->CellFitSpace(70,3,"EMISIÓN: NORMAL",0,1,'C');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',12);
@@ -12208,7 +12209,7 @@ function TicketCotizacion()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "N� DOC:" : "N� ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
+    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "Nº DOC:" : "Nº ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
@@ -12290,7 +12291,7 @@ function TicketCotizacion()
     if($detalle[$i]["imei"] != ""){
     $this->SetX(2);
     $this->SetFont($TipoLetra,'',6);
-    $this->MultiCell(70,3,"N� DE IMEI: ".portales(_u8d($detalle[$i]["imei"])),0,1,'');
+    $this->MultiCell(70,3,"Nº DE IMEI: ".portales(_u8d($detalle[$i]["imei"])),0,1,'');
     }
 
     endfor;
@@ -12386,7 +12387,7 @@ function FacturaCotizacion()
         }                                      
     }
 
-    ############################# BLOQUE N� 1 FACTURA ###############################   
+    ############################# BLOQUE Nº 1 FACTURA ###############################   
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.1);
@@ -12394,7 +12395,7 @@ function FacturaCotizacion()
     
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(120, 12);
-    $this->Cell(40, 4, 'N� DE COTIZACI�N ', 0, 0);
+    $this->Cell(40, 4, 'Nº DE COTIZACIÓN ', 0, 0);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(160, 12);
     $this->CellFitSpace(38, 4,_u8d($reg[0]['codfactura']), 0, 0, "R");
@@ -12412,9 +12413,9 @@ function FacturaCotizacion()
     $this->SetFont($TipoLetra,'',10);
     $this->SetXY(160, 22);
     $this->CellFitSpace(38, 4,_u8d(date("H:i:s",strtotime($reg[0]['fechacotizacion']))), 0, 0, "R");
-    ################################# BLOQUE N� 1 FACTURA ################################ 
+    ################################# BLOQUE Nº 1 FACTURA ################################ 
 
-    ############################# BLOQUE N� 2 SUCURSAL ###############################   
+    ############################# BLOQUE Nº 2 SUCURSAL ###############################   
     //Bloque de datos de empresa
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -12429,21 +12430,21 @@ function FacturaCotizacion()
     //DATOS DE SUCURSAL LINEA 2
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 34);
-    $this->Cell(24, 4, 'RAZ�N SOCIAL:', 0, 0);
+    $this->Cell(24, 4, 'RAZÓN SOCIAL:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(36, 34);
     $this->CellFitSpace(66, 4,_u8d($reg[0]['nomsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(102, 34);
-    $this->CellFitSpace(22, 4, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->CellFitSpace(22, 4, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(124, 34);
     $this->CellFitSpace(28, 4,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(152, 34);
-    $this->Cell(18, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(18, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(170, 34);
     $this->Cell(28, 4,_u8d($reg[0]['tlfsucursal']), 0, 0);
@@ -12452,7 +12453,7 @@ function FacturaCotizacion()
     //DATOS DE SUCURSAL LINEA 3
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 38);
-    $this->Cell(24, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(24, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(36, 38);
     $this->CellFitSpace(96, 4,_u8d($provincia = ($reg[0]['id_provincia'] == '0' ? " " : $reg[0]['provincia'])." ".$departamento = ($reg[0]['id_departamento'] == '0' ? " " : $reg[0]['departamento'])." ".$reg[0]['direcsucursal']), 0, 0);
@@ -12475,22 +12476,22 @@ function FacturaCotizacion()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(102, 42);
-    $this->CellFitSpace(22, 4, 'N� DE '.$documento = ($reg[0]['documencargado'] == '0' ? "DOC.:" : $reg[0]['documento2'].":"), 0, 0);
+    $this->CellFitSpace(22, 4, 'Nº DE '.$documento = ($reg[0]['documencargado'] == '0' ? "DOC.:" : $reg[0]['documento2'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(124, 42);
     $this->CellFitSpace(28, 4,_u8d($reg[0]['dniencargado']), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(152, 42);
-    $this->Cell(18, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(18, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(170, 42);
     $this->Cell(28, 4,_u8d($tlf = ($reg[0]['tlfencargado'] == '' ? "*********" : $reg[0]['tlfencargado'])), 0, 0);
     //DATOS DE SUCURSAL LINEA 4
-    ############################ BLOQUE N� 2 SUCURSAL ###############################   
+    ############################ BLOQUE Nº 2 SUCURSAL ###############################   
 
 
-    ############################## BLOQUE N� 3 CLIENTE #################################  
+    ############################## BLOQUE Nº 3 CLIENTE #################################  
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.1);
@@ -12509,7 +12510,7 @@ function FacturaCotizacion()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(90, 54);
-    $this->CellFitSpace(20, 4, 'N� DE '.$documento = ($reg[0]['documcliente'] == '0' ? "DOC.:" : $reg[0]['documento3'].":"), 0, 0);
+    $this->CellFitSpace(20, 4, 'Nº DE '.$documento = ($reg[0]['documcliente'] == '0' ? "DOC.:" : $reg[0]['documento3'].":"), 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(110, 54);
     $this->CellFitSpace(24, 4,_u8d($nombre = ($reg[0]['dnicliente'] == '' ? "*********" : $reg[0]['dnicliente'])), 0, 0);
@@ -12523,18 +12524,18 @@ function FacturaCotizacion()
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(12, 58);
-    $this->Cell(20, 4, 'DIRECCI�N:', 0, 0);
+    $this->Cell(20, 4, 'DIRECCIÓN:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(32, 58);
     $this->CellFitSpace(124, 4,getSubString(_u8d($provincia = ($reg[0]['id_provincia2'] == '0' ? " " : $reg[0]['provincia2'])." ".$departamento = ($reg[0]['id_departamento2'] == '0' ? " " : $reg[0]['departamento2'])." ".$reg[0]['direccliente']), 70), 0, 0);
 
     $this->SetFont($TipoLetra,'B',8);
     $this->SetXY(156, 58);
-    $this->Cell(20, 4, 'N� DE TLF:', 0, 0);
+    $this->Cell(20, 4, 'Nº DE TLF:', 0, 0);
     $this->SetFont($TipoLetra,'',8);
     $this->SetXY(176, 58);
     $this->CellFitSpace(22, 4,_u8d($tlf = ($reg[0]['tlfcliente'] == '' ? "*********" : $reg[0]['tlfcliente'])), 0, 0); 
-    ############################## BLOQUE N� 3 CLIENTE #################################  
+    ############################## BLOQUE Nº 3 CLIENTE #################################  
 
     //######################### BLOQUE DATOS DE PRODUCTOS #############################
     $this->Ln(3);
@@ -12542,8 +12543,8 @@ function FacturaCotizacion()
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(10,5,'N�',1,0,'C', True);
-    $this->Cell(105,5,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(10,5,'Nº',1,0,'C', True);
+    $this->Cell(105,5,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(25,5,'CANTIDAD',1,0,'C', True);
     $this->Cell(25,5,'PRECIO',1,0,'C', True);
     $this->Cell(25,5,'IMPORTE',1,1,'C', True);
@@ -12571,14 +12572,14 @@ function FacturaCotizacion()
     }
     //######################### BLOQUE DATOS DE PRODUCTOS #############################
 
-    ########################### BLOQUE N� 6 #############################
+    ########################### BLOQUE Nº 6 #############################
     $this->Ln();
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(108,5,'INFORMACI�N ADICIONAL',1,0,'C', True);
+    $this->CellFitSpace(108,5,'INFORMACIÓN ADICIONAL',1,0,'C', True);
     $this->Cell(2,5,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(40,5,'SUBTOTAL ',1,0,'L', True);
@@ -12624,7 +12625,7 @@ function FacturaCotizacion()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(108,5,'FECHA DE EMISI�N: '.date("d-m-Y"),1,0,'L');
+    $this->CellFitSpace(108,5,'FECHA DE EMISIÓN: '.date("d-m-Y"),1,0,'L');
     $this->Cell(2,5,"",0,0,'C');
     $this->CellFitSpace(40,5,'DESCONTADO %:',1,0,'L', True);
     $this->CellFitSpace(40,5,$simbolo.number_format($reg[0]["descontado"], 2, '.', ','),1,0,'R');
@@ -12635,7 +12636,7 @@ function FacturaCotizacion()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(108,5,'HORA DE EMISI�N: '.date("H:i:s"),1,0,'L');
+    $this->CellFitSpace(108,5,'HORA DE EMISIÓN: '.date("H:i:s"),1,0,'L');
     $this->Cell(2,5,"",0,0,'C');
     $this->CellFitSpace(40,5,'DESC % ('.number_format($reg[0]["descuento"], 2, '.', ',').'%):',1,0,'L', True);
     $this->CellFitSpace(40,5,$simbolo.number_format($reg[0]["totaldescuento"], 2, '.', ','),1,0,'R');
@@ -12711,7 +12712,7 @@ function TablaListarCotizaciones()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -12754,7 +12755,7 @@ function TablaListarCotizaciones()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -12773,7 +12774,7 @@ function TablaListarCotizaciones()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -12785,11 +12786,11 @@ function TablaListarCotizaciones()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'N� DE COTIZACI�N',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(50,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE COTIZACIÓN',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(50,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -12901,7 +12902,7 @@ function TablaListarCotizacionesxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -12944,7 +12945,7 @@ function TablaListarCotizacionesxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -12963,7 +12964,7 @@ function TablaListarCotizacionesxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -12980,11 +12981,11 @@ function TablaListarCotizacionesxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'N� DE COTIZACI�N',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(50,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE COTIZACIÓN',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(50,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -13094,7 +13095,7 @@ function TablaListarDetallesCotizacionesxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -13137,7 +13138,7 @@ function TablaListarDetallesCotizacionesxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -13156,7 +13157,7 @@ function TablaListarDetallesCotizacionesxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -13174,9 +13175,9 @@ function TablaListarDetallesCotizacionesxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(30,8,'TIPO',1,0,'C', True);
-    $this->Cell(100,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(100,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(40,8,'MARCA',1,0,'C', True);
     $this->Cell(40,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DCTO %',1,0,'C', True);
@@ -13301,7 +13302,7 @@ function TablaListarDetallesCotizacionesxVendedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -13344,7 +13345,7 @@ function TablaListarDetallesCotizacionesxVendedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -13363,7 +13364,7 @@ function TablaListarDetallesCotizacionesxVendedor()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -13382,9 +13383,9 @@ function TablaListarDetallesCotizacionesxVendedor()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(30,8,'TIPO',1,0,'C', True);
-    $this->Cell(100,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(100,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(40,8,'MARCA',1,0,'C', True);
     $this->Cell(40,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DCTO %',1,0,'C', True);
@@ -13538,7 +13539,7 @@ function TicketPreventa()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "N� ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
+    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "Nº ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
 
     if($reg[0]['id_departamento']!='0'){
 
@@ -13553,10 +13554,10 @@ function TicketPreventa()
     $this->CellFitSpace(70,3,"OBLIGADO A LLEVAR CONTABILIDAD: "._u8d($reg[0]['llevacontabilidad']),0,1,'C');
 
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCI�N",0,1,'C');
+    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCIÓN",0,1,'C');
     
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"EMISI�N: NORMAL",0,1,'C');
+    $this->CellFitSpace(70,3,"EMISIÓN: NORMAL",0,1,'C');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',12);
@@ -13573,7 +13574,7 @@ function TicketPreventa()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "N� DOC:" : "N� ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
+    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "Nº DOC:" : "Nº ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
@@ -13655,7 +13656,7 @@ function TicketPreventa()
     if($detalle[$i]["imei"] != ""){
     $this->SetX(2);
     $this->SetFont($TipoLetra,'',6);
-    $this->MultiCell(70,3,"N� DE IMEI: ".portales(_u8d($detalle[$i]["imei"])),0,1,'');
+    $this->MultiCell(70,3,"Nº DE IMEI: ".portales(_u8d($detalle[$i]["imei"])),0,1,'');
     }
 
     endfor;
@@ -13775,7 +13776,7 @@ function TablaListarPreventas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -13818,7 +13819,7 @@ function TablaListarPreventas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -13837,7 +13838,7 @@ function TablaListarPreventas()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -13849,11 +13850,11 @@ function TablaListarPreventas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'N� DE PREVENTA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(50,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE PREVENTA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(50,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -13959,7 +13960,7 @@ function ClientesxPreventas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14002,7 +14003,7 @@ function ClientesxPreventas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14021,7 +14022,7 @@ function ClientesxPreventas()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -14033,11 +14034,11 @@ function ClientesxPreventas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'N� FACTURA',1,0,'C', True);
-    $this->Cell(40,8,'N� DOCUMENTO',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'Nº FACTURA',1,0,'C', True);
+    $this->Cell(40,8,'Nº DOCUMENTO',1,0,'C', True);
     $this->Cell(70,8,'NOMBRE DE CLIENTE',1,0,'C', True);
-    $this->Cell(130,8,'DIRECCI�N',1,0,'C', True);
+    $this->Cell(130,8,'DIRECCIÓN',1,0,'C', True);
     $this->Cell(40,8,'TELEFONO',1,1,'C', True);
 
     if($reg==""){
@@ -14120,7 +14121,7 @@ function TablaListarPreventasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14163,7 +14164,7 @@ function TablaListarPreventasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14182,7 +14183,7 @@ function TablaListarPreventasxFechas()
    if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -14199,11 +14200,11 @@ function TablaListarPreventasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'N� DE PREVENTA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(50,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(25,8,'N� ARTIC.',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE PREVENTA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(50,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(25,8,'Nº ARTIC.',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC %',1,0,'C', True);
@@ -14313,7 +14314,7 @@ function TablaListarDetallesPreventasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14356,7 +14357,7 @@ function TablaListarDetallesPreventasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14375,7 +14376,7 @@ function TablaListarDetallesPreventasxFechas()
    if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -14392,9 +14393,9 @@ function TablaListarDetallesPreventasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(30,8,'TIPO',1,0,'C', True);
-    $this->Cell(100,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(100,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(40,8,'MARCA',1,0,'C', True);
     $this->Cell(40,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DESC',1,0,'C', True);
@@ -14519,7 +14520,7 @@ function TablaListarDetallesPreventasxVendedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14562,7 +14563,7 @@ function TablaListarDetallesPreventasxVendedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -14581,7 +14582,7 @@ function TablaListarDetallesPreventasxVendedor()
    if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -14600,9 +14601,9 @@ function TablaListarDetallesPreventasxVendedor()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(30,8,'TIPO',1,0,'C', True);
-    $this->Cell(100,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(100,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(40,8,'MARCA',1,0,'C', True);
     $this->Cell(40,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DESC',1,0,'C', True);
@@ -14719,7 +14720,7 @@ function GuiaPreventaxFechas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($reg[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($reg[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -14730,23 +14731,23 @@ function GuiaPreventaxFechas()
 
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(190,14,'GUIA DE REMISI�N',0,0,'C');
+    $this->Cell(190,14,'GUIA DE REMISIÓN',0,0,'C');
 
     $this->Ln();
     $this->SetFont('courier','B',9);
     $this->SetTextColor(255,255,255); // Establece el color del texto (en este caso es Negro)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es GRIS)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(25,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N',1,0,'C', True);
-    $this->Cell(25,8,"PRESENTACI�N", 1, 0, 'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(25,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN',1,0,'C', True);
+    $this->Cell(25,8,"PRESENTACIÓN", 1, 0, 'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'CANTIDAD',1,1,'C', True);
-    ############################### BLOQUE N� 5 #####################################
+    ############################### BLOQUE Nº 5 #####################################
 
 
-    ############################### BLOQUE N� 6 #####################################
+    ############################### BLOQUE Nº 6 #####################################
     $cantidad = 0;
     $SubTotal = 0;
 
@@ -14769,7 +14770,7 @@ function GuiaPreventaxFechas()
         _u8d($modelo = ($reg[$i]["codmodelo"] == '' ? "*********" : $reg[$i]["nommodelo"])),
         _u8d($reg[$i]["cantidad"])));
     }
-    ############################### BLOQUE N� 6 #####################################
+    ############################### BLOQUE Nº 6 #####################################
 
     $this->Ln(12); 
     $this->SetFont('courier','B',10);
@@ -14797,7 +14798,7 @@ function GuiaPreventaxFechas2()
     $tra = new Login();
     $reg = $tra->BuscarProductosPreventas();
 
-    ######################### BLOQUE N� 1 ######################### 
+    ######################### BLOQUE Nº 1 ######################### 
    //Bloque de membrete principal
     $this->SetFillColor(229);
     $this->SetDrawColor(3,3,3);
@@ -14840,10 +14841,10 @@ function GuiaPreventaxFechas2()
     $this->SetFont('courier','',9);
     $this->SetXY(82, 28);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
-    ######################### BLOQUE N� 1 ######################### 
+    ######################### BLOQUE Nº 1 ######################### 
 
 
-    ############################### BLOQUE N� 2 ##################################### 
+    ############################### BLOQUE Nº 2 ##################################### 
     //Bloque de datos de chofer
     $this->SetFillColor(229);
     $this->SetDrawColor(3,3,3);
@@ -14861,7 +14862,7 @@ function GuiaPreventaxFechas2()
   //Linea de membrete Nro 3
     $this->SetFont('courier','B',9);
     $this->SetXY(12, 41);
-    $this->Cell(90, 5, 'RAZ�N SOC / NOMBRE Y APELLIDOS:', 0 , 0);
+    $this->Cell(90, 5, 'RAZÓN SOC / NOMBRE Y APELLIDOS:', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(78, 41);
     $this->Cell(90, 5,_u8d(""), 0 , 0);
@@ -14877,7 +14878,7 @@ function GuiaPreventaxFechas2()
      //Linea de membrete Nro 7
     $this->SetFont('courier','B',9);
     $this->SetXY(178, 45);
-    $this->Cell(20, 5, 'N� DE BULTOS :', 0 , 0);
+    $this->Cell(20, 5, 'Nº DE BULTOS :', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(210, 45);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
@@ -14905,10 +14906,10 @@ function GuiaPreventaxFechas2()
     $this->SetFont('courier','',9);
     $this->SetXY(220, 53);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
-    ############################### BLOQUE N� 2 ##################################### 
+    ############################### BLOQUE Nº 2 ##################################### 
 
 
-    ############################### BLOQUE N� 3 ##################################### 
+    ############################### BLOQUE Nº 3 ##################################### 
     //Bloque de datos de factura
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -14926,7 +14927,7 @@ function GuiaPreventaxFechas2()
     //Linea de membrete Nro 7
     $this->SetFont('courier','B',9);
     $this->SetXY(178, 63);
-    $this->Cell(20, 5, 'FECHA EMISI�N :', 0 , 0);
+    $this->Cell(20, 5, 'FECHA EMISIÓN :', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(210, 63);
     $this->Cell(20, 5,_u8d(date("d-m-Y")), 0 , 0);
@@ -14934,7 +14935,7 @@ function GuiaPreventaxFechas2()
     //Linea de membrete Nro 3
     $this->SetFont('courier','B',9);
     $this->SetXY(12, 67);
-    $this->Cell(70, 5, 'N�MERO DE AUTORIZACI�N:', 0 , 0);
+    $this->Cell(70, 5, 'NÚMERO DE AUTORIZACIÓN:', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(78, 67);
     $this->Cell(75, 5,_u8d(""), 0 , 0);
@@ -14966,7 +14967,7 @@ function GuiaPreventaxFechas2()
     //Linea de membrete Nro 5
     $this->SetFont('courier','B',9);
     $this->SetXY(12, 75);
-    $this->Cell(20, 5, 'RAZ�N SOC / NOMBRE Y APELLIDOS:', 0 , 0);
+    $this->Cell(20, 5, 'RAZÓN SOC / NOMBRE Y APELLIDOS:', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(78, 75);
     $this->Cell(20, 5,_u8d($reg[0]['nomencargado']), 0 , 0);
@@ -14995,10 +14996,10 @@ function GuiaPreventaxFechas2()
     $this->SetXY(78, 83);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
     
-    ############################### BLOQUE N� 3 #####################################
+    ############################### BLOQUE Nº 3 #####################################
 
 
-    ############################### BLOQUE N� 4 ##################################### 
+    ############################### BLOQUE Nº 4 ##################################### 
     //Bloque de membrete principal
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -15008,7 +15009,7 @@ function GuiaPreventaxFechas2()
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 16);
-    $this->Cell(20, 5, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
+    $this->Cell(20, 5, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
     $this->SetFont('courier','',14);
     $this->SetXY(295, 16);
     $this->Cell(20, 5,_u8d($reg[0]['cuitsucursal']), 0 , 0);
@@ -15016,12 +15017,12 @@ function GuiaPreventaxFechas2()
     //Linea de membrete Nro 1
     $this->SetFont('courier','B',18);
     $this->SetXY(258, 28);
-    $this->Cell(20, 5,"GUIA DE REMISI�N", 0 , 0);
+    $this->Cell(20, 5,"GUIA DE REMISIÓN", 0 , 0);
     
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 38);
-    $this->Cell(20, 5, 'N�:', 0 , 0);
+    $this->Cell(20, 5, 'Nº:', 0 , 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(268, 38);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
@@ -15032,12 +15033,12 @@ function GuiaPreventaxFechas2()
     $this->Cell(20, 5, 'AMBIENTE:', 0 , 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(286, 48);
-    $this->Cell(20, 5,"PRODUCCI�N", 0 , 0);
+    $this->Cell(20, 5,"PRODUCCIÓN", 0 , 0);
 
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 54);
-    $this->Cell(20, 5, 'EMISI�N:', 0 , 0);
+    $this->Cell(20, 5, 'EMISIÓN:', 0 , 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(286, 54);
     $this->Cell(20, 5,_u8d("NORMAL"), 0 , 0);
@@ -15045,17 +15046,17 @@ function GuiaPreventaxFechas2()
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 66);
-    $this->Cell(20, 5, 'CLAVE ACCESO - N� DE AUTORIZ:', 0 , 0);
+    $this->Cell(20, 5, 'CLAVE ACCESO - Nº DE AUTORIZ:', 0 , 0);
 
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 76);
     $this->Codabar(260,75,_u8d(""));
     $this->Ln(10);
-    ############################### BLOQUE N� 4 ##################################### 
+    ############################### BLOQUE Nº 4 ##################################### 
 
 
-    ############################### BLOQUE N� 5 ##################################### 
+    ############################### BLOQUE Nº 5 ##################################### 
     //Bloque Cuadro de Detalles de Productos
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -15066,17 +15067,17 @@ function GuiaPreventaxFechas2()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(3, 3, 3); // Establece el color del texto (en este caso es Negro)
     $this->SetFillColor(229, 229, 229); // establece el color del fondo de la celda (en este caso es GRIS)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(130,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
-    $this->Cell(45, 8,"PRESENTACI�N", 1, 0, 'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(130,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
+    $this->Cell(45, 8,"PRESENTACIÓN", 1, 0, 'C', True);
     $this->Cell(45,8,'MARCA',1,0,'C', True);
     $this->Cell(45,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'CANTIDAD',1,1,'C', True);
-    ############################### BLOQUE N� 5 #####################################
+    ############################### BLOQUE Nº 5 #####################################
 
 
-    ############################### BLOQUE N� 6 #####################################
+    ############################### BLOQUE Nº 6 #####################################
     $cantidad = 0;
     $SubTotal = 0;
 
@@ -15099,7 +15100,7 @@ function GuiaPreventaxFechas2()
         _u8d($modelo = ($reg[$i]["nommodelo"] == '' ? "*********" : $reg[$i]["nommodelo"])),
         _u8d($reg[$i]["cantidad"])));
     }
-    ############################### BLOQUE N� 6 #####################################  
+    ############################### BLOQUE Nº 6 #####################################  
 }
 ########################## FUNCION GUIA PREVENTA ##############################
 
@@ -15181,7 +15182,7 @@ function TablaListarCajas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -15224,7 +15225,7 @@ function TablaListarCajas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -15243,7 +15244,7 @@ function TablaListarCajas()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -15255,8 +15256,8 @@ function TablaListarCajas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE CAJA',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE CAJA',1,0,'C', True);
     $this->Cell(55,8,'NOMBRE DE CAJA',1,0,'C', True);
     $this->Cell(90,8,'RESPONSABLE',1,1,'C', True);
 
@@ -15329,7 +15330,7 @@ function TicketCierre()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',8);
-    $this->CellFitSpace(20,3,"CAJA N�:",0,0,'L');
+    $this->CellFitSpace(20,3,"CAJA Nº:",0,0,'L');
     $this->SetFont('Courier','B',8);
     $this->CellFitSpace(50,3,_u8d($reg[0]['nrocaja']."-".$reg[0]['nomcaja']),0,1,'L');
     
@@ -15341,7 +15342,7 @@ function TicketCierre()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',8);
-    $this->CellFitSpace(20,3,"FECHA EMISI�N:",0,0,'L');
+    $this->CellFitSpace(20,3,"FECHA EMISIÓN:",0,0,'L');
     $this->SetFont('Courier','B',8);
     $this->CellFitSpace(40,3,date("d-m-Y H:i:s"),0,1,'L');
 
@@ -15397,7 +15398,7 @@ function TicketCierre()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',8);
-    $this->CellFitSpace(34,3,"CR�DITOS:",0,0,'L');
+    $this->CellFitSpace(34,3,"CRÉDITOS:",0,0,'L');
     $this->SetFont('Courier',"B",8);
     $this->CellFitSpace(6,3,_u8d($simbolo),0,0,'R');
     $this->SetFont('Courier',"B",8);
@@ -15410,7 +15411,7 @@ function TicketCierre()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',10);
-    $this->CellFitSpace(70,3,"DESGLOSE EN ABONOS CR�DITOS",0,1,'C');
+    $this->CellFitSpace(70,3,"DESGLOSE EN ABONOS CRÉDITOS",0,1,'C');
     $this->Ln(1);
 
     $a=1;
@@ -15733,7 +15734,7 @@ function TablaListarArqueos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -15776,7 +15777,7 @@ function TablaListarArqueos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -15795,7 +15796,7 @@ function TablaListarArqueos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -15807,8 +15808,8 @@ function TablaListarArqueos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(76,8,'N� DE CAJA',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(76,8,'Nº DE CAJA',1,0,'C', True);
     $this->Cell(25,8,'INICIO',1,0,'C', True);
     $this->Cell(25,8,'CIERRE',1,0,'C', True);
     $this->Cell(20,8,'INICIAL',1,0,'C', True);
@@ -15903,7 +15904,7 @@ function TablaListarArqueosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -15946,7 +15947,7 @@ function TablaListarArqueosxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -15964,7 +15965,7 @@ function TablaListarArqueosxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -15973,7 +15974,7 @@ function TablaListarArqueosxFechas()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� DE CAJA: "._u8d($reg[0]['nrocaja'].": ".$reg[0]['nomcaja']),0,0,'L');
+    $this->Cell(335,6,"Nº DE CAJA: "._u8d($reg[0]['nrocaja'].": ".$reg[0]['nomcaja']),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"RESPONSABLE: ".portales(_u8d($reg[0]['nombres'])),0,0,'L');
     $this->Ln();
@@ -15985,7 +15986,7 @@ function TablaListarArqueosxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
     $this->Cell(40,8,'FECHA INICIO',1,0,'C', True);
     $this->Cell(40,8,'FECHA CIERRE',1,0,'C', True);
     $this->Cell(40,8,'MONTO INICIAL',1,0,'C', True);
@@ -16066,7 +16067,7 @@ function TicketMovimiento()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',9);
-    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "N� ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
+    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "Nº ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
 
     if($reg[0]['id_departamento']!='0'){
 
@@ -16081,10 +16082,10 @@ function TicketMovimiento()
     $this->CellFitSpace(70,3,"EMAIL: "._u8d($reg[0]['correosucursal']),0,1,'C');
 
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCI�N",0,1,'C');
+    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCIÓN",0,1,'C');
     
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"EMISI�N: NORMAL",0,1,'C');
+    $this->CellFitSpace(70,3,"EMISIÓN: NORMAL",0,1,'C');
     //######################### BLOQUE DATOS DE SUCURSAL #############################
 
     $this->SetX(2);
@@ -16147,7 +16148,7 @@ function TicketMovimiento()
     $this->SetX(2);
     $this->SetFont('Courier','B',10);
     $this->SetFillColor(2,157,116);
-    $this->Cell(70, 5,"DESCRIPCI�N DE MOVIMIENTO", 0, 0, 'L');
+    $this->Cell(70, 5,"DESCRIPCIÓN DE MOVIMIENTO", 0, 0, 'L');
     $this->Ln(5);
 
     $this->SetX(2);
@@ -16213,7 +16214,7 @@ function TablaListarMovimientos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -16256,7 +16257,7 @@ function TablaListarMovimientos()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -16275,7 +16276,7 @@ function TablaListarMovimientos()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -16287,10 +16288,10 @@ function TablaListarMovimientos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(40,8,'N� DE CAJA',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE CAJA',1,0,'C', True);
     $this->Cell(20,8,'TIPO',1,0,'C', True);
-    $this->Cell(55,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(55,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(30,8,'MONTO',1,0,'C', True);
     $this->Cell(35,8,'MEDIO',1,1,'C', True);
 
@@ -16369,7 +16370,7 @@ function TablaListarMovimientosxFechas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -16412,7 +16413,7 @@ function TablaListarMovimientosxFechas()
 
     $this->Ln();
     $this->Cell(55,5,"",0,0,'C');
-    $this->CellFitSpace(80,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->CellFitSpace(80,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(55,5,"",0,0,'C');
 
     $this->Ln();
@@ -16431,7 +16432,7 @@ function TablaListarMovimientosxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(190,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(190,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -16440,7 +16441,7 @@ function TablaListarMovimientosxFechas()
     }
 
     $this->Ln();
-    $this->Cell(190,6,"N� DE CAJA: "._u8d($reg[0]['nrocaja'].": ".$reg[0]['nomcaja']),0,0,'L');
+    $this->Cell(190,6,"Nº DE CAJA: "._u8d($reg[0]['nrocaja'].": ".$reg[0]['nomcaja']),0,0,'L');
     $this->Ln();
     $this->Cell(190,6,"RESPONSABLE: ".portales(_u8d($reg[0]['nombres'])),0,0,'L');
     $this->Ln();
@@ -16453,9 +16454,9 @@ function TablaListarMovimientosxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(10,8,'N�',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
     $this->Cell(20,8,'TIPO',1,0,'C', True);
-    $this->Cell(75,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(75,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(40,8,'MONTO',1,0,'C', True);
     $this->Cell(45,8,'MEDIO',1,1,'C', True);
 
@@ -16545,7 +16546,7 @@ function TablaListarGananciasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -16588,7 +16589,7 @@ function TablaListarGananciasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -16607,7 +16608,7 @@ function TablaListarGananciasxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -16624,9 +16625,9 @@ function TablaListarGananciasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE PRODUCTO',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE PRODUCTO',1,0,'C', True);
     $this->Cell(30,8,'MARCA',1,0,'C', True);
     $this->Cell(30,8,'MODELO',1,0,'C', True);
     $this->Cell(15,8,'DCTO %',1,0,'C', True);
@@ -16813,7 +16814,7 @@ function NotaVenta()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',9);
-    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "N� ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
+    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "Nº ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
 
     if($reg[0]['id_departamento']!='0'){
 
@@ -16828,10 +16829,10 @@ function NotaVenta()
     $this->CellFitSpace(70,3,"OBLIGADO A LLEVAR CONTABILIDAD: "._u8d($reg[0]['llevacontabilidad']),0,1,'C');
 
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCI�N",0,1,'C');
+    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCIÓN",0,1,'C');
     
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"EMISI�N: NORMAL",0,1,'C');
+    $this->CellFitSpace(70,3,"EMISIÓN: NORMAL",0,1,'C');
 
 
     $this->SetX(2);
@@ -16849,7 +16850,7 @@ function NotaVenta()
 
     $this->SetX(2);
     $this->SetFont('Courier','B',9);
-    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "N� DOC:" : "N� ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
+    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "Nº DOC:" : "Nº ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
 
     $this->SetX(2);
     $this->SetFont('Courier','B',9);
@@ -16931,7 +16932,7 @@ function NotaVenta()
     if($detalle[$i]["imei"] != ""){
     $this->SetX(2);
     $this->SetFont('Courier','',6);
-    $this->MultiCell(70,3,"N� DE IMEI: ".portales(_u8d($detalle[$i]["imei"])),0,1,'');
+    $this->MultiCell(70,3,"Nº DE IMEI: ".portales(_u8d($detalle[$i]["imei"])),0,1,'');
     }
     //$this->CellFitSpace(70,3,portales(_u8d(getSubString($detalle[$i]["producto"], 55))),0,1,'J');
 
@@ -17113,10 +17114,10 @@ function FacturaVenta()
     $this->MultiCell(100,5,$this->SetFont($TipoLetra,'B',10).portales(_u8d($reg[0]['direcsucursal'])),0,'L');
 
     $this->SetX(7);
-    $this->CellFitSpace(100, 5,'N� ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
+    $this->CellFitSpace(100, 5,'Nº ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
 
     $this->SetX(7);
-    $this->CellFitSpace(100, 5,'N� TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
+    $this->CellFitSpace(100, 5,'Nº TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
 
     $this->SetX(7);
     $this->CellFitSpace(100, 5,_u8d($reg[0]['correosucursal']), 0,1);
@@ -17137,32 +17138,32 @@ function FacturaVenta()
 
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(110, 14);
-    $this->Cell(38, 5, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->Cell(38, 5, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetXY(148, 14);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetXY(110, 19);
     $this->SetFont($TipoLetra,'B',12);
-    $this->Cell(38, 5, 'N� DE FACTURA:', 0, 0);
+    $this->Cell(38, 5, 'Nº DE FACTURA:', 0, 0);
     $this->SetXY(148, 19);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['codfactura']), 0, 0);
 
     $this->SetXY(110, 24);
     $this->SetFont($TipoLetra,'B',12);
-    $this->Cell(38, 5, 'N� DE SERIE:', 0, 0);
+    $this->Cell(38, 5, 'Nº DE SERIE:', 0, 0);
     $this->SetXY(148, 24);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['codserie']), 0, 0);
 
     $this->SetXY(110, 29);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(93, 5,'N� DE AUTORIZACI�N', 0, 0);
+    $this->Cell(93, 5,'Nº DE AUTORIZACIÓN', 0, 0);
     $this->SetXY(110, 34);
     $this->SetFont($TipoLetra,'B',9);
     $this->CellFitSpace(93, 5,_u8d($reg[0]['codautorizacion']), 0, 0);
 
     $this->SetXY(110, 39);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(93, 5,"FECHA DE AUTORIZACI�N:", 0, 0);
+    $this->Cell(93, 5,"FECHA DE AUTORIZACIÓN:", 0, 0);
 
     $this->SetXY(110, 44);
     $this->CellFitSpace(93, 5,_u8d($fecha = ($reg[0]['fechaautorsucursal'] == '0000-00-00' ? "" : date("d/m/Y",strtotime($reg[0]['fechaautorsucursal'])))), 0, 0);
@@ -17177,11 +17178,11 @@ function FacturaVenta()
     $this->SetFont($TipoLetra,'B',10);
     $this->Cell(38, 5,'AMBIENTE: ', 0, 0);
     $this->SetXY(148, 54);
-    $this->Cell(55, 5,'PRODUCCI�N', 0, 0);
+    $this->Cell(55, 5,'PRODUCCIÓN', 0, 0);
 
     $this->SetXY(110, 59);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(38, 5,'EMISI�N: ', 0, 0);
+    $this->Cell(38, 5,'EMISIÓN: ', 0, 0);
     $this->SetXY(148, 59);
     $this->Cell(55, 5,'NORMAL', 0, 0);
     //######################### BLOQUE DATOS DE FACTURA #############################
@@ -17194,19 +17195,19 @@ function FacturaVenta()
 
     $this->SetXY(7,65);
     $this->SetFont($TipoLetra,'B',11);
-    $this->CellFitSpace(196, 5,'RAZ�N SOCIAL: '._u8d($reg[0]['nomcliente']), 0, 1);
+    $this->CellFitSpace(196, 5,'RAZÓN SOCIAL: '._u8d($reg[0]['nomcliente']), 0, 1);
     
     $this->SetX(7);
-    $this->CellFitSpace(98, 5,"N� ".$documento = ($reg[0]['documcliente'] == "" ? "DOC: " : $reg[0]['documento3'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['dnicliente']), 0, 0);
+    $this->CellFitSpace(98, 5,"Nº ".$documento = ($reg[0]['documcliente'] == "" ? "DOC: " : $reg[0]['documento3'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['dnicliente']), 0, 0);
 
-    $this->CellFitSpace(98, 5,"N� TLF: "._u8d($reg[0]['tlfcliente'] == "" ? "**********" : $reg[0]['tlfcliente']), 0, 1);
+    $this->CellFitSpace(98, 5,"Nº TLF: "._u8d($reg[0]['tlfcliente'] == "" ? "**********" : $reg[0]['tlfcliente']), 0, 1);
     
     $this->SetX(7);
     $this->CellFitSpace(98, 5,"GIRO: "._u8d($reg[0]['girocliente'] == "" ? "**********" : $reg[0]['girocliente']), 0, 0);
     $this->CellFitSpace(98, 5,"CORREO: ".$var = ($reg[0]['emailcliente'] == '' ? "**********" : $reg[0]['emailcliente']), 0, 1);
 
     $this->SetX(7);
-    $this->CellFitSpace(196, 5,"DIRECCI�N: "._u8d($reg[0]['direccliente'] == "" ? "**********" : $reg[0]['direccliente']), 0, 1);
+    $this->CellFitSpace(196, 5,"DIRECCIÓN: "._u8d($reg[0]['direccliente'] == "" ? "**********" : $reg[0]['direccliente']), 0, 1);
     //######################### BLOQUE DATOS DE CLIENTE #############################
 
     //######################### BLOQUE DATOS DE PRODUCTOS #############################
@@ -17215,8 +17216,8 @@ function FacturaVenta()
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(10,5,'N�',1,0,'C', True);
-    $this->Cell(106,5,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(10,5,'Nº',1,0,'C', True);
+    $this->Cell(106,5,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(25,5,'CANTIDAD',1,0,'C', True);
     $this->Cell(25,5,'PRECIO',1,0,'C', True);
     $this->Cell(30,5,'IMPORTE',1,1,'C', True);
@@ -17252,7 +17253,7 @@ function FacturaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'INFORMACI�N ADICIONAL',1,0,'C');
+    $this->CellFitSpace(110,5,'INFORMACIÓN ADICIONAL',1,0,'C');
     $this->Cell(2,4,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(40,5,"SUBTOTAL:",1,0,'L', True);
@@ -17265,7 +17266,7 @@ function FacturaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'N� DE CAJA: '._u8d($caja = ($reg[0]['codcaja'] == "0" ? "********" : $reg[0]['nrocaja']."-".$reg[0]['nomcaja'])),1,0,'L');
+    $this->CellFitSpace(110,5,'Nº DE CAJA: '._u8d($caja = ($reg[0]['codcaja'] == "0" ? "********" : $reg[0]['nrocaja']."-".$reg[0]['nomcaja'])),1,0,'L');
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,"GRAVADO (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
     $this->CellFitSpace(44,5,$simbolo.number_format($reg[0]["subtotalivasi"], 2, '.', ','),1,0,'R');
@@ -17289,7 +17290,7 @@ function FacturaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'FECHA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(110,5,'FECHA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,$impuesto == '' ? "IMPUESTO" : "".$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -17302,7 +17303,7 @@ function FacturaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'CONDICI�N DE PAGO: '._u8d($reg[0]['tipopago'])."          "._u8d($reg[0]['tipopago'] == 'CONTADO' ? "" : "VENCIMIENTO: ".date("d-m-Y",strtotime($reg[0]['fechavencecredito']))),1,0,'L');
+    $this->CellFitSpace(110,5,'CONDICIÓN DE PAGO: '._u8d($reg[0]['tipopago'])."          "._u8d($reg[0]['tipopago'] == 'CONTADO' ? "" : "VENCIMIENTO: ".date("d-m-Y",strtotime($reg[0]['fechavencecredito']))),1,0,'L');
 
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,"DESCONTADO %:",1,0,'L', True);
@@ -17384,10 +17385,10 @@ function FacturaVenta2()
     $this->CellFitSpace(42, 3,$reg[0]['direcsucursal'], 0,1);
 
     $this->SetX(5);
-    $this->CellFitSpace(42, 3,'N� DE ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
+    $this->CellFitSpace(42, 3,'Nº DE ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
 
     $this->SetX(5);
-    $this->CellFitSpace(42, 3,'N� TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
+    $this->CellFitSpace(42, 3,'Nº TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
 
     $this->SetX(5);
     $this->CellFitSpace(42, 3,_u8d($reg[0]['correosucursal']), 0,1);
@@ -17408,31 +17409,31 @@ function FacturaVenta2()
 
     $this->SetFont('Courier','B',7);
     $this->SetXY(48, 7);
-    $this->Cell(5, 7, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
+    $this->Cell(5, 7, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
     $this->SetXY(78, 7);
     $this->CellFitSpace(28, 7,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetXY(48, 10);
     $this->SetFont('Courier','B',8);
-    $this->Cell(5, 7, 'N� DE FACTURA', 0 , 0);
+    $this->Cell(5, 7, 'Nº DE FACTURA', 0 , 0);
     $this->SetXY(78, 10);
     $this->CellFitSpace(28, 7,_u8d($reg[0]['codfactura']), 0, 0);
 
     $this->SetXY(48, 13);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'N�MERO DE AUTORIZACI�N:', 0, 0);
+    $this->Cell(5, 7,'NÚMERO DE AUTORIZACIÓN:', 0, 0);
     $this->SetXY(48, 16);
     $this->CellFitSpace(56, 7,_u8d($reg[0]['codautorizacion']), 0, 0);
 
     $this->SetXY(48, 19);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'N�MERO DE SERIE:', 0, 0);
+    $this->Cell(5, 7,'NÚMERO DE SERIE:', 0, 0);
     $this->SetXY(48, 22);
     $this->CellFitSpace(56, 7,_u8d($reg[0]['codserie']), 0, 0);
 
     $this->SetXY(48, 25);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,"FECHA DE AUTORIZACI�N:", 0, 0);
+    $this->Cell(5, 7,"FECHA DE AUTORIZACIÓN:", 0, 0);
     $this->SetXY(78, 25);
     $this->Cell(28, 7,$fecha = ($reg[0]['fechaautorsucursal'] == '0000-00-00' ? "" : date("d-m-Y",strtotime($reg[0]['fechaautorsucursal']))), 0, 0);
 
@@ -17447,11 +17448,11 @@ function FacturaVenta2()
     $this->SetFont('Courier','B',6);
     $this->Cell(5, 7,'AMBIENTE: ', 0 , 0);
     $this->SetXY(78, 31);
-    $this->Cell(28, 7,'PRODUCCI�N', 0 , 0);
+    $this->Cell(28, 7,'PRODUCCIÓN', 0 , 0);
 
     $this->SetXY(48, 34);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'EMISI�N: ', 0 , 0);
+    $this->Cell(5, 7,'EMISIÓN: ', 0 , 0);
     $this->SetXY(78, 34);
     $this->Cell(28, 7,'NORMAL', 0 , 0);
      
@@ -17462,12 +17463,12 @@ function FacturaVenta2()
     $this->SetFont('Courier','B',6);
 
     $this->SetXY(6, 40.2);
-    $this->CellFitSpace(66, 5,'RAZ�N SOCIAL: '._u8d($reg[0]['codcliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['nomcliente']), 0, 0);
-    $this->CellFitSpace(32, 5,'N� DE '.$documento = ($reg[0]['documcliente'] == '' ? "DOC: " : $reg[0]['documento'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "**********" : $reg[0]['dnicliente']), 0, 0);
+    $this->CellFitSpace(66, 5,'RAZÓN SOCIAL: '._u8d($reg[0]['codcliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['nomcliente']), 0, 0);
+    $this->CellFitSpace(32, 5,'Nº DE '.$documento = ($reg[0]['documcliente'] == '' ? "DOC: " : $reg[0]['documento'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "**********" : $reg[0]['dnicliente']), 0, 0);
 
     $this->SetXY(6, 43.2);
-    $this->CellFitSpace(66, 5,'DIRECCI�N: '._u8d($reg[0]['direccliente'] == '' ? "**********" : $reg[0]['direccliente']), 0, 0);
-    $this->CellFitSpace(32, 5,'N� DE TLF: '.($reg[0]['tlfcliente'] == '' ? "**********" : $reg[0]['tlfcliente']), 0, 0);
+    $this->CellFitSpace(66, 5,'DIRECCIÓN: '._u8d($reg[0]['direccliente'] == '' ? "**********" : $reg[0]['direccliente']), 0, 0);
+    $this->CellFitSpace(32, 5,'Nº DE TLF: '.($reg[0]['tlfcliente'] == '' ? "**********" : $reg[0]['tlfcliente']), 0, 0);
 
     $this->SetXY(6, 46.2);
     $this->CellFitSpace(92, 5,'EMAIL: '._u8d($reg[0]['emailcliente'] == '' ? "**********" : $reg[0]['emailcliente']), 0, 0);
@@ -17477,8 +17478,8 @@ function FacturaVenta2()
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(5,3,'N�',1,0,'C', True);
-    $this->Cell(50,3,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(5,3,'Nº',1,0,'C', True);
+    $this->Cell(50,3,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(12,3,'CANTIDAD',1,0,'C', True);
     $this->Cell(14,3,'PRECIO',1,0,'C', True);
     $this->Cell(19,3,'IMPORTE',1,1,'C', True);
@@ -17513,7 +17514,7 @@ function FacturaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',8);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'INFORMACI�N ADICIONAL',1,0,'C');
+    $this->CellFitSpace(59,3.5,'INFORMACIÓN ADICIONAL',1,0,'C');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->SetFont('Courier','B',6);
     $this->CellFitSpace(20,3.5,'SUBTOTAL ',1,0,'L', True);
@@ -17526,7 +17527,7 @@ function FacturaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'N� DE CAJA: '._u8d($reg[0]['nrocaja']."-".$reg[0]['nomcaja']),1,0,'L');
+    $this->CellFitSpace(59,3.5,'Nº DE CAJA: '._u8d($reg[0]['nrocaja']."-".$reg[0]['nomcaja']),1,0,'L');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,'GRAVADO ('.number_format($reg[0]["iva"], 2, '.', ',').'%):',1,0,'L', True);
     $this->CellFitSpace(19,3.5,$simbolo.number_format($reg[0]["subtotalivasi"], 2, '.', ','),1,0,'R');
@@ -17550,7 +17551,7 @@ function FacturaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'FECHA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(59,3.5,'FECHA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,$impuesto == '' ? "IMPUESTO" : "".$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -17563,7 +17564,7 @@ function FacturaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'CONDICI�N DE PAGO: '._u8d($reg[0]['tipopago']),1,0,'L');
+    $this->CellFitSpace(59,3.5,'CONDICIÓN DE PAGO: '._u8d($reg[0]['tipopago']),1,0,'L');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,'DESCONTADO %:',1,0,'L', True);
     $this->CellFitSpace(19,3.5,$simbolo.number_format($reg[0]["descontado"], 2, '.', ','),1,0,'R');
@@ -17615,7 +17616,7 @@ function GuiaVenta()
     $reg = $tra->VentasPorId();
     $simbolo = ($reg[0]['simbolo'] == "" ? "" : $reg[0]['simbolo']); 
 
-    ######################### BLOQUE N� 1 ######################### 
+    ######################### BLOQUE Nº 1 ######################### 
    //Bloque de membrete principal
     $this->SetFillColor(229);
     $this->SetDrawColor(3,3,3);
@@ -17658,9 +17659,9 @@ function GuiaVenta()
     $this->SetFont('courier','',9);
     $this->SetXY(82, 28);
     $this->Cell(20, 5,_u8d($reg[0]['llevacontabilidad']), 0 , 0);
-    ######################### BLOQUE N� 1 ######################### 
+    ######################### BLOQUE Nº 1 ######################### 
 
-    ############################### BLOQUE N� 2 ##################################### 
+    ############################### BLOQUE Nº 2 ##################################### 
     //Bloque de datos de chofer
     $this->SetFillColor(229);
     $this->SetDrawColor(3,3,3);
@@ -17678,7 +17679,7 @@ function GuiaVenta()
     //Linea de membrete Nro 3
     $this->SetFont('courier','B',9);
     $this->SetXY(12, 41);
-    $this->Cell(90, 5, 'RAZ�N SOC / NOMBRE Y APELLIDOS:', 0 , 0);
+    $this->Cell(90, 5, 'RAZÓN SOC / NOMBRE Y APELLIDOS:', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(78, 41);
     $this->Cell(90, 5,_u8d(""), 0 , 0);
@@ -17694,7 +17695,7 @@ function GuiaVenta()
     //Linea de membrete Nro 7
     $this->SetFont('courier','B',9);
     $this->SetXY(178, 45);
-    $this->Cell(20, 5, 'N� DE BULTOS :', 0 , 0);
+    $this->Cell(20, 5, 'Nº DE BULTOS :', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(210, 45);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
@@ -17722,9 +17723,9 @@ function GuiaVenta()
     $this->SetFont('courier','',9);
     $this->SetXY(220, 53);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
-    ############################### BLOQUE N� 2 ##################################### 
+    ############################### BLOQUE Nº 2 ##################################### 
 
-    ############################### BLOQUE N� 3 ##################################### 
+    ############################### BLOQUE Nº 3 ##################################### 
     //Bloque de datos de factura
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -17742,7 +17743,7 @@ function GuiaVenta()
     //Linea de membrete Nro 7
     $this->SetFont('courier','B',9);
     $this->SetXY(178, 63);
-    $this->Cell(20, 5, 'FECHA EMISI�N :', 0 , 0);
+    $this->Cell(20, 5, 'FECHA EMISIÓN :', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(210, 63);
     $this->Cell(20, 5,_u8d(date("d-m-Y")), 0 , 0);
@@ -17750,7 +17751,7 @@ function GuiaVenta()
     //Linea de membrete Nro 3
     $this->SetFont('courier','B',9);
     $this->SetXY(12, 67);
-    $this->Cell(70, 5, 'N�MERO DE AUTORIZACI�N:', 0 , 0);
+    $this->Cell(70, 5, 'NÚMERO DE AUTORIZACIÓN:', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(78, 67);
     $this->Cell(75, 5,_u8d($reg[0]['codautorizacion']), 0 , 0);
@@ -17782,7 +17783,7 @@ function GuiaVenta()
     //Linea de membrete Nro 5
     $this->SetFont('courier','B',9);
     $this->SetXY(12, 75);
-    $this->Cell(20, 5, 'RAZ�N SOC / NOMBRE Y APELLIDOS:', 0 , 0);
+    $this->Cell(20, 5, 'RAZÓN SOC / NOMBRE Y APELLIDOS:', 0 , 0);
     $this->SetFont('courier','',9);
     $this->SetXY(78, 75);
     $this->Cell(20, 5,_u8d($reg[0]['nomencargado']), 0 , 0);
@@ -17810,9 +17811,9 @@ function GuiaVenta()
     $this->SetFont('courier','B',9);
     $this->SetXY(78, 83);
     $this->Cell(20, 5,_u8d(""), 0 , 0);
-    ############################### BLOQUE N� 3 #####################################
+    ############################### BLOQUE Nº 3 #####################################
 
-    ############################### BLOQUE N� 4 ##################################### 
+    ############################### BLOQUE Nº 4 ##################################### 
     //Bloque de membrete principal
     $this->SetFillColor(192);
     $this->SetDrawColor(3,3,3);
@@ -17822,7 +17823,7 @@ function GuiaVenta()
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 16);
-    $this->Cell(20, 5, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
+    $this->Cell(20, 5, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
     $this->SetFont('courier','',14);
     $this->SetXY(295, 16);
     $this->Cell(20, 5,_u8d($reg[0]['cuitsucursal']), 0 , 0);
@@ -17830,12 +17831,12 @@ function GuiaVenta()
     //Linea de membrete Nro 1
     $this->SetFont('courier','B',18);
     $this->SetXY(258, 28);
-    $this->Cell(20, 5,"GUIA DE REMISI�N", 0 , 0);
+    $this->Cell(20, 5,"GUIA DE REMISIÓN", 0 , 0);
     
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 38);
-    $this->Cell(20, 5, 'N�:', 0 , 0);
+    $this->Cell(20, 5, 'Nº:', 0 , 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(268, 38);
     $this->Cell(20, 5,_u8d($reg[0]['codfactura']), 0 , 0);
@@ -17846,12 +17847,12 @@ function GuiaVenta()
     $this->Cell(20, 5, 'AMBIENTE:', 0 , 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(286, 48);
-    $this->Cell(20, 5,"PRODUCCI�N", 0 , 0);
+    $this->Cell(20, 5,"PRODUCCIÓN", 0 , 0);
 
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 54);
-    $this->Cell(20, 5, 'EMISI�N:', 0 , 0);
+    $this->Cell(20, 5, 'EMISIÓN:', 0 , 0);
     $this->SetFont('courier','B',14);
     $this->SetXY(286, 54);
     $this->Cell(20, 5,_u8d("NORMAL"), 0 , 0);
@@ -17859,24 +17860,24 @@ function GuiaVenta()
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 66);
-    $this->Cell(20, 5, 'CLAVE ACCESO - N� DE AUTORIZ:', 0 , 0);
+    $this->Cell(20, 5, 'CLAVE ACCESO - Nº DE AUTORIZ:', 0 , 0);
 
     //Linea de membrete Nro 2
     $this->SetFont('courier','B',14);
     $this->SetXY(258, 76);
     $this->Codabar(260,75,_u8d($reg[0]['codautorizacion']));
     $this->Ln(10);
-    ############################### BLOQUE N� 4 ##################################### 
+    ############################### BLOQUE Nº 4 ##################################### 
 
-    ############################### BLOQUE N� 5 ##################################### 
+    ############################### BLOQUE Nº 5 ##################################### 
     //Bloque Cuadro de Detalles de Productos
     $this->Ln(6);
     $this->SetFont('courier','B',9);
     $this->SetTextColor(3, 3, 3); // Establece el color del texto (en este caso es Negro)
     $this->SetFillColor(229, 229, 229); // establece el color del fondo de la celda (en este caso es GRIS)
-    $this->Cell(10,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'C�DIGO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(10,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'CÓDIGO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(20,8,'MARCA',1,0,'C', True);
     $this->Cell(20,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'CANTIDAD',1,0,'C', True);
@@ -17886,9 +17887,9 @@ function GuiaVenta()
     $this->Cell(20, 8,$impuesto, 1, 0, 'C', True);
     $this->Cell(30, 8,"VALOR/NETO", 1, 0, 'C', True);
     $this->Cell(35,8,'TIPO',1,1,'C', True);
-    ############################### BLOQUE N� 5 #####################################
+    ############################### BLOQUE Nº 5 #####################################
 
-    ############################### BLOQUE N� 6 #####################################
+    ############################### BLOQUE Nº 6 #####################################
     $tra = new Login();
     $detalle = $tra->VerDetallesVentas();
     $cantidad = 0;
@@ -17921,16 +17922,16 @@ function GuiaVenta()
         _u8d($simbolo.number_format($detalle[$i]['valorneto'], 2, '.', ',')),
         _u8d($modelo = ($detalle[$i]["codpresentacion"] == '0' ? "*********" : $detalle[$i]["nompresentacion"]))));
     }
-    ############################### BLOQUE N� 6 #####################################
+    ############################### BLOQUE Nº 6 #####################################
 
-    ########################### BLOQUE N� 6 #############################
+    ########################### BLOQUE Nº 6 #############################
     $this->Ln();
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
     $this->SetDrawColor(3,3,3);
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',14);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(220,5,'INFORMACI�N ADICIONAL',1,0,'C', True);
+    $this->CellFitSpace(220,5,'INFORMACIÓN ADICIONAL',1,0,'C', True);
     $this->Cell(5,5,"",0,0,'C');
     $this->SetFont('Courier','B',10);
     $this->CellFitSpace(50,5,'SUBTOTAL ',1,0,'L', True);
@@ -17953,7 +17954,7 @@ function GuiaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(220,5,'TIPO DE DOCUMENTO: GUIA DE REMISI�N',1,0,'L');
+    $this->CellFitSpace(220,5,'TIPO DE DOCUMENTO: GUIA DE REMISIÓN',1,0,'L');
     $this->Cell(5,5,"",0,0,'C');
     $this->CellFitSpace(50,5,'EXENTO (0%):',1,0,'L', True);
     $this->CellFitSpace(60,5,$simbolo.number_format($reg[0]["subtotalivano"], 2, '.', ','),1,0,'R');
@@ -18007,7 +18008,7 @@ function GuiaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(220,5,'FECHA DE EMISI�N: '.date("d-m-Y"),1,0,'L');
+    $this->Cell(220,5,'FECHA DE EMISIÓN: '.date("d-m-Y"),1,0,'L');
     $this->Cell(5,5,"",0,0,'C');
     $this->SetFont('Courier','B',10);
     $this->Cell(50,5,'IMPORTE TOTAL::',1,0,'L', True);
@@ -18019,7 +18020,7 @@ function GuiaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->Cell(220,5,'HORA DE EMISI�N: '.date("H:i:s"),1,0,'L');
+    $this->Cell(220,5,'HORA DE EMISIÓN: '.date("H:i:s"),1,0,'L');
     $this->Cell(5,5,"",0,0,'C');
     $this->SetFont('Courier','B',10);
     $this->Cell(50,5,' ',1,0,'L', True);
@@ -18031,7 +18032,7 @@ function GuiaVenta()
     $this->SetFont('courier','B',10);
     $this->MultiCell(330,5,$this->SetFont('Courier','B',10).'OBSERVACIONES: '._u8d($reg[0]['observaciones'] == '' ? "**********" : $reg[0]['observaciones']),0,'J');
     }
-    ################################# BLOQUE N� 6 #######################################     
+    ################################# BLOQUE Nº 6 #######################################     
 }
 ########################## FUNCION GUIA VENTA ##############################
 
@@ -18075,10 +18076,10 @@ function BoletaVenta()
     $this->MultiCell(100,5,$this->SetFont($TipoLetra,'B',10).portales(_u8d($reg[0]['direcsucursal'])),0,'L');
 
     $this->SetX(7);
-    $this->CellFitSpace(100, 5,'N� ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
+    $this->CellFitSpace(100, 5,'Nº ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
 
     $this->SetX(7);
-    $this->CellFitSpace(100, 5,'N� TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
+    $this->CellFitSpace(100, 5,'Nº TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
 
     $this->SetX(7);
     $this->CellFitSpace(100, 5,_u8d($reg[0]['correosucursal']), 0,1);
@@ -18099,32 +18100,32 @@ function BoletaVenta()
 
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(110, 14);
-    $this->Cell(38, 5, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->Cell(38, 5, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetXY(148, 14);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetXY(110, 19);
     $this->SetFont($TipoLetra,'B',12);
-    $this->Cell(38, 5, 'N� DE BOLETA:', 0, 0);
+    $this->Cell(38, 5, 'Nº DE BOLETA:', 0, 0);
     $this->SetXY(148, 19);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['codfactura']), 0, 0);
 
     $this->SetXY(110, 24);
     $this->SetFont($TipoLetra,'B',12);
-    $this->Cell(38, 5, 'N� DE SERIE:', 0, 0);
+    $this->Cell(38, 5, 'Nº DE SERIE:', 0, 0);
     $this->SetXY(148, 24);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['codserie']), 0, 0);
 
     $this->SetXY(110, 29);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(93, 5,'N� DE AUTORIZACI�N', 0, 0);
+    $this->Cell(93, 5,'Nº DE AUTORIZACIÓN', 0, 0);
     $this->SetXY(110, 34);
     $this->SetFont($TipoLetra,'B',9);
     $this->CellFitSpace(93, 5,_u8d($reg[0]['codautorizacion']), 0, 0);
 
     $this->SetXY(110, 39);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(93, 5,"FECHA DE AUTORIZACI�N:", 0, 0);
+    $this->Cell(93, 5,"FECHA DE AUTORIZACIÓN:", 0, 0);
 
     $this->SetXY(110, 44);
     $this->CellFitSpace(93, 5,_u8d($fecha = ($reg[0]['fechaautorsucursal'] == '0000-00-00' ? "" : date("d/m/Y",strtotime($reg[0]['fechaautorsucursal'])))), 0, 0);
@@ -18139,11 +18140,11 @@ function BoletaVenta()
     $this->SetFont($TipoLetra,'B',10);
     $this->Cell(38, 5,'AMBIENTE: ', 0, 0);
     $this->SetXY(148, 54);
-    $this->Cell(55, 5,'PRODUCCI�N', 0, 0);
+    $this->Cell(55, 5,'PRODUCCIÓN', 0, 0);
 
     $this->SetXY(110, 59);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(38, 5,'EMISI�N: ', 0, 0);
+    $this->Cell(38, 5,'EMISIÓN: ', 0, 0);
     $this->SetXY(148, 59);
     $this->Cell(55, 5,'NORMAL', 0, 0);
     //######################### BLOQUE DATOS DE FACTURA #############################
@@ -18156,19 +18157,19 @@ function BoletaVenta()
 
     $this->SetXY(7,65);
     $this->SetFont($TipoLetra,'B',11);
-    $this->CellFitSpace(196, 5,'RAZ�N SOCIAL: '._u8d($reg[0]['nomcliente']), 0, 1);
+    $this->CellFitSpace(196, 5,'RAZÓN SOCIAL: '._u8d($reg[0]['nomcliente']), 0, 1);
     
     $this->SetX(7);
-    $this->CellFitSpace(98, 5,"N� ".$documento = ($reg[0]['documcliente'] == "" ? "DOC: " : $reg[0]['documento3'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['dnicliente']), 0, 0);
+    $this->CellFitSpace(98, 5,"Nº ".$documento = ($reg[0]['documcliente'] == "" ? "DOC: " : $reg[0]['documento3'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['dnicliente']), 0, 0);
 
-    $this->CellFitSpace(98, 5,"N� TLF: "._u8d($reg[0]['tlfcliente'] == "" ? "**********" : $reg[0]['tlfcliente']), 0, 1);
+    $this->CellFitSpace(98, 5,"Nº TLF: "._u8d($reg[0]['tlfcliente'] == "" ? "**********" : $reg[0]['tlfcliente']), 0, 1);
     
     $this->SetX(7);
     $this->CellFitSpace(98, 5,"GIRO: "._u8d($reg[0]['girocliente'] == "" ? "**********" : $reg[0]['girocliente']), 0, 0);
     $this->CellFitSpace(98, 5,"CORREO: ".$var = ($reg[0]['emailcliente'] == '' ? "**********" : $reg[0]['emailcliente']), 0, 1);
 
     $this->SetX(7);
-    $this->CellFitSpace(196, 5,"DIRECCI�N: "._u8d($reg[0]['direccliente'] == "" ? "**********" : $reg[0]['direccliente']), 0, 1);
+    $this->CellFitSpace(196, 5,"DIRECCIÓN: "._u8d($reg[0]['direccliente'] == "" ? "**********" : $reg[0]['direccliente']), 0, 1);
     //######################### BLOQUE DATOS DE CLIENTE #############################
 
     //######################### BLOQUE DATOS DE PRODUCTOS #############################
@@ -18177,8 +18178,8 @@ function BoletaVenta()
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(10,5,'N�',1,0,'C', True);
-    $this->Cell(106,5,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(10,5,'Nº',1,0,'C', True);
+    $this->Cell(106,5,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(25,5,'CANTIDAD',1,0,'C', True);
     $this->Cell(25,5,'PRECIO',1,0,'C', True);
     $this->Cell(30,5,'IMPORTE',1,1,'C', True);
@@ -18214,7 +18215,7 @@ function BoletaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'INFORMACI�N ADICIONAL',1,0,'C');
+    $this->CellFitSpace(110,5,'INFORMACIÓN ADICIONAL',1,0,'C');
     $this->Cell(2,4,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(40,5,"SUBTOTAL:",1,0,'L', True);
@@ -18227,7 +18228,7 @@ function BoletaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'N� DE CAJA: '._u8d($caja = ($reg[0]['codcaja'] == "0" ? "********" : $reg[0]['nrocaja']."-".$reg[0]['nomcaja'])),1,0,'L');
+    $this->CellFitSpace(110,5,'Nº DE CAJA: '._u8d($caja = ($reg[0]['codcaja'] == "0" ? "********" : $reg[0]['nrocaja']."-".$reg[0]['nomcaja'])),1,0,'L');
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,"GRAVADO (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
     $this->CellFitSpace(44,5,$simbolo.number_format($reg[0]["subtotalivasi"], 2, '.', ','),1,0,'R');
@@ -18251,7 +18252,7 @@ function BoletaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'FECHA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(110,5,'FECHA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,$impuesto == '' ? "IMPUESTO" : "".$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -18264,7 +18265,7 @@ function BoletaVenta()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'CONDICI�N DE PAGO: '._u8d($reg[0]['tipopago'])."          "._u8d($reg[0]['tipopago'] == 'CONTADO' ? "" : "VENCIMIENTO: ".date("d-m-Y",strtotime($reg[0]['fechavencecredito']))),1,0,'L');
+    $this->CellFitSpace(110,5,'CONDICIÓN DE PAGO: '._u8d($reg[0]['tipopago'])."          "._u8d($reg[0]['tipopago'] == 'CONTADO' ? "" : "VENCIMIENTO: ".date("d-m-Y",strtotime($reg[0]['fechavencecredito']))),1,0,'L');
 
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,"DESCONTADO %:",1,0,'L', True);
@@ -18350,10 +18351,10 @@ function BoletaVenta2()
     $this->CellFitSpace(42, 3,$reg[0]['direcsucursal'], 0,1);
 
     $this->SetX(5);
-    $this->CellFitSpace(42, 3,'N� DE ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
+    $this->CellFitSpace(42, 3,'Nº DE ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
 
     $this->SetX(5);
-    $this->CellFitSpace(42, 3,'N� TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
+    $this->CellFitSpace(42, 3,'Nº TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
 
     $this->SetX(5);
     $this->CellFitSpace(42, 3,_u8d($reg[0]['correosucursal']), 0,1);
@@ -18374,31 +18375,31 @@ function BoletaVenta2()
 
     $this->SetFont('Courier','B',7);
     $this->SetXY(48, 7);
-    $this->Cell(5, 7, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
+    $this->Cell(5, 7, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
     $this->SetXY(78, 7);
     $this->CellFitSpace(28, 7,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetXY(48, 10);
     $this->SetFont('Courier','B',8);
-    $this->Cell(5, 7, 'N� DE NOTA', 0 , 0);
+    $this->Cell(5, 7, 'Nº DE NOTA', 0 , 0);
     $this->SetXY(78, 10);
     $this->CellFitSpace(28, 7,_u8d($reg[0]['codfactura']), 0, 0);
 
     $this->SetXY(48, 13);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'N�MERO DE AUTORIZACI�N:', 0, 0);
+    $this->Cell(5, 7,'NÚMERO DE AUTORIZACIÓN:', 0, 0);
     $this->SetXY(48, 16);
     $this->CellFitSpace(56, 7,_u8d($reg[0]['codautorizacion']), 0, 0);
 
     $this->SetXY(48, 19);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'N�MERO DE SERIE:', 0, 0);
+    $this->Cell(5, 7,'NÚMERO DE SERIE:', 0, 0);
     $this->SetXY(48, 22);
     $this->CellFitSpace(56, 7,_u8d($reg[0]['codserie']), 0, 0);
 
     $this->SetXY(48, 25);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,"FECHA DE AUTORIZACI�N:", 0, 0);
+    $this->Cell(5, 7,"FECHA DE AUTORIZACIÓN:", 0, 0);
     $this->SetXY(78, 25);
     $this->Cell(28, 7,$fecha = ($reg[0]['fechaautorsucursal'] == '0000-00-00' ? "" : date("d-m-Y",strtotime($reg[0]['fechaautorsucursal']))), 0, 0);
 
@@ -18413,11 +18414,11 @@ function BoletaVenta2()
     $this->SetFont('Courier','B',6);
     $this->Cell(5, 7,'AMBIENTE: ', 0 , 0);
     $this->SetXY(78, 31);
-    $this->Cell(28, 7,'PRODUCCI�N', 0 , 0);
+    $this->Cell(28, 7,'PRODUCCIÓN', 0 , 0);
 
     $this->SetXY(48, 34);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'EMISI�N: ', 0 , 0);
+    $this->Cell(5, 7,'EMISIÓN: ', 0 , 0);
     $this->SetXY(78, 34);
     $this->Cell(28, 7,'NORMAL', 0 , 0);
      
@@ -18428,12 +18429,12 @@ function BoletaVenta2()
     $this->SetFont('Courier','B',6);
 
     $this->SetXY(6, 40.2);
-    $this->CellFitSpace(66, 5,'RAZ�N SOCIAL: '._u8d($reg[0]['codcliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['nomcliente']), 0, 0);
-    $this->CellFitSpace(32, 5,'N� DE '.$documento = ($reg[0]['documcliente'] == '' ? "DOC: " : $reg[0]['documento'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "**********" : $reg[0]['dnicliente']), 0, 0);
+    $this->CellFitSpace(66, 5,'RAZÓN SOCIAL: '._u8d($reg[0]['codcliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['nomcliente']), 0, 0);
+    $this->CellFitSpace(32, 5,'Nº DE '.$documento = ($reg[0]['documcliente'] == '' ? "DOC: " : $reg[0]['documento'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "**********" : $reg[0]['dnicliente']), 0, 0);
 
     $this->SetXY(6, 43.2);
-    $this->CellFitSpace(66, 5,'DIRECCI�N: '._u8d($reg[0]['direccliente'] == '' ? "**********" : $reg[0]['direccliente']), 0, 0);
-    $this->CellFitSpace(32, 5,'N� DE TLF: '.($reg[0]['tlfcliente'] == '' ? "**********" : $reg[0]['tlfcliente']), 0, 0);
+    $this->CellFitSpace(66, 5,'DIRECCIÓN: '._u8d($reg[0]['direccliente'] == '' ? "**********" : $reg[0]['direccliente']), 0, 0);
+    $this->CellFitSpace(32, 5,'Nº DE TLF: '.($reg[0]['tlfcliente'] == '' ? "**********" : $reg[0]['tlfcliente']), 0, 0);
 
     $this->SetXY(6, 46.2);
     $this->CellFitSpace(92, 5,'EMAIL: '._u8d($reg[0]['emailcliente'] == '' ? "**********" : $reg[0]['emailcliente']), 0, 0);
@@ -18443,8 +18444,8 @@ function BoletaVenta2()
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(5,3,'N�',1,0,'C', True);
-    $this->Cell(50,3,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(5,3,'Nº',1,0,'C', True);
+    $this->Cell(50,3,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(12,3,'CANTIDAD',1,0,'C', True);
     $this->Cell(14,3,'PRECIO',1,0,'C', True);
     $this->Cell(19,3,'IMPORTE',1,1,'C', True);
@@ -18478,7 +18479,7 @@ function BoletaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',8);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'INFORMACI�N ADICIONAL',1,0,'C');
+    $this->CellFitSpace(59,3.5,'INFORMACIÓN ADICIONAL',1,0,'C');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->SetFont('Courier','B',6);
     $this->CellFitSpace(20,3.5,'SUBTOTAL ',1,0,'L', True);
@@ -18491,7 +18492,7 @@ function BoletaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'N� DE CAJA: '._u8d($reg[0]['nrocaja']."-".$reg[0]['nomcaja']),1,0,'L');
+    $this->CellFitSpace(59,3.5,'Nº DE CAJA: '._u8d($reg[0]['nrocaja']."-".$reg[0]['nomcaja']),1,0,'L');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,'GRAVADO ('.number_format($reg[0]["iva"], 2, '.', ',').'%):',1,0,'L', True);
     $this->CellFitSpace(19,3.5,$simbolo.number_format($reg[0]["subtotalivasi"], 2, '.', ','),1,0,'R');
@@ -18515,7 +18516,7 @@ function BoletaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'FECHA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(59,3.5,'FECHA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -18528,7 +18529,7 @@ function BoletaVenta2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'CONDICI�N DE PAGO: '._u8d($reg[0]['tipopago']),1,0,'L');
+    $this->CellFitSpace(59,3.5,'CONDICIÓN DE PAGO: '._u8d($reg[0]['tipopago']),1,0,'L');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,'DESCONTADO %:',1,0,'L', True);
     $this->CellFitSpace(19,3.5,$simbolo.number_format($reg[0]["descontado"], 2, '.', ','),1,0,'R');
@@ -18618,7 +18619,7 @@ function TablaListarVentas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -18661,7 +18662,7 @@ function TablaListarVentas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -18680,7 +18681,7 @@ function TablaListarVentas()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -18692,13 +18693,13 @@ function TablaListarVentas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(58,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(58,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(22,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'PAGO',1,0,'C', True);
-    $this->Cell(45,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC',1,0,'C', True);
+    $this->Cell(45,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC',1,0,'C', True);
     $this->Cell(33,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(25,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DESC%',1,0,'C', True);
@@ -18734,7 +18735,7 @@ function TablaListarVentas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
     }
    
     $this->Cell(195,5,'',0,0,'C');
@@ -18814,7 +18815,7 @@ function TablaListarVentasDiarias()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -18857,7 +18858,7 @@ function TablaListarVentasDiarias()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -18880,12 +18881,12 @@ function TablaListarVentasDiarias()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(45,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(45,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'PAGO',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(30,8,'DESC%',1,0,'C', True);
@@ -18921,7 +18922,7 @@ function TablaListarVentasDiarias()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
    
     $this->Cell(175,5,'',0,0,'C');
@@ -19001,7 +19002,7 @@ function TablaListarVentasxCajas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19044,7 +19045,7 @@ function TablaListarVentasxCajas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19063,14 +19064,14 @@ function TablaListarVentasxCajas()
     } elseif(decrypt($_GET['tipopago']) == 2){ 
     $this->Cell(335,7,'LISTADO DE VENTAS A CONTADO POR CAJA',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 3){ 
-    $this->Cell(335,7,'LISTADO DE VENTAS A CR�DITO POR CAJA',0,0,'C');
+    $this->Cell(335,7,'LISTADO DE VENTAS A CRÉDITO POR CAJA',0,0,'C');
     }
 
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -19079,7 +19080,7 @@ function TablaListarVentasxCajas()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� CAJA: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
+    $this->Cell(335,6,"Nº CAJA: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"RESPONSABLE DE CAJA: ".portales(_u8d($reg[0]["nombres"])),0,0,'L'); 
     $this->Ln();
@@ -19091,13 +19092,13 @@ function TablaListarVentasxCajas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(58,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(58,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(22,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'PAGO',1,0,'C', True);
-    $this->Cell(45,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC',1,0,'C', True);
+    $this->Cell(45,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC',1,0,'C', True);
     $this->Cell(33,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(25,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DESC%',1,0,'C', True);
@@ -19133,7 +19134,7 @@ function TablaListarVentasxCajas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
  }
    
@@ -19212,7 +19213,7 @@ function TablaListarVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19255,7 +19256,7 @@ function TablaListarVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19274,14 +19275,14 @@ function TablaListarVentasxFechas()
     } elseif(decrypt($_GET['tipopago']) == 2){ 
     $this->Cell(335,7,'LISTADO DE VENTAS A CONTADO POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 3){ 
-    $this->Cell(335,7,'LISTADO DE VENTAS A CR�DITO POR FECHAS',0,0,'C');
+    $this->Cell(335,7,'LISTADO DE VENTAS A CRÉDITO POR FECHAS',0,0,'C');
     }
 
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -19298,14 +19299,14 @@ function TablaListarVentasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(30,8,'N� DE CAJA',1,0,'C', True);
-    $this->Cell(32,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(50,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(30,8,'Nº DE CAJA',1,0,'C', True);
+    $this->Cell(32,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(50,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(20,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'PAGO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC',1,0,'C', True);
     $this->Cell(30,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(25,8,$impuesto,1,0,'C', True);
     $this->Cell(20,8,'DESC%',1,0,'C', True);
@@ -19341,7 +19342,7 @@ function TablaListarVentasxFechas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($reg[$i]["nrocaja"].": ".$reg[$i]["nomcaja"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($reg[$i]["nrocaja"].": ".$reg[$i]["nomcaja"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
  }
    
@@ -19420,7 +19421,7 @@ function TablaListarVentasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19463,7 +19464,7 @@ function TablaListarVentasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19482,14 +19483,14 @@ function TablaListarVentasxClientes()
     } elseif(decrypt($_GET['tipopago']) == 2){ 
     $this->Cell(335,7,'LISTADO DE VENTAS A CONTADO POR CLIENTES',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 3){ 
-    $this->Cell(335,7,'LISTADO DE VENTAS A CR�DITO POR CLIENTES',0,0,'C');
+    $this->Cell(335,7,'LISTADO DE VENTAS A CRÉDITO POR CLIENTES',0,0,'C');
     }
 
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -19498,7 +19499,7 @@ function TablaListarVentasxClientes()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($documento = ($reg[0]['documcliente'] == '0' ? "DOCUMENTO" : $reg[0]['documento3'])).": "._u8d($reg[0]["dnicliente"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($documento = ($reg[0]['documcliente'] == '0' ? "DOCUMENTO" : $reg[0]['documento3'])).": "._u8d($reg[0]["dnicliente"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"NOMBRE DE CLIENTE: ".portales(_u8d($reg[0]["nomcliente"])),0,0,'L'); 
     $this->Ln();
@@ -19510,13 +19511,13 @@ function TablaListarVentasxClientes()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(50,8,'N� DE CAJA',1,0,'C', True);
-    $this->Cell(40,8,'N� DE VENTA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(50,8,'Nº DE CAJA',1,0,'C', True);
+    $this->Cell(40,8,'Nº DE VENTA',1,0,'C', True);
     $this->Cell(20,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'PAGO',1,0,'C', True);
-    $this->Cell(45,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC',1,0,'C', True);
+    $this->Cell(45,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC',1,0,'C', True);
     $this->Cell(30,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(25,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DESC%',1,0,'C', True);
@@ -19552,7 +19553,7 @@ function TablaListarVentasxClientes()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($reg[$i]["nrocaja"].": ".$reg[$i]["nomcaja"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($reg[$i]["nrocaja"].": ".$reg[$i]["nomcaja"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
  }
    
@@ -19632,7 +19633,7 @@ function TablaListarVentasxCondiciones()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19675,7 +19676,7 @@ function TablaListarVentasxCondiciones()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19694,7 +19695,7 @@ function TablaListarVentasxCondiciones()
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -19703,7 +19704,7 @@ function TablaListarVentasxCondiciones()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"CAJA N�: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
+    $this->Cell(335,6,"CAJA Nº: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"RESPONSABLE: "._u8d($reg[0]["nombres"]),0,0,'L');
     $this->Ln();
@@ -19717,11 +19718,11 @@ function TablaListarVentasxCondiciones()
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(255, 255, 255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
     $this->Cell(64,8,'NOMBRE DE CLIENTE',1,0,'C', True);
     $this->Cell(20,8,'ESTADO',1,0,'C', True);
-    $this->Cell(30,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(30,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(40,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(28,8,$impuesto,1,0,'C', True);
     $this->Cell(28,8,'DESC %',1,0,'C', True);
@@ -19757,7 +19758,7 @@ function TablaListarVentasxCondiciones()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['fechavencecredito'] < date("Y-m-d") && $reg[$i]['fechapagado'] == "0000-00-00" && $reg[$i]['statusventa'] == "PENDIENTE" ? "VENCIDA" : $reg[$i]["statusventa"]),_u8d(date("d-m-Y",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['fechavencecredito'] < date("Y-m-d") && $reg[$i]['fechapagado'] == "0000-00-00" && $reg[$i]['statusventa'] == "PENDIENTE" ? "VENCIDA" : $reg[$i]["statusventa"]),_u8d(date("d-m-Y",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),
         _u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),
         _u8d($simbolo.number_format($ImportePagado, 2, '.', ','))));
    }
@@ -19838,7 +19839,7 @@ function TablaListarComisionxVentas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19881,7 +19882,7 @@ function TablaListarComisionxVentas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -19896,18 +19897,18 @@ function TablaListarComisionxVentas()
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['tipopago']) == 1){ 
-    $this->Cell(335,7,'LISTADO COMISI�N DE VENTAS GENERALES POR CAJA',0,0,'C');
+    $this->Cell(335,7,'LISTADO COMISIÓN DE VENTAS GENERALES POR CAJA',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 2){ 
-    $this->Cell(335,7,'LISTADO COMISI�N DE VENTAS A CONTADO POR CAJA',0,0,'C');
+    $this->Cell(335,7,'LISTADO COMISIÓN DE VENTAS A CONTADO POR CAJA',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 3){ 
-    $this->Cell(335,7,'LISTADO COMISI�N DE VENTAS A CR�DITO POR CAJA',0,0,'C');
+    $this->Cell(335,7,'LISTADO COMISIÓN DE VENTAS A CRÉDITO POR CAJA',0,0,'C');
     }
 
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -19916,7 +19917,7 @@ function TablaListarComisionxVentas()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� DE DOCUMENTO: "._u8d($reg[0]["dni"]),0,0,'L'); 
+    $this->Cell(335,6,"Nº DE DOCUMENTO: "._u8d($reg[0]["dni"]),0,0,'L'); 
     $this->Ln();
     $this->Cell(335,6,"NOMBRE DE VENDEDOR: ".portales(_u8d($reg[0]["nombres"])),0,0,'L'); 
     $this->Ln();
@@ -19928,18 +19929,18 @@ function TablaListarComisionxVentas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(32,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(50,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(32,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(50,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(20,8,'ESTADO',1,0,'C', True);
     $this->Cell(20,8,'PAGO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
-    $this->Cell(20,8,'N� ARTIC',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
+    $this->Cell(20,8,'Nº ARTIC',1,0,'C', True);
     $this->Cell(30,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(25,8,$impuesto,1,0,'C', True);
     $this->Cell(20,8,'DESC%',1,0,'C', True);
     $this->Cell(32,8,'IMPORTE TOTAL',1,0,'C', True);
-    $this->Cell(30,8,'COMISI�N',1,1,'C', True);
+    $this->Cell(30,8,'COMISIÓN',1,1,'C', True);
 
     if($reg==""){
     echo "";      
@@ -19974,7 +19975,7 @@ function TablaListarComisionxVentas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']*$reg[0]['comision']/100, 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]["statusventa"]),_u8d($reg[$i]["tipopago"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(number_format($reg[$i]["articulos"], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']*$reg[0]['comision']/100, 2, '.', ','))));
    }
  }
    
@@ -20053,7 +20054,7 @@ function TablaListarDetallesVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -20096,7 +20097,7 @@ function TablaListarDetallesVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -20115,13 +20116,13 @@ function TablaListarDetallesVentasxFechas()
     } elseif(decrypt($_GET['tipopago']) == 2){ 
     $this->Cell(335,7,'LISTADO DETALLES DE VENTAS A CONTADO POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 3){ 
-    $this->Cell(335,7,'LISTADO DETALLES DE VENTAS A CR�DITO POR FECHAS',0,0,'C');
+    $this->Cell(335,7,'LISTADO DETALLES DE VENTAS A CRÉDITO POR FECHAS',0,0,'C');
     }
    
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -20138,9 +20139,9 @@ function TablaListarDetallesVentasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(30,8,'TIPO',1,0,'C', True);
-    $this->Cell(100,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(100,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(40,8,'MARCA',1,0,'C', True);
     $this->Cell(40,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DESC',1,0,'C', True);
@@ -20265,7 +20266,7 @@ function TablaListarDetallesVentasxVendedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -20308,7 +20309,7 @@ function TablaListarDetallesVentasxVendedor()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -20327,13 +20328,13 @@ function TablaListarDetallesVentasxVendedor()
     } elseif(decrypt($_GET['tipopago']) == 2){ 
     $this->Cell(335,7,'LISTADO DETALLES DE VENTAS A CONTADO POR VENDEDOR',0,0,'C');
     } elseif(decrypt($_GET['tipopago']) == 3){ 
-    $this->Cell(335,7,'LISTADO DETALLES DE VENTAS A CR�DITO POR VENDEDOR',0,0,'C');
+    $this->Cell(335,7,'LISTADO DETALLES DE VENTAS A CRÉDITO POR VENDEDOR',0,0,'C');
     }
 
    if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -20352,9 +20353,9 @@ function TablaListarDetallesVentasxVendedor()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
     $this->Cell(30,8,'TIPO',1,0,'C', True);
-    $this->Cell(100,8,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(100,8,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(40,8,'MARCA',1,0,'C', True);
     $this->Cell(40,8,'MODELO',1,0,'C', True);
     $this->Cell(20,8,'DESC',1,0,'C', True);
@@ -20490,7 +20491,7 @@ function TicketCredito()
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetFillColor(2,157,116);
-    $this->Cell(70, 5, "TICKET DE CR�DITO VENTA", 0, 0, 'C');
+    $this->Cell(70, 5, "TICKET DE CRÉDITO VENTA", 0, 0, 'C');
     $this->Ln(5);
   
     $this->SetX(2);
@@ -20499,7 +20500,7 @@ function TicketCredito()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "N� ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
+    $this->CellFitSpace(70,3,$reg[0]['documsucursal'] == '0' ? "" : "Nº ".$reg[0]['documento']." "._u8d($reg[0]['cuitsucursal']),0,1,'C');
 
     if($reg[0]['id_departamento']!='0'){
 
@@ -20515,10 +20516,10 @@ function TicketCredito()
     $this->CellFitSpace(70,3,"OBLIGADO A LLEVAR CONTABILIDAD: "._u8d($reg[0]['llevacontabilidad']),0,1,'C');
 
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCI�N",0,1,'C');
+    $this->CellFitSpace(70,3,"AMBIENTE: PRODUCCIÓN",0,1,'C');
     
     $this->SetX(2);
-    $this->CellFitSpace(70,3,"EMISI�N: NORMAL",0,1,'C');
+    $this->CellFitSpace(70,3,"EMISIÓN: NORMAL",0,1,'C');
 
      $this->SetX(2);
     $this->SetFont($TipoLetra,'B',12);
@@ -20535,7 +20536,7 @@ function TicketCredito()
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
-    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "N� DOC:" : "N� ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
+    $this->CellFitSpace(70,3,$documento = ($reg[0]['documcliente'] == '0' ? "Nº DOC:" : "Nº ".$reg[0]['documento3'].": ".$reg[0]['dnicliente']),0,1,'L');
 
     $this->SetX(2);
     $this->SetFont($TipoLetra,'B',9);
@@ -20707,7 +20708,7 @@ function TablaListarCreditos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -20750,7 +20751,7 @@ function TablaListarCreditos()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -20764,12 +20765,12 @@ function TablaListarCreditos()
     
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(335,10,'LISTADO DE VENTAS A CR�DITOS',0,0,'C');
+    $this->Cell(335,10,'LISTADO DE VENTAS A CRÉDITOS',0,0,'C');
 
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -20781,12 +20782,12 @@ function TablaListarCreditos()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(40,8,'OBSERVACIONES',1,0,'C', True);
     $this->Cell(30,8,'ESTADO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(40,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(40,8,'TOTAL ABONO',1,0,'C', True);
     $this->Cell(40,8,'TOTAL DEBE',1,1,'C', True);
@@ -20813,7 +20814,7 @@ function TablaListarCreditos()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones']),_u8d($reg[$i]["statusventa"]),
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones']),_u8d($reg[$i]["statusventa"]),
         _u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
     }
    
@@ -20886,7 +20887,7 @@ function TablaListarAbonosCreditosVentasxCajas()
 
     $this->Ln();
     $this->Cell(45,5,"",0,0,'C');
-    $this->Cell(170,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(170,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(45,5,"",0,0,'C');
 
     $this->Ln();
@@ -20929,7 +20930,7 @@ function TablaListarAbonosCreditosVentasxCajas()
 
     $this->Ln();
     $this->Cell(45,5,"",0,0,'C');
-    $this->Cell(170,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(170,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(45,5,"",0,0,'C');
 
     $this->Ln();
@@ -20943,13 +20944,13 @@ function TablaListarAbonosCreditosVentasxCajas()
 
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Cell(260,7,"LISTADO DE ABONOS EN VENTAS A CR�DITOS POR CAJAS",0,0,'C');
+    $this->Cell(260,7,"LISTADO DE ABONOS EN VENTAS A CRÉDITOS POR CAJAS",0,0,'C');
     $this->Ln();
 
     if($_SESSION['acceso'] == "administradorG" && $reg != ""){
 
     $this->Ln();
-    $this->Cell(260,5,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(260,5,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(260,5,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -20958,7 +20959,7 @@ function TablaListarAbonosCreditosVentasxCajas()
     }
 
     $this->Ln();
-    $this->Cell(260,5,"CAJA N�: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
+    $this->Cell(260,5,"CAJA Nº: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
     $this->Ln();
     $this->Cell(260,5,"RESPONSABLE: "._u8d($reg[0]["nombres"]),0,0,'L');
     $this->Ln();
@@ -20972,10 +20973,10 @@ function TablaListarAbonosCreditosVentasxCajas()
     $this->SetFont('Courier','B',10);
     $this->SetTextColor(255, 255, 255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es NARANJA)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(45,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(75,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(45,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(75,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(45,8,'FECHA DE ABONO',1,0,'C', True);
     $this->Cell(45,8,'MONTO ABONO',1,1,'C', True);
 
@@ -20995,7 +20996,7 @@ function TablaListarAbonosCreditosVentasxCajas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),
         _u8d($reg[$i]['documento3'].": ".$reg[$i]['dnicliente']),
         portales(_u8d($reg[$i]['nomcliente'])),
         _u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaabono']))),
@@ -21070,7 +21071,7 @@ function TablaListarCreditosVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21113,7 +21114,7 @@ function TablaListarCreditosVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21128,17 +21129,17 @@ function TablaListarCreditosVentasxFechas()
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'LISTADO VENTAS A CR�DITOS GENERALES POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'LISTADO VENTAS A CRÉDITOS GENERALES POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'LISTADO VENTAS A CR�DITOS PAGADAS POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'LISTADO VENTAS A CRÉDITOS PAGADAS POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'LISTADO VENTAS A CR�DITOS PENDIENTES POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'LISTADO VENTAS A CRÉDITOS PENDIENTES POR FECHAS',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -21155,12 +21156,12 @@ function TablaListarCreditosVentasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(50,8,'OBSERVACIONES',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(45,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(45,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
     $this->Cell(35,8,'TOTAL DEBE',1,1,'C', True);
@@ -21187,7 +21188,7 @@ function TablaListarCreditosVentasxFechas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones']),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones']),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
         }
     }
    
@@ -21260,7 +21261,7 @@ function TablaListarCreditosVentasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21303,7 +21304,7 @@ function TablaListarCreditosVentasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21318,17 +21319,17 @@ function TablaListarCreditosVentasxClientes()
     $this->SetFont('Courier','B',14);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'LISTADO VENTAS A CR�DITOS GENERALES POR CLIENTES',0,0,'C');
+    $this->Cell(335,10,'LISTADO VENTAS A CRÉDITOS GENERALES POR CLIENTES',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'LISTADO VENTAS A CR�DITOS PAGADAS POR CLIENTES',0,0,'C');
+    $this->Cell(335,10,'LISTADO VENTAS A CRÉDITOS PAGADAS POR CLIENTES',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'LISTADO VENTAS A CR�DITOS PENDIENTES POR CLIENTES',0,0,'C');
+    $this->Cell(335,10,'LISTADO VENTAS A CRÉDITOS PENDIENTES POR CLIENTES',0,0,'C');
     }
 
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -21340,12 +21341,12 @@ function TablaListarCreditosVentasxClientes()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
-    $this->Cell(60,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
+    $this->Cell(60,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
     $this->Cell(50,8,'OBSERVACIONES',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(45,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(45,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
     $this->Cell(35,8,'TOTAL DEBE',1,1,'C', True);
@@ -21372,7 +21373,7 @@ function TablaListarCreditosVentasxClientes()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones']),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),_u8d($reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones']),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
         }
     }
    
@@ -21445,7 +21446,7 @@ function TablaListarDetallesCreditosVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21488,7 +21489,7 @@ function TablaListarDetallesCreditosVentasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21503,17 +21504,17 @@ function TablaListarDetallesCreditosVentasxFechas()
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'DETALLES DE VENTAS A CR�DITOS EN GENERAL POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE VENTAS A CRÉDITOS EN GENERAL POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'DETALLES DE VENTAS A CR�DITOS PAGADOS POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE VENTAS A CRÉDITOS PAGADOS POR FECHAS',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'DETALLES DE VENTAS A CR�DITOS PENDIENTES POR FECHAS',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE VENTAS A CRÉDITOS PENDIENTES POR FECHAS',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -21530,11 +21531,11 @@ function TablaListarDetallesCreditosVentasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
     $this->Cell(40,8,'NOMBRE DE CLIENTE',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(85,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
@@ -21562,7 +21563,7 @@ function TablaListarDetallesCreditosVentasxFechas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),portales(_u8d($reg[$i]['nomcliente'])),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(str_replace("<br>","\n", $reg[$i]['detalles_productos'])),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),portales(_u8d($reg[$i]['nomcliente'])),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(str_replace("<br>","\n", $reg[$i]['detalles_productos'])),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
         }
     }
    
@@ -21634,7 +21635,7 @@ function TablaListarDetallesCreditosVentasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21677,7 +21678,7 @@ function TablaListarDetallesCreditosVentasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -21692,17 +21693,17 @@ function TablaListarDetallesCreditosVentasxClientes()
     $this->SetFont('Courier','B',12);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
     if(decrypt($_GET['status']) == 1){ 
-    $this->Cell(335,10,'DETALLES DE VENTAS A CR�DITOS GENERAL POR CLIENTES',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE VENTAS A CRÉDITOS GENERAL POR CLIENTES',0,0,'C');
     } elseif(decrypt($_GET['status']) == 2){ 
-    $this->Cell(335,10,'DETALLES DE VENTAS A CR�DITOS PAGADOS POR CLIENTES',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE VENTAS A CRÉDITOS PAGADOS POR CLIENTES',0,0,'C');
     } elseif(decrypt($_GET['status']) == 3){ 
-    $this->Cell(335,10,'DETALLES DE VENTAS A CR�DITOS PENDIENTES POR CLIENTES',0,0,'C');
+    $this->Cell(335,10,'DETALLES DE VENTAS A CRÉDITOS PENDIENTES POR CLIENTES',0,0,'C');
     }
     
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -21711,23 +21712,23 @@ function TablaListarDetallesCreditosVentasxClientes()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� DE "._u8d($documento = ($reg[0]['documcliente'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']).": ".$reg[0]["dnicliente"]),0,0,'L');
+    $this->Cell(335,6,"Nº DE "._u8d($documento = ($reg[0]['documcliente'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']).": ".$reg[0]["dnicliente"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"CLIENTE: "._u8d($reg[0]['nomcliente']),0,0,'L');
     $this->Ln();
-    $this->Cell(335,6,"N� DE TELEFONO: "._u8d($reg[0]['tlfcliente'] == "" ? "********" : $reg[0]['tlfcliente']),0,0,'L');
+    $this->Cell(335,6,"Nº DE TELEFONO: "._u8d($reg[0]['tlfcliente'] == "" ? "********" : $reg[0]['tlfcliente']),0,0,'L');
     $this->Ln();
-    $this->Cell(335,6,"DIRECCI�N DOMICILIARIA: ".portales(_u8d($reg[0]['direccliente'] == "" ? "********" : $reg[0]['direccliente'])),0,0,'L');
+    $this->Cell(335,6,"DIRECCIÓN DOMICILIARIA: ".portales(_u8d($reg[0]['direccliente'] == "" ? "********" : $reg[0]['direccliente'])),0,0,'L');
  
     $this->Ln(10);
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE VENTA',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE VENTA',1,0,'C', True);
     $this->Cell(40,8,'OBSERVACIONES',1,0,'C', True);
     $this->Cell(25,8,'ESTADO',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(85,8,'DETALLES DE PRODUCTOS',1,0,'C', True);
     $this->Cell(35,8,'IMPORTE TOTAL',1,0,'C', True);
     $this->Cell(30,8,'TOTAL ABONO',1,0,'C', True);
@@ -21755,7 +21756,7 @@ function TablaListarDetallesCreditosVentasxClientes()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["codfactura"]),portales(_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones'])),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(str_replace("<br>","\n", $reg[$i]['detalles_productos'])),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["codfactura"]),portales(_u8d($reg[$i]['observaciones'] == '' ? "***********" : $reg[$i]['observaciones'])),_u8d($reg[$i]["statusventa"]),_u8d(date("d-m-Y H:i:s",strtotime($reg[$i]['fechaventa']))),_u8d(str_replace("<br>","\n", $reg[$i]['detalles_productos'])),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['creditopagado'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago']-$reg[$i]['creditopagado'], 2, '.', ','))));
         }
     }
    
@@ -21869,10 +21870,10 @@ function NotaCredito()
     $this->MultiCell(100,5,$this->SetFont($TipoLetra,'B',10).portales(_u8d($reg[0]['direcsucursal'])),0,'L');
 
     $this->SetX(7);
-    $this->CellFitSpace(100, 5,'N� ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
+    $this->CellFitSpace(100, 5,'Nº ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
 
     $this->SetX(7);
-    $this->CellFitSpace(100, 5,'N� TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
+    $this->CellFitSpace(100, 5,'Nº TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
 
     $this->SetX(7);
     $this->CellFitSpace(100, 5,_u8d($reg[0]['correosucursal']), 0,1);
@@ -21889,17 +21890,17 @@ function NotaCredito()
 
     $this->SetFont($TipoLetra,'B',15);
     $this->SetXY(110, 9);
-    $this->Cell(93, 5, 'NOTA DE CR�DITO', 0, 0, 'C');
+    $this->Cell(93, 5, 'NOTA DE CRÉDITO', 0, 0, 'C');
 
     $this->SetFont($TipoLetra,'B',12);
     $this->SetXY(110, 14);
-    $this->Cell(38, 5, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
+    $this->Cell(38, 5, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0, 0);
     $this->SetXY(148, 14);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetXY(110, 19);
     $this->SetFont($TipoLetra,'B',12);
-    $this->Cell(38, 5, 'N� DE NOTA:', 0, 0);
+    $this->Cell(38, 5, 'Nº DE NOTA:', 0, 0);
     $this->SetXY(148, 19);
     $this->CellFitSpace(55, 5,_u8d($reg[0]['codfactura']), 0, 0);
 
@@ -21918,7 +21919,7 @@ function NotaCredito()
 
     $this->SetXY(110, 39);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(93, 5,"FECHA DE AUTORIZACI�N:", 0, 0);
+    $this->Cell(93, 5,"FECHA DE AUTORIZACIÓN:", 0, 0);
 
     $this->SetXY(110, 44);
     $this->CellFitSpace(93, 5,_u8d($fecha = ($reg[0]['fechaautorsucursal'] == '0000-00-00' ? "" : date("d/m/Y",strtotime($reg[0]['fechaautorsucursal'])))), 0, 0);
@@ -21927,11 +21928,11 @@ function NotaCredito()
     $this->SetFont($TipoLetra,'B',10);
     $this->Cell(38, 5,'AMBIENTE: ', 0, 0);
     $this->SetXY(148, 49);
-    $this->Cell(55, 5,'PRODUCCI�N', 0, 0);
+    $this->Cell(55, 5,'PRODUCCIÓN', 0, 0);
 
     $this->SetXY(110, 54);
     $this->SetFont($TipoLetra,'B',10);
-    $this->Cell(38, 5,'EMISI�N: ', 0, 0);
+    $this->Cell(38, 5,'EMISIÓN: ', 0, 0);
     $this->SetXY(148, 54);
     $this->Cell(55, 5,'NORMAL', 0, 0);
     //######################### BLOQUE DATOS DE FACTURA #############################
@@ -21944,19 +21945,19 @@ function NotaCredito()
 
     $this->SetXY(7,62);
     $this->SetFont($TipoLetra,'B',11);
-    $this->CellFitSpace(196, 5,'RAZ�N SOCIAL: '._u8d($reg[0]['nomcliente']), 0, 1);
+    $this->CellFitSpace(196, 5,'RAZÓN SOCIAL: '._u8d($reg[0]['nomcliente']), 0, 1);
     
     $this->SetX(7);
-    $this->CellFitSpace(98, 5,"N� ".$documento = ($reg[0]['documcliente'] == "" ? "DOC: " : $reg[0]['documento3'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['dnicliente']), 0, 0);
+    $this->CellFitSpace(98, 5,"Nº ".$documento = ($reg[0]['documcliente'] == "" ? "DOC: " : $reg[0]['documento3'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['dnicliente']), 0, 0);
 
-    $this->CellFitSpace(98, 5,"N� TLF: "._u8d($reg[0]['tlfcliente'] == "" ? "**********" : $reg[0]['tlfcliente']), 0, 1);
+    $this->CellFitSpace(98, 5,"Nº TLF: "._u8d($reg[0]['tlfcliente'] == "" ? "**********" : $reg[0]['tlfcliente']), 0, 1);
     
     $this->SetX(7);
     $this->CellFitSpace(98, 5,"GIRO: "._u8d($reg[0]['girocliente'] == "" ? "**********" : $reg[0]['girocliente']), 0, 0);
     $this->CellFitSpace(98, 5,"CORREO: ".$var = ($reg[0]['emailcliente'] == '' ? "**********" : $reg[0]['emailcliente']), 0, 1);
 
     $this->SetX(7);
-    $this->CellFitSpace(196, 5,"DIRECCI�N: "._u8d($reg[0]['direccliente'] == "" ? "**********" : $reg[0]['direccliente']), 0, 1);
+    $this->CellFitSpace(196, 5,"DIRECCIÓN: "._u8d($reg[0]['direccliente'] == "" ? "**********" : $reg[0]['direccliente']), 0, 1);
     //######################### BLOQUE DATOS DE CLIENTE #############################
 
     //######################### BLOQUE DATOS DE PRODUCTOS #############################
@@ -21965,8 +21966,8 @@ function NotaCredito()
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(10,5,'N�',1,0,'C', True);
-    $this->Cell(106,5,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(10,5,'Nº',1,0,'C', True);
+    $this->Cell(106,5,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(25,5,'CANTIDAD',1,0,'C', True);
     $this->Cell(25,5,'PRECIO',1,0,'C', True);
     $this->Cell(30,5,'IMPORTE',1,1,'C', True);
@@ -22002,7 +22003,7 @@ function NotaCredito()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',12);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'INFORMACI�N ADICIONAL',1,0,'C');
+    $this->CellFitSpace(110,5,'INFORMACIÓN ADICIONAL',1,0,'C');
     $this->Cell(2,4,"",0,0,'C');
     $this->SetFont($TipoLetra,'B',10);
     $this->CellFitSpace(40,5,"SUBTOTAL:",1,0,'L', True);
@@ -22015,7 +22016,7 @@ function NotaCredito()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'N� DE CAJA: '._u8d($caja = ($reg[0]['codcaja'] == "0" ? "********" : $reg[0]['nrocaja']."-".$reg[0]['nomcaja'])),1,0,'L');
+    $this->CellFitSpace(110,5,'Nº DE CAJA: '._u8d($caja = ($reg[0]['codcaja'] == "0" ? "********" : $reg[0]['nrocaja']."-".$reg[0]['nomcaja'])),1,0,'L');
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,"GRAVADO (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
     $this->CellFitSpace(44,5,$simbolo.number_format($reg[0]["subtotalivasi"], 2, '.', ','),1,0,'R');
@@ -22039,7 +22040,7 @@ function NotaCredito()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'FECHA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(110,5,'FECHA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,$impuesto == '' ? "IMPUESTO" : "".$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -22052,7 +22053,7 @@ function NotaCredito()
     $this->SetLineWidth(.2);
     $this->SetFont($TipoLetra,'B',10);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(110,5,'DOCUMENTO MODIFICA: '.$reg[0]['tipodocumento']." N� "._u8d($reg[0]['facturaventa']),1,0,'L');
+    $this->CellFitSpace(110,5,'DOCUMENTO MODIFICA: '.$reg[0]['tipodocumento']." Nº "._u8d($reg[0]['facturaventa']),1,0,'L');
 
     $this->Cell(2,4,"",0,0,'C');
     $this->CellFitSpace(40,5,"DESCONTADO %:",1,0,'L', True);
@@ -22137,10 +22138,10 @@ function NotaCredito2()
     $this->CellFitSpace(42, 3,$reg[0]['direcsucursal'], 0,1);
 
     $this->SetX(5);
-    $this->CellFitSpace(42, 3,'N� DE ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
+    $this->CellFitSpace(42, 3,'Nº DE ACTIVIDAD: '.$reg[0]['nroactividadsucursal'], 0,1);
 
     $this->SetX(5);
-    $this->CellFitSpace(42, 3,'N� TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
+    $this->CellFitSpace(42, 3,'Nº TLF: '._u8d($reg[0]['tlfsucursal']), 0,1);
 
     $this->SetX(5);
     $this->CellFitSpace(42, 3,_u8d($reg[0]['correosucursal']), 0,1);
@@ -22156,24 +22157,24 @@ function NotaCredito2()
 
     $this->SetFont('Courier','B',10);
     $this->SetXY(48, 4);
-    $this->Cell(5, 7, 'NOTA DE CR�DITO', 0 , 0);
+    $this->Cell(5, 7, 'NOTA DE CRÉDITO', 0 , 0);
 
 
     $this->SetFont('Courier','B',7);
     $this->SetXY(48, 7);
-    $this->Cell(5, 7, 'N� DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
+    $this->Cell(5, 7, 'Nº DE '.$documento = ($reg[0]['documsucursal'] == '0' ? "REG.:" : $reg[0]['documento'].":"), 0 , 0);
     $this->SetXY(78, 7);
     $this->CellFitSpace(28, 7,_u8d($reg[0]['cuitsucursal']), 0, 0);
 
     $this->SetXY(48, 10);
     $this->SetFont('Courier','B',8);
-    $this->Cell(5, 7, 'N� DE NOTA', 0 , 0);
+    $this->Cell(5, 7, 'Nº DE NOTA', 0 , 0);
     $this->SetXY(78, 10);
     $this->CellFitSpace(28, 7,_u8d($reg[0]['codfactura']), 0, 0);
 
     $this->SetXY(48, 13);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'N� DE DOCUMENTO:', 0, 0);
+    $this->Cell(5, 7,'Nº DE DOCUMENTO:', 0, 0);
     $this->SetXY(48, 16);
     $this->CellFitSpace(56, 7,_u8d($reg[0]['facturaventa']), 0, 0);
 
@@ -22185,7 +22186,7 @@ function NotaCredito2()
 
     $this->SetXY(48, 25);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,"FECHA DE AUTORIZACI�N:", 0, 0);
+    $this->Cell(5, 7,"FECHA DE AUTORIZACIÓN:", 0, 0);
     $this->SetXY(78, 25);
     $this->Cell(28, 7,$fecha = ($reg[0]['fechaautorsucursal'] == '0000-00-00' ? "" : date("d-m-Y",strtotime($reg[0]['fechaautorsucursal']))), 0, 0);
 
@@ -22200,11 +22201,11 @@ function NotaCredito2()
     $this->SetFont('Courier','B',6);
     $this->Cell(5, 7,'AMBIENTE: ', 0 , 0);
     $this->SetXY(78, 31);
-    $this->Cell(28, 7,'PRODUCCI�N', 0 , 0);
+    $this->Cell(28, 7,'PRODUCCIÓN', 0 , 0);
 
     $this->SetXY(48, 34);
     $this->SetFont('Courier','B',6);
-    $this->Cell(5, 7,'EMISI�N: ', 0 , 0);
+    $this->Cell(5, 7,'EMISIÓN: ', 0 , 0);
     $this->SetXY(78, 34);
     $this->Cell(28, 7,'NORMAL', 0 , 0);
      
@@ -22215,12 +22216,12 @@ function NotaCredito2()
     $this->SetFont('Courier','B',6);
 
     $this->SetXY(6, 40.2);
-    $this->CellFitSpace(66, 5,'RAZ�N SOCIAL: '._u8d($reg[0]['codcliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['nomcliente']), 0, 0);
-    $this->CellFitSpace(32, 5,'N� DE '.$documento = ($reg[0]['documcliente'] == '' ? "DOC: " : $reg[0]['documento'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "**********" : $reg[0]['dnicliente']), 0, 0);
+    $this->CellFitSpace(66, 5,'RAZÓN SOCIAL: '._u8d($reg[0]['codcliente'] == '' ? "CONSUMIDOR FINAL" : $reg[0]['nomcliente']), 0, 0);
+    $this->CellFitSpace(32, 5,'Nº DE '.$documento = ($reg[0]['documcliente'] == '' ? "DOC: " : $reg[0]['documento'].": ").$dni = ($reg[0]['dnicliente'] == '' ? "**********" : $reg[0]['dnicliente']), 0, 0);
 
     $this->SetXY(6, 43.2);
-    $this->CellFitSpace(66, 5,'DIRECCI�N: '._u8d($reg[0]['direccliente'] == '' ? "**********" : $reg[0]['direccliente']), 0, 0);
-    $this->CellFitSpace(32, 5,'N� DE TLF: '.($reg[0]['tlfcliente'] == '' ? "**********" : $reg[0]['tlfcliente']), 0, 0);
+    $this->CellFitSpace(66, 5,'DIRECCIÓN: '._u8d($reg[0]['direccliente'] == '' ? "**********" : $reg[0]['direccliente']), 0, 0);
+    $this->CellFitSpace(32, 5,'Nº DE TLF: '.($reg[0]['tlfcliente'] == '' ? "**********" : $reg[0]['tlfcliente']), 0, 0);
 
     $this->SetXY(6, 46.2);
     $this->CellFitSpace(92, 5,'EMAIL: '._u8d($reg[0]['emailcliente'] == '' ? "**********" : $reg[0]['emailcliente']), 0, 0);
@@ -22230,8 +22231,8 @@ function NotaCredito2()
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
     $this->SetFillColor(245,245,245); // establece el color del fondo de la celda (en este caso es AZUL
-    $this->Cell(5,3,'N�',1,0,'C', True);
-    $this->Cell(50,3,'DESCRIPCI�N',1,0,'C', True);
+    $this->Cell(5,3,'Nº',1,0,'C', True);
+    $this->Cell(50,3,'DESCRIPCIÓN',1,0,'C', True);
     $this->Cell(12,3,'CANTIDAD',1,0,'C', True);
     $this->Cell(14,3,'PRECIO',1,0,'C', True);
     $this->Cell(19,3,'IMPORTE',1,1,'C', True);
@@ -22266,7 +22267,7 @@ function NotaCredito2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',8);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'INFORMACI�N ADICIONAL',1,0,'C');
+    $this->CellFitSpace(59,3.5,'INFORMACIÓN ADICIONAL',1,0,'C');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->SetFont('Courier','B',6);
     $this->CellFitSpace(20,3.5,'SUBTOTAL ',1,0,'L', True);
@@ -22291,7 +22292,7 @@ function NotaCredito2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'TIPO DE DOCUMENTO: NOTA DE CR�DITO',1,0,'L');
+    $this->CellFitSpace(59,3.5,'TIPO DE DOCUMENTO: NOTA DE CRÉDITO',1,0,'L');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,'EXENTO (0%):',1,0,'L', True);
     $this->CellFitSpace(19,3.5,$simbolo.number_format($reg[0]["subtotalivano"], 2, '.', ','),1,0,'R');
@@ -22303,7 +22304,7 @@ function NotaCredito2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'FECHA DE EMISI�N: '.date("d-m-Y H:i:s"),1,0,'L');
+    $this->CellFitSpace(59,3.5,'FECHA DE EMISIÓN: '.date("d-m-Y H:i:s"),1,0,'L');
 
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,$impuesto." (".number_format($reg[0]["iva"], 2, '.', ',')."%):",1,0,'L', True);
@@ -22316,7 +22317,7 @@ function NotaCredito2()
     $this->SetLineWidth(.2);
     $this->SetFont('Courier','B',6);
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es blanco)
-    $this->CellFitSpace(59,3.5,'N� DE CAJA: '.$caja = ($reg[0]['codcaja'] == 0 ? "**********" : $reg[0]['nrocaja'].": ".$reg[0]['nomcaja']),1,0,'L');
+    $this->CellFitSpace(59,3.5,'Nº DE CAJA: '.$caja = ($reg[0]['codcaja'] == 0 ? "**********" : $reg[0]['nrocaja'].": ".$reg[0]['nomcaja']),1,0,'L');
     $this->Cell(2,3.5,"",0,0,'C');
     $this->CellFitSpace(20,3.5,'DESCONTADO %:',1,0,'L', True);
     $this->CellFitSpace(19,3.5,$simbolo.number_format($reg[0]["descontado"], 2, '.', ','),1,0,'R');
@@ -22405,7 +22406,7 @@ function TablaListarNotasCredito()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -22448,7 +22449,7 @@ function TablaListarNotasCredito()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -22467,7 +22468,7 @@ function TablaListarNotasCredito()
     if($_SESSION['acceso'] == "administradorG" && !empty($reg)){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -22479,11 +22480,11 @@ function TablaListarNotasCredito()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE NOTA',1,0,'C', True);
-    $this->Cell(55,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE NOTA',1,0,'C', True);
+    $this->Cell(55,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DCTO %',1,0,'C', True);
@@ -22515,7 +22516,7 @@ function TablaListarNotasCredito()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
    
     $this->Cell(210,5,'',0,0,'C');
@@ -22594,7 +22595,7 @@ function TablaListarNotasxCajas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -22637,7 +22638,7 @@ function TablaListarNotasxCajas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -22656,7 +22657,7 @@ function TablaListarNotasxCajas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -22665,7 +22666,7 @@ function TablaListarNotasxCajas()
     }
 
     $this->Ln();
-    $this->Cell(335,5,"N� CAJA: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
+    $this->Cell(335,5,"Nº CAJA: "._u8d($reg[0]["nrocaja"].": ".$reg[0]["nomcaja"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"RESPONSABLE DE CAJA: ".portales(_u8d($reg[0]["nombres"])),0,0,'L'); 
     $this->Ln();
@@ -22677,11 +22678,11 @@ function TablaListarNotasxCajas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE NOTA',1,0,'C', True);
-    $this->Cell(55,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE NOTA',1,0,'C', True);
+    $this->Cell(55,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DCTO',1,0,'C', True);
@@ -22713,7 +22714,7 @@ function TablaListarNotasxCajas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
    
     $this->Cell(210,5,'',0,0,'C');
@@ -22790,7 +22791,7 @@ function TablaListarNotasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -22833,7 +22834,7 @@ function TablaListarNotasxFechas()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -22852,7 +22853,7 @@ function TablaListarNotasxFechas()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -22869,11 +22870,11 @@ function TablaListarNotasxFechas()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE NOTA',1,0,'C', True);
-    $this->Cell(55,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE NOTA',1,0,'C', True);
+    $this->Cell(55,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DCTO %',1,0,'C', True);
@@ -22905,7 +22906,7 @@ function TablaListarNotasxFechas()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
    
     $this->Cell(210,5,'',0,0,'C');
@@ -22983,7 +22984,7 @@ function TablaListarNotasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($con[0]['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -23026,7 +23027,7 @@ function TablaListarNotasxClientes()
 
     $this->Ln();
     $this->Cell(90,5,"",0,0,'C');
-    $this->Cell(155,5,"N� TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
+    $this->Cell(155,5,"Nº TLF: "._u8d($_SESSION['tlfsucursal']),0,0,'C');
     $this->Cell(90,5,"",0,0,'C');
 
     $this->Ln();
@@ -23045,7 +23046,7 @@ function TablaListarNotasxClientes()
     if($_SESSION['acceso'] == "administradorG"){
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($reg[0]['documento'])." SUCURSAL: "._u8d($reg[0]["cuitsucursal"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"SUCURSAL: ".portales(_u8d($reg[0]["nomsucursal"])),0,0,'L'); 
     $this->Ln();
@@ -23054,17 +23055,17 @@ function TablaListarNotasxClientes()
     }
 
     $this->Ln();
-    $this->Cell(335,6,"N� "._u8d($documento = ($reg[0]['documcliente'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." CLIENTE: "._u8d($reg[0]["dnicliente"]),0,0,'L');
+    $this->Cell(335,6,"Nº "._u8d($documento = ($reg[0]['documcliente'] == '0' ? "DOCUMENTO" : $reg[0]['documento3']))." CLIENTE: "._u8d($reg[0]["dnicliente"]),0,0,'L');
     $this->Ln();
     $this->Cell(335,6,"CLIENTE: ".portales(_u8d($reg[0]['nomcliente'])),0,0,'L');
     $this->Ln();
-    $this->Cell(335,6,"N� DE TEL�FONO: ".portales(_u8d($reg[0]['tlfcliente'] == '' ? "********" : $reg[0]['tlfcliente'])),0,0,'L');
+    $this->Cell(335,6,"Nº DE TELÉFONO: ".portales(_u8d($reg[0]['tlfcliente'] == '' ? "********" : $reg[0]['tlfcliente'])),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"PROVINCIA: ".portales(_u8d($reg[0]["id_provincia"] == "0" ? "********" : $reg[0]["provincia2"])),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"DEPARTAMENTO: ".portales(_u8d($reg[0]["id_departamento"] == "0" ? "********" : $reg[0]["departamento2"])),0,0,'L');
     $this->Ln();
-    $this->Cell(335,5,"DIRECCI�N: ".portales(_u8d($reg[0]["direccliente"] == "" ? "********" : $reg[0]["direccliente"])),0,0,'L');
+    $this->Cell(335,5,"DIRECCIÓN: ".portales(_u8d($reg[0]["direccliente"] == "" ? "********" : $reg[0]["direccliente"])),0,0,'L');
     $this->Ln();
     $this->Cell(335,5,"CORREO ELECTRONICO: ".portales(_u8d($reg[0]["emailcliente"] == "" ? "********" : $reg[0]["emailcliente"])),0,1,'L');
 
@@ -23072,11 +23073,11 @@ function TablaListarNotasxClientes()
     $this->SetFont('courier','B',10);
     $this->SetTextColor(255,255,255);  // Establece el color del texto (en este caso es BLANCO)
     $this->SetFillColor(255,118,118); // establece el color del fondo de la celda (en este caso es AZUL)
-    $this->Cell(15,8,'N�',1,0,'C', True);
-    $this->Cell(35,8,'N� DE NOTA',1,0,'C', True);
-    $this->Cell(55,8,'N� DE DOCUMENTO',1,0,'C', True);
-    $this->Cell(70,8,'DESCRIPCI�N DE CLIENTE',1,0,'C', True);
-    $this->Cell(35,8,'FECHA EMISI�N',1,0,'C', True);
+    $this->Cell(15,8,'Nº',1,0,'C', True);
+    $this->Cell(35,8,'Nº DE NOTA',1,0,'C', True);
+    $this->Cell(55,8,'Nº DE DOCUMENTO',1,0,'C', True);
+    $this->Cell(70,8,'DESCRIPCIÓN DE CLIENTE',1,0,'C', True);
+    $this->Cell(35,8,'FECHA EMISIÓN',1,0,'C', True);
     $this->Cell(35,8,'SUBTOTAL',1,0,'C', True);
     $this->Cell(30,8,$impuesto,1,0,'C', True);
     $this->Cell(25,8,'DCTO %',1,0,'C', True);
@@ -23108,7 +23109,7 @@ function TablaListarNotasxClientes()
 
     $this->SetFont('Courier','',10);  
     $this->SetTextColor(3,3,3);  // Establece el color del texto (en este caso es negro)
-    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." N�: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
+    $this->Row(array($a++,_u8d($reg[$i]["codfactura"]),_u8d($tipo_documento = ($reg[$i]['tipodocumento'] == "FACTURA_A4" ? "FACTURA" : $reg[$i]['tipodocumento']))." Nº: "._u8d($reg[$i]["facturaventa"]),_u8d($reg[$i]['codcliente'] == '' || $reg[$i]['codcliente'] == '0' ? "CONSUMIDOR FINAL" : $reg[$i]['nomcliente']),_u8d(date("d-m-Y",strtotime($reg[$i]['fechanota']))),_u8d($simbolo.number_format($reg[$i]['subtotalivasi']+$reg[$i]['subtotalivano'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaliva'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totaldescuento'], 2, '.', ',')),_u8d($simbolo.number_format($reg[$i]['totalpago'], 2, '.', ','))));
    }
    
     $this->Cell(210,5,'',0,0,'C');

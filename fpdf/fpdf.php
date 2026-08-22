@@ -422,6 +422,11 @@ function SetTextColor($r, $g=null, $b=null)
 function GetStringWidth($s)
 {
 	// Get width of a string in the current font
+	$s = (string)$s;
+	if($s !== '' && mb_check_encoding($s, 'UTF-8') && !mb_check_encoding($s, 'ASCII')) {
+		$c = @iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', $s);
+		if($c !== false) $s = $c;
+	}
 	$cw = $this->CurrentFont['cw'];
 	$w = 0;
 	$s = (string)$s;
@@ -573,6 +578,10 @@ function Text($x, $y, $txt)
 	if(!isset($this->CurrentFont))
 		$this->Error('No font has been set');
 	$txt = (string)$txt;
+	if($txt !== '' && mb_check_encoding($txt, 'UTF-8') && !mb_check_encoding($txt, 'ASCII')) {
+		$c = @iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', $txt);
+		if($c !== false) $txt = $c;
+	}
 	$s = sprintf('BT %.2F %.2F Td (%s) Tj ET',$x*$this->k,($this->h-$y)*$this->k,$this->_escape($txt));
 	if($this->underline && $txt!=='')
 		$s .= ' '.$this->_dounderline($x,$y,$txt);
@@ -1855,6 +1864,11 @@ function MultiCellText($w, $h, $txt, $border=0, $ln=0, $align='J', $fill=false)
 function Cell($w, $h=0, $txt='', $border=0, $ln=0, $align='', $fill=false, $link='')
 {
 	// Output a cell
+	$txt = (string)$txt;
+	if($txt !== '' && mb_check_encoding($txt, 'UTF-8') && !mb_check_encoding($txt, 'ASCII')) {
+		$c = @iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', $txt);
+		if($c !== false) $txt = $c;
+	}
 	$k = $this->k;
 	if($this->y+$h>$this->PageBreakTrigger && !$this->InHeader && !$this->InFooter && $this->AcceptPageBreak())
 	{
@@ -1938,6 +1952,11 @@ function MultiCell($w, $h, $txt, $border=0, $align='J', $fill=false)
 	// Output text with automatic or explicit line breaks
 	if(!isset($this->CurrentFont))
 		$this->Error('No font has been set');
+	$txt = (string)$txt;
+	if($txt !== '' && mb_check_encoding($txt, 'UTF-8') && !mb_check_encoding($txt, 'ASCII')) {
+		$c = @iconv('UTF-8', 'windows-1252//TRANSLIT//IGNORE', $txt);
+		if($c !== false) $txt = $c;
+	}
 	$cw = $this->CurrentFont['cw'];
 	if($w==0)
 		$w = $this->w-$this->rMargin-$this->x;

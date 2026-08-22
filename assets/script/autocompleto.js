@@ -189,8 +189,19 @@ $(function() {
 
 $(function() {
   $("#search_traspaso").autocomplete({
-    source: "class/busqueda_autocompleto.php?Busqueda_Producto_Compra=si",
     minLength: 1,
+    source: function (request, response) {
+        var term = request.term;
+        var term2 = $("#sucursal_envia").length ? $("#sucursal_envia").val() : "";
+        if (term2 === "" || term2 === "0") {
+            swal("Atención", "POR FAVOR DEBE SELECCIONAR LA SUCURSAL DE ORIGEN (ENVÍA)!", "warning");
+            response([]);
+            return false;
+        }
+        $.getJSON("class/busqueda_autocompleto.php?Busqueda_Productos_Sucursal=si&term=" + encodeURIComponent(term) + "&term2=" + encodeURIComponent(term2), function (data) {
+            response(data);
+        });
+    },
     select: function(event, ui) {
         $('#idproducto').val(ui.item.idproducto);
         $('#codproducto').val(ui.item.codproducto);
@@ -221,8 +232,8 @@ $(function() {
         $('#fechaexpiracion').val(ui.item.fechaexpiracion);
         $("#cantidad").focus();
         $('#precioventa').load("funciones.php?BuscaPreciosProductos=si&idproducto="+ui.item.idproducto);
-        }
-    });
+    }
+  });
 });
 
 

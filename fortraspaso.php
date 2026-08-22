@@ -190,13 +190,17 @@ $reg = $tra->TraspasosPorId(); ?>
     <input type="hidden" name="proceso" id="proceso" <?php if (isset($_GET['codtraspaso']) && decrypt($_GET["proceso"])=="U") { ?> value="update" <?php } elseif (isset($_GET['codtraspaso']) && decrypt($_GET["proceso"])=="A") { ?> value="agregar" <?php } else { ?> value="save" <?php } ?>>
     <input type="hidden" name="idtraspaso" id="idtraspaso" <?php if (isset($reg[0]['idtraspaso'])) { ?> value="<?php echo $reg[0]['idtraspaso']; ?>"<?php } ?>>
     <input type="hidden" name="codtraspaso" id="codtraspaso" <?php if (isset($reg[0]['codtraspaso'])) { ?> value="<?php echo encrypt($reg[0]['codtraspaso']); ?>"<?php } ?>>
-    <input type="hidden" name="sucursal_envia" id="sucursal_envia" <?php if (isset($reg[0]['sucursal_envia'])) { ?> value="<?php echo encrypt($reg[0]['sucursal_envia']); ?>" <?php } else { ?> value="<?php echo encrypt($_SESSION["codsucursal"]); ?>" <?php } ?>>
+    <?php if (isset($reg[0]['sucursal_envia'])) { ?>
+    <input type="hidden" name="sucursal_envia" id="sucursal_envia" value="<?php echo encrypt($reg[0]['sucursal_envia']); ?>">
+    <?php } elseif ($_SESSION["acceso"] != "administradorG") { ?>
+    <input type="hidden" name="sucursal_envia" id="sucursal_envia" value="<?php echo encrypt($_SESSION["codsucursal"]); ?>">
+    <?php } ?>
      
     <h2 class="card-subtitle m-0 text-dark"><i class="font-22 mdi mdi-file-send"></i> Datos de Factura</h2><hr>
 
     <div class="row">
         <?php if (isset($reg[0]['sucursal_recibe'])) { ?>
-         <div class="col-md-4"> 
+        <div class="col-md-3"> 
             <div class="form-group has-feedback"> 
                 <label class="control-label">Sucursal Destinatario: <span class="symbol required"></span></label> 
                 <input type="hidden" name="sucursal_recibe" id="sucursal_recibe" value="<?php echo encrypt($reg[0]['sucursal_recibe']); ?>">
@@ -204,6 +208,42 @@ $reg = $tra->TraspasosPorId(); ?>
                 <i class="fa fa-bank form-control-feedback"></i>  
             </div>
         </div>   
+
+        <?php } elseif ($_SESSION["acceso"] == "administradorG") { ?>
+
+        <div class="col-md-3"> 
+            <div class="form-group has-feedback"> 
+                <label class="control-label">Sucursal Origen (Envía): <span class="symbol required"></span></label>
+                <i class="fa fa-bars form-control-feedback"></i>
+                <select style="color:#000;font-weight:bold;" name="sucursal_envia" id="sucursal_envia" class="form-control" required="" aria-required="true" onchange="$('#search_traspaso').val(''); $('#idproducto, #codproducto, #producto, #existencia, #preciocompra, #precioconiva, #ivaproducto, #descproducto').val(''); $('#precioventa').html('<option value=\'\'> -- SIN RESULTADOS -- </option>');">
+                <option value=""> -- SELECCIONE ORIGEN -- </option>
+                <?php
+                $sucursal = new Login();
+                $sucursal = $sucursal->ListarSucursales();
+                if($sucursal!=""){ 
+                for($i=0;$i<sizeof($sucursal);$i++){
+                ?>
+                <option value="<?php echo encrypt($sucursal[$i]['codsucursal']); ?>"><?php echo $sucursal[$i]['cuitsucursal'].": ".$sucursal[$i]['nomsucursal']; ?></option>       
+                <?php } } ?>
+                </select> 
+            </div> 
+        </div>
+
+        <div class="col-md-3"> 
+            <div class="form-group has-feedback"> 
+                <label class="control-label">Sucursal Destinatario (Recibe): <span class="symbol required"></span></label>
+                <i class="fa fa-bars form-control-feedback"></i>
+                <select style="color:#000;font-weight:bold;" name="sucursal_recibe" id="sucursal_recibe" class="form-control" required="" aria-required="true">
+                <option value=""> -- SELECCIONE DESTINO -- </option>
+                <?php
+                if($sucursal!=""){ 
+                for($i=0;$i<sizeof($sucursal);$i++){
+                ?>
+                <option value="<?php echo encrypt($sucursal[$i]['codsucursal']); ?>"><?php echo $sucursal[$i]['cuitsucursal'].": ".$sucursal[$i]['nomsucursal']; ?></option>       
+                <?php } } ?>
+                </select> 
+            </div> 
+        </div>
 
         <?php } else { ?>
 
@@ -229,7 +269,7 @@ $reg = $tra->TraspasosPorId(); ?>
 
         <?php } ?>
 
-        <div class="col-md-4">
+        <div class="<?php echo ($_SESSION["acceso"] == "administradorG" && !isset($reg[0]['sucursal_recibe'])) ? "col-md-3" : "col-md-4"; ?>">
             <div class="form-group has-feedback">
                 <label class="control-label">Responsable de Traslado: </label>
                 <input type="text" class="form-control" name="nombres_responsable" id="nombres_responsable" onKeyUp="this.value=this.value.toUpperCase();" placeholder="Ingrese Responsable de Traslado" autocomplete="off" <?php if (isset($reg[0]['nombres_responsable'])) { ?> value="<?php echo $reg[0]['nombres_responsable']; ?>" <?php } ?> required="" aria-required="true"/>  
@@ -237,7 +277,7 @@ $reg = $tra->TraspasosPorId(); ?>
             </div>
         </div>
 
-        <div class="col-md-4"> 
+        <div class="<?php echo ($_SESSION["acceso"] == "administradorG" && !isset($reg[0]['sucursal_recibe'])) ? "col-md-3" : "col-md-4"; ?>"> 
             <div class="form-group has-feedback"> 
                 <label class="control-label">Fecha Traspaso: <span class="symbol required"></span></label> 
                 <input type="text" class="form-control calendario" name="fechatraspaso" id="fechatraspaso" onKeyUp="this.value=this.value.toUpperCase();" autocomplete="off" placeholder="Ingrese Fecha Traspaso" <?php if (isset($reg[0]['fechatraspaso'])) { ?> value="<?php echo date("d-m-Y",strtotime($reg[0]['fechatraspaso'])); ?>" <?php } else { ?> value="<?php echo date("d-m-Y"); ?>" <?php } ?> required="" aria-required="true">

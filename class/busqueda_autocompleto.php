@@ -67,6 +67,9 @@ if (isset($_GET['Busqueda_Productos_Sucursal'])):
 
 $filtro  = $_GET["term"];
 $filtro2 = decrypt($_GET["term2"]);
+if (empty($filtro2)) {
+    $filtro2 = $_GET["term2"];
+}
 $Json = new Json;
 $productos = $Json->BuscaProductosxSucursal($filtro,$filtro2);
 echo json_encode($productos);

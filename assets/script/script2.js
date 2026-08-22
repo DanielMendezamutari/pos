@@ -3076,7 +3076,8 @@ function CargaProductos(){
 
 $('#loadproductos').html('<center><i class="fa fa-spin fa-spinner"></i> Procesando información, por favor espere....</center>');
 
-var dataString = "CargarProductos=si&url=modal";
+var sucursal = $("#sucursal_envia").length ? $("#sucursal_envia").val() : "";
+var dataString = "CargarProductos=si&url=modal" + (sucursal ? "&codsucursal=" + encodeURIComponent(sucursal) : "");
 
 $.ajax({
     type: "GET",
