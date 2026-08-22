@@ -76,8 +76,14 @@ endif;
 if (isset($_GET['Busqueda_Producto_Compra'])):
 
 $filtro = $_GET["term"];
+$filtro2 = "";
+if (isset($_GET["term2"]) && !empty($_GET["term2"])) {
+	$filtro2 = is_numeric(decrypt($_GET["term2"])) ? decrypt($_GET["term2"]) : (is_numeric($_GET["term2"]) ? $_GET["term2"] : "");
+} elseif (isset($_SESSION["codsucursal"])) {
+	$filtro2 = $_SESSION["codsucursal"];
+}
 $Json = new Json;
-$producto = $Json->BuscaProductosCompra($filtro);
+$producto = $Json->BuscaProductosCompra($filtro, $filtro2);
 echo json_encode($producto);
 
 endif;

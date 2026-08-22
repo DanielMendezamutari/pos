@@ -5952,9 +5952,16 @@ public function ListarProveedores()
 		LEFT JOIN provincias ON proveedores.id_provincia = provincias.id_provincia 
 		LEFT JOIN departamentos ON proveedores.id_departamento = departamentos.id_departamento
 		LEFT JOIN sucursales ON proveedores.codsucursal = sucursales.codsucursal
-		LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
-		WHERE (proveedores.codsucursal = '".limpiar(decrypt($_GET["codsucursal"]))."' OR proveedores.codsucursal = '0')
-		ORDER BY proveedores.nomproveedor ASC";
+		LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento";
+
+		if (isset($_GET["codsucursal"]) && !empty($_GET["codsucursal"])) {
+			$suc = is_numeric(decrypt($_GET["codsucursal"])) ? decrypt($_GET["codsucursal"]) : (is_numeric($_GET["codsucursal"]) ? $_GET["codsucursal"] : "");
+			if ($suc != "" && $suc != "0") {
+				$sql .= " WHERE (proveedores.codsucursal = '".limpiar($suc)."' OR proveedores.codsucursal = '0' OR proveedores.codsucursal = '' OR proveedores.codsucursal IS NULL)";
+			}
+		}
+
+		$sql .= " ORDER BY proveedores.nomproveedor ASC";
 		foreach ($this->dbh->query($sql) as $row)
 		{
 			$this->p[] = $row;

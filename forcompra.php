@@ -135,7 +135,7 @@ exit;
                     <div class="form-group has-feedback">
                         <label class="control-label">Nº de Documento: <span class="symbol required"></span></label>
                         <input type="hidden" name="proceso" id="proceso" value="newproveedor"/>
-                        <input type="hidden" name="codsucursal" id="codsucursal" value="<?php echo encrypt($_SESSION["codsucursal"]); ?>">
+                        <input type="hidden" name="codsucursal" id="codsucursal_modal_prov" value="<?php echo isset($_SESSION["codsucursal"]) ? encrypt($_SESSION["codsucursal"]) : ""; ?>">
                         <input type="hidden" name="formulario" id="formulario" value="forcompra"/>
                         <input type="text" class="form-control" name="cuitproveedor" id="cuitproveedor" onKeyUp="this.value=this.value.toUpperCase();" placeholder="Ingrese Nº de Documento" autocomplete="off" required="" aria-required="true"/> 
                         <i class="fa fa-bolt form-control-feedback"></i> 
@@ -283,7 +283,7 @@ exit;
                     <input type="hidden" name="formulario" id="formulario" value="forcompra">
                     <input type="hidden" name="modulo" id="modulo" value="3">
                     <input type="hidden" name="proceso" id="proceso" value="newproducto"/>
-                    <input type="hidden" name="codsucursal" id="codsucursal" value="<?php echo encrypt($_SESSION["codsucursal"]); ?>">
+                    <input type="hidden" name="codsucursal" id="codsucursal_modal_prod" value="<?php echo isset($_SESSION["codsucursal"]) ? encrypt($_SESSION["codsucursal"]) : ""; ?>">
                     <input type="text" class="form-control" name="codproducto2" id="codproducto2" onKeyUp="this.value=this.value.toUpperCase();" placeholder="Ingrese Código de Producto" autocomplete="off" required="" aria-required="true"/> 
                     <i class="fa fa-bolt form-control-feedback"></i> 
                 </div>
@@ -1605,6 +1605,15 @@ for($i=0;$i<sizeof($detalle);$i++){
     <script src="assets/plugins/noty/packaged/jquery.noty.packaged.min.js"></script>
     <!-- jQuery -->
     
+    <script>
+    $(document).ready(function() {
+        $("#codsucursal").on("change", function() {
+            var sucursalVal = $(this).val();
+            $("#codsucursal_modal_prov").val(sucursalVal);
+            $("#codsucursal_modal_prod").val(sucursalVal);
+        });
+    });
+    </script>
 
 </body>
 </html>

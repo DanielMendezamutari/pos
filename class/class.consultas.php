@@ -162,7 +162,14 @@ class Json
 	################################ BUSQUEDA DE PRODUCTOS ################################
 
 	################################ BUSQUEDA DE PRODUCTOS ################################
-	public function BuscaProductosCompra($filtro){
+	public function BuscaProductosCompra($filtro, $codsucursal = ""){
+
+		$condicion_sucursal = "";
+		if (!empty($codsucursal) && $codsucursal != "0") {
+			$condicion_sucursal = " AND productos.codsucursal = '".strip_tags($codsucursal)."' ";
+		} elseif (isset($_SESSION["codsucursal"]) && !empty($_SESSION["codsucursal"]) && (isset($_SESSION["acceso"]) && $_SESSION["acceso"] != "administradorG")) {
+			$condicion_sucursal = " AND productos.codsucursal = '".strip_tags($_SESSION["codsucursal"])."' ";
+		}
 
         $consulta = "SELECT 
         CONCAT(productos.codproducto, ' | ',productos.producto, ' | MARCA(',marcas.nommarca, ') | MODELO(',if(productos.codmodelo='0','***',modelos.nommodelo), ') | IMEI(',if(productos.imei='','***',productos.imei), ')' ) as label, 
@@ -200,7 +207,7 @@ class Json
 	    LEFT JOIN presentaciones ON productos.codpresentacion = presentaciones.codpresentacion
         LEFT JOIN colores ON productos.codcolor = colores.codcolor
         WHERE CONCAT(productos.codproducto, '',productos.producto, '',productos.codigobarra, '',marcas.nommarca, if(productos.imei='','0',productos.imei)) LIKE '%".$filtro."%' 
-        AND productos.codsucursal= '".strip_tags($_SESSION["codsucursal"])."' 
+        ".$condicion_sucursal."
         ORDER BY productos.codproducto 
         ASC LIMIT 0,15";
         $conexion = new conectorDB;

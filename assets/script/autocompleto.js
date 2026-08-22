@@ -145,8 +145,14 @@ $(function() {
 
 $(function() {
     $("#search_compra").autocomplete({
-        source: "class/busqueda_autocompleto.php?Busqueda_Producto_Compra=si",
         minLength: 1,
+        source: function (request, response) {
+            var term = request.term;
+            var term2 = $("#codsucursal").length ? $("#codsucursal").val() : "";
+            $.getJSON("class/busqueda_autocompleto.php?Busqueda_Producto_Compra=si&term=" + encodeURIComponent(term) + "&term2=" + encodeURIComponent(term2), function (data) {
+                response(data);
+            });
+        },
         select: function(event, ui) {
             $('#idproducto').val(ui.item.idproducto);
             $('#codproducto').val(ui.item.codproducto);
