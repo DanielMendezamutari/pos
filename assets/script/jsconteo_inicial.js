@@ -54,12 +54,17 @@ function GuardarConteoInicialCajero() {
         showLoaderOnConfirm: true
     }, function () {
         var formData = $form.serialize();
+        var $btnGuardar = $("#btn_guardar_conteo");
+        $btnGuardar.prop("disabled", true).html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
+
         $.ajax({
             type: "POST",
             url: "funciones.php?GuardarConteoInicialCajero=si",
             data: formData,
             dataType: "json",
+            timeout: 60000,
             success: function (resp) {
+                $btnGuardar.prop("disabled", false).html('<i class="fa fa-save"></i> GUARDAR Y ENVIAR INVENTARIO INICIAL');
                 if (resp && resp.status === 1) {
                     var tipoCrypt = window.TIPO_CONTEO_INICIAL || "";
                     var pdfUrl = "reportepdf?idconteo=" + resp.idconteo + "&tipo=" + encodeURIComponent(tipoCrypt);
@@ -76,7 +81,7 @@ function GuardarConteoInicialCajero() {
 
                     swal({
                         title: "¡Inventario Inicial Guardado!",
-                        text: "Se ha registrado con éxito a las " + resp.horaconteo + ". ¿Deseas abrir el Comprobante PDF para enviarlo a WhatsApp?",
+                        text: resp.msg || ("Se ha registrado con éxito a las " + resp.horaconteo + ". ¿Deseas abrir el Comprobante PDF para enviarlo a WhatsApp?"),
                         type: "success",
                         showCancelButton: true,
                         confirmButtonColor: "#dc3545",
@@ -93,8 +98,9 @@ function GuardarConteoInicialCajero() {
                     swal("Error", resp ? resp.msg : "Ocurrió un error al guardar.", "error");
                 }
             },
-            error: function () {
-                swal("Error", "Error de comunicación con el servidor.", "error");
+            error: function (xhr, status, error) {
+                $btnGuardar.prop("disabled", false).html('<i class="fa fa-save"></i> GUARDAR Y ENVIAR INVENTARIO INICIAL');
+                swal("Aviso de Conexión", "El servidor tardó en responder o expiró la sesión por inactividad. Si ya se guardó, puedes revisar en el panel o refrescar la página con F5.", "warning");
             }
         });
     });

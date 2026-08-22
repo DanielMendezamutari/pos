@@ -38673,10 +38673,30 @@ public function RegistrarConteoInicialCajero()
 	}
 
 	$codsucursal = (int)decrypt($_POST["codsucursal"]);
+	if ($codsucursal <= 0 && is_numeric($_POST["codsucursal"])) {
+		$codsucursal = (int)$_POST["codsucursal"];
+	}
 	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
 	$fechaconteo = date("Y-m-d H:i:s");
 	$observaciones = isset($_POST["observaciones"]) ? limpiar($_POST["observaciones"]) : "";
 	$total_productos = count($_POST["idproducto"]);
+
+	// Validar si ya existe un inventario inicial registrado para esta sucursal el día de hoy
+	$sqlCheck = "SELECT idconteo, fechaconteo FROM conteo_inicial_diario 
+		WHERE codsucursal = ? AND DATE(fechaconteo) = CURDATE() 
+		ORDER BY idconteo DESC LIMIT 1";
+	$stmtCheck = $this->dbh->prepare($sqlCheck);
+	$stmtCheck->execute(array($codsucursal));
+	$conteoExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+	if ($conteoExistente) {
+		echo json_encode(array(
+			"status" => 1,
+			"idconteo" => encrypt($conteoExistente['idconteo']),
+			"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
+			"msg" => "El inventario inicial ya se encuentra registrado para hoy (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
+		));
+		exit;
+	}
 
 	try {
 		$this->dbh->beginTransaction();
