@@ -31,16 +31,37 @@ function BuscarProductosEnVivoBaja(texto) {
 
         $.ajax({
             type: "GET",
-            url: "funciones.php",
+            url: "class/busqueda_autocompleto.php",
             data: {
-                BuscaProductosParaBaja: "si",
-                q: texto.trim(),
+                Busqueda_Productos_Baja: "si",
+                term: texto.trim(),
                 codsucursal: codsucursal
             },
-            dataType: "json",
-            success: function (data) {
-                var items = (data && data.results) ? data.results : (Array.isArray(data) ? data : []);
-                if (items.length === 0) {
+            dataType: "text",
+            success: function (resp) {
+                var items = [];
+                if (typeof resp === "string") {
+                    try {
+                        var jsonStart = resp.indexOf('[');
+                        var jsonStartObj = resp.indexOf('{');
+                        if (jsonStart !== -1 && (jsonStartObj === -1 || jsonStart < jsonStartObj)) {
+                            var jsonEnd = resp.lastIndexOf(']');
+                            items = JSON.parse(resp.substring(jsonStart, jsonEnd + 1));
+                        } else if (jsonStartObj !== -1) {
+                            var jsonEnd = resp.lastIndexOf('}');
+                            var parsed = JSON.parse(resp.substring(jsonStartObj, jsonEnd + 1));
+                            items = parsed.results || [parsed];
+                        }
+                    } catch (e) {
+                        console.error("Error parseando respuesta:", e, resp);
+                    }
+                } else if (Array.isArray(resp)) {
+                    items = resp;
+                } else if (resp && resp.results) {
+                    items = resp.results;
+                }
+
+                if (!items || items.length === 0) {
                     $("#body_resultados_busqueda").html('<div class="text-center p-3 text-muted"><i class="fa fa-info-circle"></i> No se encontraron productos con ese nombre o código en esta sucursal.</div>');
                     return;
                 }
@@ -59,13 +80,15 @@ function BuscarProductosEnVivoBaja(texto) {
 
                 $.each(items, function (idx, p) {
                     var jsonStr = JSON.stringify(p).replace(/"/g, '&quot;');
-                    var stockBadge = (p.existencia > 0) ? '<span class="badge badge-success font-12">' + parseFloat(p.existencia).toFixed(0) + ' u.</span>' : '<span class="badge badge-danger font-12">0 u.</span>';
+                    var stock = parseFloat(p.existencia) || 0;
+                    var costo = parseFloat(p.preciocompra) || 0;
+                    var stockBadge = (stock > 0) ? '<span class="badge badge-success font-12">' + stock.toFixed(0) + ' u.</span>' : '<span class="badge badge-danger font-12">0 u.</span>';
 
                     html += '<tr>' +
                         '<td class="font-weight-bold text-center">' + p.codproducto + '</td>' +
                         '<td class="font-weight-bold">' + p.producto + '</td>' +
                         '<td class="text-center">' + stockBadge + '</td>' +
-                        '<td class="text-right font-weight-bold">Bs. ' + parseFloat(p.preciocompra).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+                        '<td class="text-right font-weight-bold">Bs. ' + costo.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
                         '<td class="text-center">' +
                             '<button type="button" class="btn btn-danger btn-sm font-weight-bold py-1 px-2" onclick="AgregarProductoBaja(' + jsonStr + ')">' +
                                 '<i class="fa fa-plus-circle"></i> + Agregar' +
@@ -77,8 +100,9 @@ function BuscarProductosEnVivoBaja(texto) {
                 html += '</tbody></table>';
                 $("#body_resultados_busqueda").html(html);
             },
-            error: function () {
-                $("#body_resultados_busqueda").html('<div class="alert alert-danger mb-0">Error al buscar productos.</div>');
+            error: function (xhr, status, err) {
+                console.error("Error AJAX bajas:", status, err);
+                $("#body_resultados_busqueda").html('<div class="alert alert-danger mb-0 text-center"><i class="fa fa-exclamation-triangle"></i> Error al conectar con el buscador. Puede usar el botón de <b>Catálogo Completo</b>.</div>');
             }
         });
     }, 200);

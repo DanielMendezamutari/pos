@@ -127,4 +127,26 @@ echo json_encode($facturas);
 
 endif;
 
+if (isset($_GET['Busqueda_Productos_Baja']) || isset($_GET['BuscaProductosParaBaja'])):
+	if (!isset($_SESSION)) { session_start(); }
+	$filtro = isset($_GET["term"]) ? trim($_GET["term"]) : (isset($_GET["q"]) ? trim($_GET["q"]) : "");
+	$filtro2 = "";
+	if (isset($_GET["codsucursal"]) && !empty($_GET["codsucursal"])) {
+		$raw = $_GET["codsucursal"];
+		$filtro2 = is_numeric(decrypt($raw)) ? decrypt($raw) : (is_numeric($raw) ? $raw : "");
+	} elseif (isset($_GET["term2"]) && !empty($_GET["term2"])) {
+		$raw = $_GET["term2"];
+		$filtro2 = is_numeric(decrypt($raw)) ? decrypt($raw) : (is_numeric($raw) ? $raw : "");
+	} elseif (isset($_SESSION["codsucursal"])) {
+		$filtro2 = $_SESSION["codsucursal"];
+	}
+
+	$Json = new Json;
+	$productos = $Json->BuscaProductosxSucursal($filtro, $filtro2);
+	if (ob_get_length()) { @ob_clean(); }
+	header('Content-Type: application/json; charset=utf-8');
+	echo json_encode($productos ? $productos : array());
+	exit;
+endif;
+
 ?>  
