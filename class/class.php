@@ -2366,6 +2366,7 @@ public function RegistrarMediosPagos()
 public function ListarMediosPagos()
 {
 	self::SetNames();
+	$this->p = array();
 	if ($_SESSION['acceso'] == "administradorG") {
 
 		$sql = "SELECT
@@ -2380,9 +2381,16 @@ public function ListarMediosPagos()
 		sucursales.nomencargado,
 		documentos.documento
 	   FROM mediospagos LEFT JOIN sucursales ON mediospagos.codsucursal = sucursales.codsucursal
-		LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
-		WHERE (mediospagos.codsucursal = '".limpiar(decrypt($_GET["codsucursal"]))."' OR mediospagos.codsucursal = '0')
-		ORDER BY mediospagos.mediopago ASC";
+		LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento";
+
+		if (isset($_GET["codsucursal"]) && !empty($_GET["codsucursal"])) {
+			$suc = is_numeric(decrypt($_GET["codsucursal"])) ? decrypt($_GET["codsucursal"]) : (is_numeric($_GET["codsucursal"]) ? $_GET["codsucursal"] : "");
+			if ($suc != "" && $suc != "0") {
+				$sql .= " WHERE (mediospagos.codsucursal = '".limpiar($suc)."' OR mediospagos.codsucursal = '0' OR mediospagos.codsucursal = '' OR mediospagos.codsucursal IS NULL)";
+			}
+		}
+
+		$sql .= " GROUP BY mediospagos.mediopago ORDER BY mediospagos.mediopago ASC";
 		foreach ($this->dbh->query($sql) as $row)
 		{
 			$this->p[] = $row;
@@ -5921,6 +5929,7 @@ public function RegistrarProveedores()
 public function ListarProveedores()
 {
 	self::SetNames();
+	$this->p = array();
 	if ($_SESSION['acceso'] == "administradorG") {
 
 		$sql = "SELECT
@@ -5961,7 +5970,7 @@ public function ListarProveedores()
 			}
 		}
 
-		$sql .= " ORDER BY proveedores.nomproveedor ASC";
+		$sql .= " GROUP BY proveedores.nomproveedor ORDER BY proveedores.nomproveedor ASC";
 		foreach ($this->dbh->query($sql) as $row)
 		{
 			$this->p[] = $row;
