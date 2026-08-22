@@ -11405,7 +11405,7 @@ public function ListarCombos()
 	tiposmoneda2.simbolo AS simbolo2,
 	valor_cambio.montocambio
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -11413,8 +11413,8 @@ public function ListarCombos()
    LEFT JOIN familias ON combos.codfamilia = familias.codfamilia
 	LEFT JOIN
       (SELECT
-      productos.codproducto, productos.producto, productos.codmarca, productos.codmodelo, productos.codpresentacion    
-      FROM productos WHERE codsucursal = '".limpiar(decrypt($_GET["codsucursal"]))."') productos2 ON productos2.codproducto = combosxproductos.codproducto
+      productos.idproducto, productos.codproducto, productos.producto, productos.codmarca, productos.codmodelo, productos.codpresentacion    
+      FROM productos WHERE codsucursal = '".limpiar(decrypt($_GET["codsucursal"]))."') productos2 ON (productos2.idproducto = combosxproductos.idproducto OR productos2.codproducto = combosxproductos.codproducto)
       LEFT JOIN marcas ON productos2.codmarca = marcas.codmarca
       LEFT JOIN modelos ON productos2.codmodelo = modelos.codmodelo 
       LEFT JOIN presentaciones ON productos2.codpresentacion = presentaciones.codpresentacion  
@@ -11432,11 +11432,6 @@ public function ListarCombos()
 	if($num==0)
 	{
 		echo "";
-		//echo "<div class='alert alert-danger'>";
-		//echo "<button type='button' class='close' data-dismiss='alert' aria-hidden='true'>&times;</button>";
-		//echo "<center><span class='fa fa-info-circle'></span> NO SE ENCONTRARON RESULTADOS EN TU BÚSQUEDA REALIZADA</center>";
-		//echo "</div>";		
-	   //exit;
 	}
 	else
 	{
@@ -11486,7 +11481,7 @@ public function ListarCombos()
 	tiposmoneda2.simbolo AS simbolo2,
 	valor_cambio.montocambio
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -11494,8 +11489,8 @@ public function ListarCombos()
    LEFT JOIN familias ON combos.codfamilia = familias.codfamilia
 	LEFT JOIN
       (SELECT
-      productos.codproducto, productos.producto, productos.codmarca, productos.codmodelo, productos.codpresentacion    
-      FROM productos WHERE codsucursal = '".limpiar($_SESSION["codsucursal"])."') productos2 ON productos2.codproducto = combosxproductos.codproducto
+      productos.idproducto, productos.codproducto, productos.producto, productos.codmarca, productos.codmodelo, productos.codpresentacion    
+      FROM productos WHERE codsucursal = '".limpiar($_SESSION["codsucursal"])."') productos2 ON (productos2.idproducto = combosxproductos.idproducto OR productos2.codproducto = combosxproductos.codproducto)
       LEFT JOIN marcas ON productos2.codmarca = marcas.codmarca
       LEFT JOIN modelos ON productos2.codmodelo = modelos.codmodelo 
       LEFT JOIN presentaciones ON productos2.codpresentacion = presentaciones.codpresentacion 
@@ -11562,7 +11557,7 @@ public function ListarCombosMinimo()
 	provincias.provincia,
 	departamentos.departamento
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -11633,7 +11628,7 @@ public function ListarCombosMinimo()
 	provincias.provincia,
 	departamentos.departamento
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -11712,7 +11707,7 @@ public function ListarCombosMaximo()
 	provincias.provincia,
 	departamentos.departamento
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -11783,7 +11778,7 @@ public function ListarCombosMaximo()
 	provincias.provincia,
 	departamentos.departamento
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -12642,7 +12637,7 @@ public function ListarKardexCombosValorizado()
 	tiposmoneda2.simbolo AS simbolo2,
 	valor_cambio.montocambio
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
@@ -12708,7 +12703,7 @@ public function ListarKardexCombosValorizado()
 	tiposmoneda2.simbolo AS simbolo2,
 	valor_cambio.montocambio
 	FROM (combos INNER JOIN sucursales ON combos.codsucursal = sucursales.codsucursal)
-	LEFT JOIN combosxproductos ON combos.codcombo = combosxproductos.codcombo
+	LEFT JOIN combosxproductos ON (combos.codcombo = combosxproductos.codcombo AND combos.codsucursal = combosxproductos.codsucursal)
 	LEFT JOIN documentos ON sucursales.documsucursal = documentos.coddocumento
 	LEFT JOIN documentos AS documentos2 ON sucursales.documencargado = documentos2.coddocumento
 	LEFT JOIN tiposmoneda ON sucursales.codmoneda = tiposmoneda.codmoneda
