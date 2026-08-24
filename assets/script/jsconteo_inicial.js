@@ -253,3 +253,31 @@ function GuardarEdicionConteoAdmin() {
         });
     });
 }
+
+function FiltrarTablaDiagnostico(tipo, btn) {
+    if (btn) {
+        $("#grupo_filtros_tabla_conteo button").removeClass("active btn-dark btn-danger btn-info btn-success");
+        $("#grupo_filtros_tabla_conteo button").each(function () {
+            var $b = $(this);
+            if ($b.text().indexOf("Todos") > -1) $b.addClass("btn-outline-dark");
+            else if ($b.text().indexOf("Faltantes") > -1) $b.addClass("btn-outline-danger");
+            else if ($b.text().indexOf("Sobrantes") > -1) $b.addClass("btn-outline-info");
+            else if ($b.text().indexOf("Cuadran") > -1) $b.addClass("btn-outline-success");
+        });
+        var $activeBtn = $(btn);
+        $activeBtn.removeClass("btn-outline-dark btn-outline-danger btn-outline-info btn-outline-success").addClass("active");
+        if (tipo === "todos") $activeBtn.addClass("btn-dark");
+        else if (tipo === "faltante") $activeBtn.addClass("btn-danger");
+        else if (tipo === "sobrante") $activeBtn.addClass("btn-info");
+        else if (tipo === "cuadra") $activeBtn.addClass("btn-success");
+    }
+
+    $("#tabla_modal_conteo tbody tr.fila-detalle-conteo").each(function () {
+        var diag = $(this).data("diagnostico");
+        if (tipo === "todos" || diag === tipo) {
+            $(this).show();
+        } else {
+            $(this).hide();
+        }
+    });
+}

@@ -595,6 +595,16 @@ $casos = [
     'func'    => 'TablaAuditoriaAperturaDiscrepancias',
     'output'  => ['Informe de Discrepancias Inventario Inicial.pdf', 'I'],
   ],
+  'CONTEO_FALTANTES'       => [
+    'medidas' => ['L', 'mm', 'A4'],
+    'func'    => 'TablaAuditoriaAperturaDiscrepancias',
+    'output'  => ['Informe de Faltantes Inventario Inicial.pdf', 'I'],
+  ],
+  'CONTEO_SOBRANTES'       => [
+    'medidas' => ['L', 'mm', 'A4'],
+    'func'    => 'TablaAuditoriaAperturaDiscrepancias',
+    'output'  => ['Informe de Sobrantes Inventario Inicial.pdf', 'I'],
+  ],
   'BAJAINVENTARIO'         => [
     'medidas' => ['P', 'mm', 'A4'],
     'func'    => 'TablaBajaInventario',
@@ -623,4 +633,16 @@ $pdf->AddPage();
 $pdf->{$caso_data['func']}();
 // Discard any captured warnings/notices before sending the PDF binary
 ob_end_clean();
-$pdf->Output($caso_data['output'][0], $caso_data['output'][1]);
+
+// Ajustar nombre de archivo dinámico si se pasó filtro
+$nombre_archivo = $caso_data['output'][0];
+if ($tipo === 'DISCREPANCIAS_CONTEO' && !empty($_GET['filtro'])) {
+  $f = strtolower(trim(decrypt($_GET['filtro']) ?: $_GET['filtro']));
+  if ($f === 'faltantes') {
+    $nombre_archivo = 'Informe de Faltantes Inventario Inicial.pdf';
+  } elseif ($f === 'sobrantes') {
+    $nombre_archivo = 'Informe de Sobrantes Inventario Inicial.pdf';
+  }
+}
+
+$pdf->Output($nombre_archivo, $caso_data['output'][1]);

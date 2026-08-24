@@ -12169,9 +12169,23 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 						</div>
 						<div class="mt-2 mt-md-0">
 							<?php if ($verif_conteo_apertura && !empty($verif_conteo_apertura['idconteo'])) { ?>
-							<a href="reportepdf?idconteo=<?php echo encrypt($verif_conteo_apertura['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow">
-								<i class="fa fa-file-pdf-o"></i> 📄 Exportar Acta para el Dueño (PDF)
-							</a>
+							<div class="btn-group">
+								<button type="button" class="btn btn-danger font-weight-bold dropdown-toggle shadow" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+									<i class="fa fa-file-pdf-o"></i> 📄 Exportar Acta para el Dueño (PDF) <span class="caret"></span>
+								</button>
+								<div class="dropdown-menu dropdown-menu-right shadow">
+									<a class="dropdown-item font-weight-bold text-dark py-2" href="reportepdf?idconteo=<?php echo encrypt($verif_conteo_apertura['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank">
+										<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta Completa (Faltantes + Sobrantes)
+									</a>
+									<div class="dropdown-divider my-1"></div>
+									<a class="dropdown-item font-weight-bold text-danger py-2" href="reportepdf?idconteo=<?php echo encrypt($verif_conteo_apertura['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank">
+										<i class="fa fa-exclamation-triangle mr-2"></i> 🔴 Solo Faltantes (PDF)
+									</a>
+									<a class="dropdown-item font-weight-bold text-info py-2" href="reportepdf?idconteo=<?php echo encrypt($verif_conteo_apertura['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank">
+										<i class="fa fa-info-circle mr-2"></i> 🔵 Solo Sobrantes (PDF)
+									</a>
+								</div>
+							</div>
 							<?php } ?>
 						</div>
 					</div>
@@ -12490,6 +12504,23 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 
 		<?php
 		$isAdmin = (isset($_SESSION['acceso']) && ($_SESSION['acceso'] == "administradorG" || $_SESSION['acceso'] == "administradorS"));
+
+		$count_todos = count($det);
+		$count_faltantes = 0;
+		$count_sobrantes = 0;
+		$count_cuadran = 0;
+		foreach ($det as $item_c) {
+			$stk = (float)($item_c['stock_sistema'] ?? 0);
+			$fis = (float)($item_c['cantidad_fisica'] ?? 0);
+			$df = $fis - $stk;
+			if (abs($df) < 0.001) {
+				$count_cuadran++;
+			} elseif ($df < 0) {
+				$count_faltantes++;
+			} else {
+				$count_sobrantes++;
+			}
+		}
 		?>
 		<?php if ($isAdmin) { ?>
 		<!-- Panel Exclusivo de Administrador -->
@@ -12511,22 +12542,41 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		</div>
 		<?php } ?>
 
-		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2">
-			<span class="font-weight-bold text-dark"><i class="fa fa-cubes"></i> Total Ítems Contados: <?php echo count($det); ?></span>
-			<div class="mt-1 mt-md-0">
+		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2 p-2 bg-light border rounded">
+			<div class="d-flex align-items-center flex-wrap mb-1 mb-md-0">
+				<span class="font-weight-bold text-dark mr-2"><i class="fa fa-filter text-primary"></i> Filtrar Vista:</span>
 				<?php if ($isAdmin) { ?>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark shadow-sm mr-1">
-					<i class="fa fa-file-pdf-o text-danger"></i> 📄 Exportar Acta para el Dueño (PDF)
+				<div class="btn-group btn-group-sm" role="group" id="grupo_filtros_tabla_conteo">
+					<button type="button" class="btn btn-dark active font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('todos', this)">Todos (<?php echo $count_todos; ?>)</button>
+					<button type="button" class="btn btn-outline-danger font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('faltante', this)"><i class="fa fa-exclamation-triangle"></i> Faltantes (<?php echo $count_faltantes; ?>)</button>
+					<button type="button" class="btn btn-outline-info font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('sobrante', this)"><i class="fa fa-info-circle"></i> Sobrantes (<?php echo $count_sobrantes; ?>)</button>
+					<button type="button" class="btn btn-outline-success font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('cuadra', this)"><i class="fa fa-check"></i> Cuadran (<?php echo $count_cuadran; ?>)</button>
+				</div>
+				<?php } else { ?>
+				<span class="badge badge-info font-14">Total: <?php echo $count_todos; ?> ítems</span>
+				<?php } ?>
+			</div>
+			<div class="d-flex align-items-center flex-wrap mt-1 mt-md-0">
+				<span class="font-weight-bold text-dark mr-2"><i class="fa fa-file-pdf-o text-danger"></i> Exportar PDF:</span>
+				<?php if ($isAdmin) { ?>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-sm btn-warning font-weight-bold text-dark shadow-sm mr-1" title="Descargar Acta Completa con Faltantes y Sobrantes">
+					<i class="fa fa-file-text-o text-danger"></i> 📊 Acta Completa
+				</a>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank" class="btn btn-sm btn-danger font-weight-bold shadow-sm mr-1" title="Descargar Solo Productos Faltantes">
+					<i class="fa fa-file-pdf-o"></i> 🔴 Solo Faltantes
+				</a>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank" class="btn btn-sm btn-info font-weight-bold shadow-sm mr-1" title="Descargar Solo Productos Sobrantes">
+					<i class="fa fa-file-pdf-o"></i> 🔵 Solo Sobrantes
 				</a>
 				<?php } ?>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow-sm">
-					<i class="fa fa-print"></i> Comprobante Físico (WhatsApp)
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-sm btn-success font-weight-bold shadow-sm" title="Comprobante Físico para Enviar por WhatsApp">
+					<i class="fa fa-print"></i> WhatsApp
 				</a>
 			</div>
 		</div>
 
 		<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-			<table class="table table-striped table-bordered table-sm mb-0">
+			<table class="table table-striped table-bordered table-sm mb-0" id="tabla_modal_conteo">
 				<thead class="bg-warning text-dark font-weight-bold text-center">
 					<tr>
 						<th style="width: 45px;">#</th>
@@ -12549,8 +12599,9 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 						$stock_sis = (float)($item['stock_sistema'] ?? 0);
 						$fisico_caj = (float)$item['cantidad_fisica'];
 						$dif_ap = $fisico_caj - $stock_sis;
+						$diag_attr = (abs($dif_ap) < 0.001 ? 'cuadra' : ($dif_ap < 0 ? 'faltante' : 'sobrante'));
 					?>
-					<tr>
+					<tr class="fila-detalle-conteo" data-diagnostico="<?php echo $diag_attr; ?>">
 						<td class="text-center font-weight-bold align-middle"><?php echo $c++; ?></td>
 						<td class="text-center align-middle"><?php echo htmlspecialchars($item['codproducto']); ?></td>
 						<td class="align-middle"><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
@@ -12606,7 +12657,7 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 
 		<div class="modal-footer px-0 pb-0 mt-3 d-flex justify-content-between flex-wrap">
 			<button type="button" class="btn btn-secondary" data-dismiss="modal"><i class="fa fa-times"></i> Cerrar</button>
-			<div>
+			<div class="d-flex align-items-center flex-wrap">
 				<?php if ($isAdmin) { ?>
 				<button type="button" class="btn btn-success font-weight-bold mr-1" id="btn_guardar_edicion_conteo" style="display: none;" onclick="GuardarEdicionConteoAdmin()">
 					<i class="fa fa-save"></i> Guardar Correcciones
@@ -12614,11 +12665,17 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 				<button type="button" class="btn btn-outline-secondary font-weight-bold mr-1" id="btn_cancelar_edicion_conteo" style="display: none;" onclick="CancelarEdicionConteoAdmin()">
 					<i class="fa fa-ban"></i> Cancelar Edición
 				</button>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark mr-1">
-					<i class="fa fa-file-pdf-o text-danger"></i> 📊 Acta de Discrepancias para el Dueño (PDF)
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark shadow-sm mr-1" title="Descargar Acta Completa con Faltantes y Sobrantes">
+					<i class="fa fa-file-text-o text-danger"></i> 📊 Acta Completa
+				</a>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow-sm mr-1" title="Descargar Solo Faltantes">
+					<i class="fa fa-file-pdf-o"></i> 🔴 Solo Faltantes
+				</a>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank" class="btn btn-info font-weight-bold shadow-sm mr-1" title="Descargar Solo Sobrantes">
+					<i class="fa fa-file-pdf-o"></i> 🔵 Solo Sobrantes
 				</a>
 				<?php } ?>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-danger font-weight-bold">
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-success font-weight-bold">
 					<i class="fa fa-print"></i> Imprimir Comprobante
 				</a>
 			</div>
@@ -12780,9 +12837,23 @@ if (isset($_GET['BuscaHistorialConteosIniciales'])) {
 							<button type="button" class="btn btn-danger font-weight-bold" title="Desbloquear para que la sucursal vuelva a contar a ciegas" onclick="DesbloquearConteoInicial('<?php echo encrypt($row['idconteo']); ?>', '<?php echo htmlspecialchars($row['nomsucursal']); ?>')">
 								<i class="fa fa-unlock"></i> 🔓 Desbloquear
 							</button>
-							<a href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('DISCREPANCIAS_CONTEO'); ?>" target="_blank" class="btn btn-warning text-dark font-weight-bold" title="Descargar Acta de Discrepancias en PDF">
-								<i class="fa fa-file-pdf-o text-danger"></i> Acta
-							</a>
+							<div class="btn-group btn-group-sm" role="group">
+								<button type="button" class="btn btn-warning text-dark font-weight-bold dropdown-toggle shadow-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Descargar Reportes PDF">
+									<i class="fa fa-file-pdf-o text-danger"></i> PDF <span class="caret"></span>
+								</button>
+								<div class="dropdown-menu dropdown-menu-right shadow">
+									<a class="dropdown-item font-weight-bold text-dark py-2" href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('DISCREPANCIAS_CONTEO'); ?>" target="_blank">
+										<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta Completa (Faltantes + Sobrantes)
+									</a>
+									<div class="dropdown-divider my-1"></div>
+									<a class="dropdown-item font-weight-bold text-danger py-2" href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('CONTEO_FALTANTES'); ?>" target="_blank">
+										<i class="fa fa-exclamation-triangle mr-2"></i> 🔴 Solo Faltantes (PDF)
+									</a>
+									<a class="dropdown-item font-weight-bold text-info py-2" href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('CONTEO_SOBRANTES'); ?>" target="_blank">
+										<i class="fa fa-info-circle mr-2"></i> 🔵 Solo Sobrantes (PDF)
+									</a>
+								</div>
+							</div>
 							<a href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('CONTEOINICIAL'); ?>" target="_blank" class="btn btn-secondary" title="Descargar Comprobante Físico (WhatsApp)">
 								<i class="fa fa-print"></i>
 							</a>

@@ -23429,6 +23429,22 @@ public function TablaAuditoriaAperturaDiscrepancias()
     // Moneda oficial: Bolivianos (Bs.)
     $simbolo = "Bs.";
 
+    // Detección de filtro (faltantes, sobrantes o todos)
+    $filtro = '';
+    if (!empty($_GET['filtro'])) {
+        $rawFiltro = trim($_GET['filtro']);
+        $decFiltro = decrypt($rawFiltro);
+        $filtro = strtolower($decFiltro ?: $rawFiltro);
+    }
+    if (empty($filtro) && isset($_GET['tipo'])) {
+        $decTipo = decrypt($_GET['tipo']);
+        if ($decTipo === 'CONTEO_FALTANTES') {
+            $filtro = 'faltantes';
+        } elseif ($decTipo === 'CONTEO_SOBRANTES') {
+            $filtro = 'sobrantes';
+        }
+    }
+
     // Encabezado
     $logo = ( file_exists("./fotos/logo_pdf.png") == "" ? "./assets/images/null.png" : "./fotos/logo_pdf.png");
     $this->Ln(1);
@@ -23438,14 +23454,35 @@ public function TablaAuditoriaAperturaDiscrepancias()
     $this->Cell(240,5,_u8d($cab['nomsucursal']),0,0,'C');
     $this->Ln(6);
     $this->SetFont('Courier','B',11);
-    $this->SetTextColor(180,0,0);
-    $this->Cell(35,5,"",0,0,'C');
-    $this->Cell(240,5,_u8d("INFORME DE DISCREPANCIAS EN INVENTARIO INICIAL (FALTANTES Y SOBRANTES)"),0,0,'C');
-    $this->Ln(4);
-    $this->SetFont('Courier','I',8);
-    $this->SetTextColor(50,50,50);
-    $this->Cell(35,5,"",0,0,'C');
-    $this->Cell(240,5,_u8d("Acta Oficial para Gerencia y Propietario - Turno 2:00 PM vs Stock del Sistema"),0,0,'C');
+
+    if ($filtro === 'faltantes') {
+        $this->SetTextColor(180,0,0);
+        $this->Cell(35,5,"",0,0,'C');
+        $this->Cell(240,5,_u8d("INFORME DE PRODUCTOS FALTANTES EN INVENTARIO INICIAL (SOLO FALTANTES)"),0,0,'C');
+        $this->Ln(4);
+        $this->SetFont('Courier','I',8);
+        $this->SetTextColor(50,50,50);
+        $this->Cell(35,5,"",0,0,'C');
+        $this->Cell(240,5,_u8d("Acta Oficial para Gerencia y Propietario - Solo Productos con Pérdida / Faltante (Turno 2:00 PM)"),0,0,'C');
+    } elseif ($filtro === 'sobrantes') {
+        $this->SetTextColor(0,102,170);
+        $this->Cell(35,5,"",0,0,'C');
+        $this->Cell(240,5,_u8d("INFORME DE PRODUCTOS SOBRANTES EN INVENTARIO INICIAL (SOLO SOBRANTES)"),0,0,'C');
+        $this->Ln(4);
+        $this->SetFont('Courier','I',8);
+        $this->SetTextColor(50,50,50);
+        $this->Cell(35,5,"",0,0,'C');
+        $this->Cell(240,5,_u8d("Acta Oficial para Gerencia y Propietario - Solo Productos con Excedente / Sobrante (Turno 2:00 PM)"),0,0,'C');
+    } else {
+        $this->SetTextColor(180,0,0);
+        $this->Cell(35,5,"",0,0,'C');
+        $this->Cell(240,5,_u8d("INFORME DE DISCREPANCIAS EN INVENTARIO INICIAL (FALTANTES Y SOBRANTES)"),0,0,'C');
+        $this->Ln(4);
+        $this->SetFont('Courier','I',8);
+        $this->SetTextColor(50,50,50);
+        $this->Cell(35,5,"",0,0,'C');
+        $this->Cell(240,5,_u8d("Acta Oficial para Gerencia y Propietario - Turno 2:00 PM vs Stock del Sistema"),0,0,'C');
+    }
     $this->Ln(6);
 
     $this->SetFont('Courier','',8);
@@ -23460,7 +23497,7 @@ public function TablaAuditoriaAperturaDiscrepancias()
     $this->Cell(125,4,_u8d("FECHA DE EMISIÓN: ".date("d/m/Y h:i A")),0,1,'R');
     $this->Ln(3);
 
-    // Filtrar ÚNICAMENTE los productos que presentan FALTANTE o SOBRANTE
+    // Filtrar los productos según el tipo de reporte seleccionado
     $discrepancias = array();
     $total_items_auditados = count($detalles);
     $total_con_faltante = 0;
@@ -23484,7 +23521,9 @@ public function TablaAuditoriaAperturaDiscrepancias()
             $d['dif_calc'] = $dif;
             $d['monto_calc'] = $monto_dif;
             $d['tipo_diag'] = "FALTANTE";
-            $discrepancias[] = $d;
+            if ($filtro === '' || $filtro === 'todos' || $filtro === 'faltantes') {
+                $discrepancias[] = $d;
+            }
         } elseif ($dif > 0.001) {
             $total_con_sobrante++;
             $total_unidades_sobrantes += $dif;
@@ -23492,16 +23531,24 @@ public function TablaAuditoriaAperturaDiscrepancias()
             $d['dif_calc'] = $dif;
             $d['monto_calc'] = $monto_dif;
             $d['tipo_diag'] = "SOBRANTE";
-            $discrepancias[] = $d;
+            if ($filtro === '' || $filtro === 'todos' || $filtro === 'sobrantes') {
+                $discrepancias[] = $d;
+            }
         }
     }
 
     if (empty($discrepancias)) {
-        // Si todo cuadró a la perfección
+        // Si no hay discrepancias para el filtro seleccionado
         $this->SetFillColor(230, 255, 230);
         $this->SetTextColor(0, 120, 0);
         $this->SetFont('Courier','B',10);
-        $this->Cell(276, 15, _u8d("¡EXCELENTE! TODOS LOS PRODUCTOS DE LA SUCURSAL CUADRAN EXACTAMENTE CON EL STOCK (0 FALTANTES, 0 SOBRANTES)"), 1, 1, 'C', true);
+        if ($filtro === 'faltantes') {
+            $this->Cell(276, 15, _u8d("¡EXCELENTE! NO SE REGISTRARON PRODUCTOS FALTANTES EN ESTE INVENTARIO INICIAL (0 FALTANTES)"), 1, 1, 'C', true);
+        } elseif ($filtro === 'sobrantes') {
+            $this->Cell(276, 15, _u8d("NO SE REGISTRARON PRODUCTOS SOBRANTES EN ESTE INVENTARIO INICIAL (0 SOBRANTES)"), 1, 1, 'C', true);
+        } else {
+            $this->Cell(276, 15, _u8d("¡EXCELENTE! TODOS LOS PRODUCTOS DE LA SUCURSAL CUADRAN EXACTAMENTE CON EL STOCK (0 FALTANTES, 0 SOBRANTES)"), 1, 1, 'C', true);
+        }
         $this->SetTextColor(0, 0, 0);
     } else {
         // Definición de Anchos de Columna (Total = 276mm)
@@ -23510,7 +23557,11 @@ public function TablaAuditoriaAperturaDiscrepancias()
 
         // Cabecera de la Tabla
         $this->SetFont('Courier','B',8);
-        $this->SetFillColor(220, 53, 69);
+        if ($filtro === 'sobrantes') {
+            $this->SetFillColor(23, 162, 184); // Info/Cyan para Sobrantes
+        } else {
+            $this->SetFillColor(220, 53, 69); // Danger/Red para Faltantes o General
+        }
         $this->SetTextColor(255, 255, 255);
         $this->Cell(8, 7, '#', 1, 0, 'C', true);
         $this->Cell(22, 7, _u8d('CÓDIGO'), 1, 0, 'C', true);
@@ -23528,7 +23579,7 @@ public function TablaAuditoriaAperturaDiscrepancias()
         $n = 1;
         foreach ($discrepancias as $d) {
             $stock_sis = (float)($d['stock_sistema'] ?? 0);
-            $fisico_caj = (float)$d['cantidad_fisica'];
+            $fisico_caj = (float)($d['cantidad_fisica'] ?? 0);
             $dif = (float)$d['dif_calc'];
             $pv = (float)($d['precioventa'] ?? 0);
             $monto = (float)$d['monto_calc'];
@@ -23548,11 +23599,16 @@ public function TablaAuditoriaAperturaDiscrepancias()
                 $this->AddPage();
                 $this->SetFont('Courier','I',8);
                 $this->SetTextColor(80, 80, 80);
-                $this->Cell(0, 5, _u8d("Continuación: Informe de Discrepancias - Folio Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)), 0, 1, 'L');
+                $subtituloCont = ($filtro === 'faltantes' ? "Solo Faltantes" : ($filtro === 'sobrantes' ? "Solo Sobrantes" : "Informe de Discrepancias"));
+                $this->Cell(0, 5, _u8d("Continuación: ".$subtituloCont." - Folio Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)), 0, 1, 'L');
                 $this->Ln(1);
 
                 $this->SetFont('Courier','B',8);
-                $this->SetFillColor(220, 53, 69);
+                if ($filtro === 'sobrantes') {
+                    $this->SetFillColor(23, 162, 184);
+                } else {
+                    $this->SetFillColor(220, 53, 69);
+                }
                 $this->SetTextColor(255, 255, 255);
                 $this->Cell(8, 7, '#', 1, 0, 'C', true);
                 $this->Cell(22, 7, _u8d('CÓDIGO'), 1, 0, 'C', true);
@@ -23589,20 +23645,42 @@ public function TablaAuditoriaAperturaDiscrepancias()
 
     $this->Ln(3);
 
-    // Cuadro de Resumen Ejecutivo para el Propietario / Dueño
+    // Cuadro de Resumen Ejecutivo para el Propietario / Dueño según filtro
     $this->SetFont('Courier','B',8);
-    $this->SetFillColor(245, 245, 245);
-    $this->Cell(55,5,_u8d("TOTAL ÍTEMS CON DESCUADRE: ").count($discrepancias)." / ".$total_items_auditados,1,0,'C',true);
-    $this->SetFillColor(255, 230, 230);
-    $this->SetTextColor(180, 0, 0);
-    $this->Cell(55,5,_u8d("FALTANTE: -").number_format($total_unidades_faltantes, 0)." u. (".$simbolo." ".number_format($monto_total_faltante, 2, '.', ',').")",1,0,'C',true);
-    $this->SetFillColor(230, 240, 255);
-    $this->SetTextColor(0, 70, 180);
-    $this->Cell(55,5,_u8d("SOBRANTE: +").number_format($total_unidades_sobrantes, 0)." u. (".$simbolo." ".number_format($monto_total_sobrante, 2, '.', ',').")",1,0,'C',true);
-    $this->SetFillColor(255, 220, 220);
-    $this->SetTextColor(180, 0, 0);
-    $this->Cell(111,5,_u8d("PÉRDIDA / DESCUADRE TOTAL APERTURA: ").$simbolo." ".number_format($monto_total_faltante, 2, '.', ','),1,1,'C',true);
-    $this->SetTextColor(0,0,0);
+    if ($filtro === 'faltantes') {
+        $this->SetFillColor(245, 245, 245);
+        $this->Cell(85,5,_u8d("TOTAL ÍTEMS CON FALTANTE: ").count($discrepancias)." / ".$total_items_auditados,1,0,'C',true);
+        $this->SetFillColor(255, 230, 230);
+        $this->SetTextColor(180, 0, 0);
+        $this->Cell(95,5,_u8d("TOTAL UNIDADES FALTANTES: -").number_format($total_unidades_faltantes, 0)." u.",1,0,'C',true);
+        $this->SetFillColor(255, 220, 220);
+        $this->SetTextColor(180, 0, 0);
+        $this->Cell(96,5,_u8d("PÉRDIDA TOTAL FALTANTE: ").$simbolo." ".number_format($monto_total_faltante, 2, '.', ','),1,1,'C',true);
+        $this->SetTextColor(0,0,0);
+    } elseif ($filtro === 'sobrantes') {
+        $this->SetFillColor(245, 245, 245);
+        $this->Cell(85,5,_u8d("TOTAL ÍTEMS CON SOBRANTE: ").count($discrepancias)." / ".$total_items_auditados,1,0,'C',true);
+        $this->SetFillColor(230, 240, 255);
+        $this->SetTextColor(0, 70, 180);
+        $this->Cell(95,5,_u8d("TOTAL UNIDADES SOBRANTES: +").number_format($total_unidades_sobrantes, 0)." u.",1,0,'C',true);
+        $this->SetFillColor(220, 235, 255);
+        $this->SetTextColor(0, 70, 180);
+        $this->Cell(96,5,_u8d("VALOR TOTAL SOBRANTE: ").$simbolo." ".number_format($monto_total_sobrante, 2, '.', ','),1,1,'C',true);
+        $this->SetTextColor(0,0,0);
+    } else {
+        $this->SetFillColor(245, 245, 245);
+        $this->Cell(55,5,_u8d("TOTAL ÍTEMS CON DESCUADRE: ").count($discrepancias)." / ".$total_items_auditados,1,0,'C',true);
+        $this->SetFillColor(255, 230, 230);
+        $this->SetTextColor(180, 0, 0);
+        $this->Cell(55,5,_u8d("FALTANTE: -").number_format($total_unidades_faltantes, 0)." u. (".$simbolo." ".number_format($monto_total_faltante, 2, '.', ',').")",1,0,'C',true);
+        $this->SetFillColor(230, 240, 255);
+        $this->SetTextColor(0, 70, 180);
+        $this->Cell(55,5,_u8d("SOBRANTE: +").number_format($total_unidades_sobrantes, 0)." u. (".$simbolo." ".number_format($monto_total_sobrante, 2, '.', ',').")",1,0,'C',true);
+        $this->SetFillColor(255, 220, 220);
+        $this->SetTextColor(180, 0, 0);
+        $this->Cell(111,5,_u8d("PÉRDIDA / DESCUADRE TOTAL APERTURA: ").$simbolo." ".number_format($monto_total_faltante, 2, '.', ','),1,1,'C',true);
+        $this->SetTextColor(0,0,0);
+    }
 
     if (!empty($cab['observaciones'])) {
         $this->Ln(2);
