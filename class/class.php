@@ -16423,106 +16423,66 @@ public function ActualizarCompras()
       }
    }
 
+   $codcompra_dec = limpiar(decrypt($_POST["codcompra"]));
+   $codsucursal_dec = limpiar(decrypt($_POST["codsucursal"]));
+   $codfactura_val = limpiar($_POST['codfactura']);
+
    for($i=0;$i<count($_POST['coddetallecompra']);$i++){  //recorro el array
       if (!empty($_POST['coddetallecompra'][$i])) {
 
-   $sql = "SELECT cantcompra FROM detallecompras 
-   WHERE coddetallecompra = '".limpiar($_POST['coddetallecompra'][$i])."' 
-   AND codcompra = '".limpiar(decrypt($_POST["codcompra"]))."' 
-   AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."'";
-	foreach ($this->dbh->query($sql) as $row)
-	{
-		$this->p[] = $row;
-	}
-	$cantidadbd = $row['cantcompra'];
+		$coddetallecompra = limpiar($_POST['coddetallecompra'][$i]);
+		$codproducto = limpiar($_POST['codproducto'][$i]);
+		$cantcompra = floatval($_POST['cantcompra'][$i]);
 
-	if($cantidadbd != $_POST['cantcompra'][$i]){
+		$sql = "SELECT cantcompra FROM detallecompras WHERE coddetallecompra = ? AND codcompra = ? AND codsucursal = ?";
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array($coddetallecompra, $codcompra_dec, $codsucursal_dec));
+		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		$cantidadbd = ($row) ? floatval($row['cantcompra']) : 0;
 
-		$sql = "SELECT existencia FROM productos 
-		WHERE codproducto = '".limpiar(decrypt($_POST['codproducto'][$i]))."' 
-		AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."'";
-	   foreach ($this->dbh->query($sql) as $row)
-	   {
-		   $this->p[] = $row;
-	   }
-	   $existenciabd = $row['existencia'];
-	   $cantcompra = $_POST["cantcompra"][$i];
-	   $cantidadcomprabd = $_POST["cantidadcomprabd"][$i];
-	   $totalcompra = $cantcompra-$cantidadcomprabd;
+		$sql_prod = "SELECT existencia FROM productos WHERE codproducto = ? AND codsucursal = ?";
+		$stmt_prod = $this->dbh->prepare($sql_prod);
+		$stmt_prod->execute(array($codproducto, $codsucursal_dec));
+		$row_prod = $stmt_prod->fetch(PDO::FETCH_ASSOC);
+		$existenciabd = ($row_prod) ? floatval($row_prod['existencia']) : 0;
+
+		if($cantidadbd != $cantcompra){
+			$diferencia = $cantcompra - $cantidadbd;
+			$nueva_existencia = $existenciabd + $diferencia;
+
+			############ ACTUALIZAMOS EXISTENCIA DEL PRODUCTO EN ALMACEN ################
+			$sql2 = "UPDATE productos SET existencia = ? WHERE codproducto = ? AND codsucursal = ?";
+			$stmt2 = $this->dbh->prepare($sql2);
+			$stmt2->execute(array($nueva_existencia, $codproducto, $codsucursal_dec));
+			############ ACTUALIZAMOS EXISTENCIA DEL PRODUCTO EN ALMACEN ################
+
+			############## ACTUALIZAMOS LOS DATOS DEL PRODUCTO EN KARDEX ###################
+			$documento = "COMPRA: " . $codfactura_val;
+			$sql3 = "UPDATE kardex SET entradas = ?, stockactual = ?, documento = ? WHERE codproceso = ? AND codproducto = ? AND codsucursal = ? AND tipokardex = 1 AND procedimiento = 1";
+			$stmt3 = $this->dbh->prepare($sql3);
+			$stmt3->execute(array($cantcompra, $nueva_existencia, $documento, $codcompra_dec, $codproducto, $codsucursal_dec));
+			############## ACTUALIZAMOS LOS DATOS DEL PRODUCTO EN KARDEX ###################
+		}
 
 		################### ACTUALIZO DETALLES COMPRAS ###################
-		$query = "UPDATE detallecompras set"
+		$preciocompra = limpiar($_POST['preciocompra'][$i]);
+		$ivaproducto = limpiar($_POST['ivaproducto'][$i]);
+		$descfactura = isset($_POST['descfactura'][$i]) ? floatval($_POST['descfactura'][$i]) : 0;
+		$valortotal = number_format($_POST['valortotal'][$i], 2, '.', '');
+		$totaldescuento = number_format($_POST['totaldescuentoc'][$i], 2, '.', '');
+		$subtotalimpuestos = number_format($_POST['subtotalimpuestos'][$i], 2, '.', '');
+		$valorneto = number_format($_POST['valorneto'][$i], 2, '.', '');
+
+		$query = "UPDATE detallecompras SET "
 		." cantcompra = ?, "
 		." valortotal = ?, "
 		." totaldescuentoc = ?, "
 		." subtotalimpuestos = ?, "
 		." valorneto = ? "
-		." WHERE "
-		." coddetallecompra = ? AND codcompra = ? AND codsucursal = ?;
-		";
-		$stmt = $this->dbh->prepare($query);
-		$stmt->bindParam(1, $cantcompra);
-		$stmt->bindParam(2, $valortotal);
-		$stmt->bindParam(3, $totaldescuento);
-		$stmt->bindParam(4, $subtotalimpuestos);
-		$stmt->bindParam(5, $valorneto);
-		$stmt->bindParam(6, $coddetallecompra);
-		$stmt->bindParam(7, $codcompra);
-		$stmt->bindParam(8, $codsucursal);
-
-		$cantcompra = limpiar($_POST['cantcompra'][$i]);
-		$preciocompra = limpiar($_POST['preciocompra'][$i]);
-		$ivaproducto = limpiar($_POST['ivaproducto'][$i]);
-		$descuento = $_POST['descfactura'][$i]/100;
-		$valortotal = number_format($_POST['valortotal'][$i], 2, '.', '');
-		$totaldescuento = number_format($_POST['totaldescuentoc'][$i], 2, '.', '');
-		$subtotalimpuestos = number_format($_POST['subtotalimpuestos'][$i], 2, '.', '');
-		$valorneto = number_format($_POST['valorneto'][$i], 2, '.', '');
-		$coddetallecompra = limpiar($_POST['coddetallecompra'][$i]);
-		$codcompra = limpiar(decrypt($_POST["codcompra"]));
-		$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
-		$stmt->execute();
+		." WHERE coddetallecompra = ? AND codcompra = ? AND codsucursal = ?";
+		$stmt_det = $this->dbh->prepare($query);
+		$stmt_det->execute(array($cantcompra, $valortotal, $totaldescuento, $subtotalimpuestos, $valorneto, $coddetallecompra, $codcompra_dec, $codsucursal_dec));
 		################### ACTUALIZO DETALLES COMPRAS ###################
-
-		############ ACTUALIZAMOS EXISTENCIA DEL PRODUCTO EN ALMACEN ################
-		$sql2 = " UPDATE productos set "
-	   ." existencia = ? "
-	   ." WHERE "
-	   ." codproducto = '".limpiar($_POST["codproducto"][$i])."' 
-	   AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."';
-	   ";
-	   $stmt = $this->dbh->prepare($sql2);
-	   $stmt->bindParam(1, $existencia);
-	   $existencia = $existenciabd+$totalcompra;
-	   $stmt->execute();
-		############ ACTUALIZAMOS EXISTENCIA DEL PRODUCTO EN ALMACEN ################
-
-		############## ACTUALIZAMOS LOS DATOS DEL PRODUCTO EN KARDEX ###################
-		$sql3 = " UPDATE kardex set "
-		   ." entradas = ?, "
-		   ." stockactual = ?, "
-		   ." documento = ? "
-		   ." WHERE "
-			." codproceso = '".limpiar(decrypt($_POST["codcompra"]))."'
-			AND codproducto = '".limpiar($_POST["codproducto"][$i])."'
-			AND codsucursal = '".limpiar(decrypt($_POST["codsucursal"]))."'
-			AND tipokardex = 1
-			AND procedimiento = 1;
-			";
-		$stmt = $this->dbh->prepare($sql3);
-		$stmt->bindParam(1, $entradas);
-		$stmt->bindParam(2, $existencia);
-		$stmt->bindParam(3, $documento);
-		
-		$entradas = limpiar($_POST["cantcompra"][$i]);
-		$documento = limpiar("COMPRA: ".$_POST['codfactura']);
-		$stmt->execute();
-		############## ACTUALIZAMOS LOS DATOS DEL PRODUCTO EN KARDEX ###################
-
-		} else {
-
-          echo "";
-	      }
       }
    }
 
@@ -16730,14 +16690,14 @@ public function AgregarDetallesCompras()
 	   $subtotalimpuestos = number_format($BaseDiscriminado, 2, '.', '');
 
 	   $valorneto = number_format($valortotal-$totaldescuentoc, 2, '.', '');
-		$lotec = limpiar($detalle[$i]['lote']);
-		$fechaelaboracionc = limpiar($detalle[$i]['fechaelaboracion']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaelaboracion'])));
-		$fechaoptimoc = limpiar($detalle[$i]['fechaexpiracion']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaexpiracion'])));
-		$fechamedioc = limpiar($detalle[$i]['fechaexpiracion2']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaexpiracion2'])));
-		$fechaminimoc = limpiar($detalle[$i]['fechaexpiracion3']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaexpiracion3'])));
-		$stockoptimoc = limpiar($detalle[$i]['optimo']);
-		$stockmedioc = limpiar($detalle[$i]['medio']);
-		$stockminimoc = limpiar($detalle[$i]['minimo']);
+		$lote = limpiar($detalle[$i]['lote']);
+		$fechaelaboracion = limpiar($detalle[$i]['fechaelaboracion']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaelaboracion'])));
+		$fechaoptimo = limpiar($detalle[$i]['fechaexpiracion']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaexpiracion'])));
+		$fechamedio = limpiar($detalle[$i]['fechaexpiracion2']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaexpiracion2'])));
+		$fechaminimo = limpiar($detalle[$i]['fechaexpiracion3']=="" ? "0000-00-00" : date("Y-m-d",strtotime($detalle[$i]['fechaexpiracion3'])));
+		$stockoptimo = limpiar($detalle[$i]['optimo']);
+		$stockmedio = limpiar($detalle[$i]['medio']);
+		$stockminimo = limpiar($detalle[$i]['minimo']);
 		$codsucursal = limpiar(decrypt($_POST["codsucursal"]));
 		$stmt->execute();
 		############################ REGISTRO DETALLES DE COMPRAS ############################
@@ -16927,7 +16887,7 @@ public function AgregarDetallesCompras()
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1, $existencia);
 		$cantidad = limpiar($detalle[$i]['cantidad']);
-		$existencia = number_format($existenciabd-$cantidad, 2, '.', '');
+		$existencia = number_format($existenciabd+$cantidad, 2, '.', '');
 		$stmt->execute();
 	   ##################### ACTUALIZO LA EXISTENCIA DEL ALMACEN ####################
 
@@ -17077,7 +17037,7 @@ public function AgregarDetallesCompras()
 public function EliminarDetallesCompras()
 {
    self::SetNames();
-	if ($_SESSION["acceso"]=="administradorS") {
+	if ($_SESSION["acceso"]=="administradorS" || $_SESSION["acceso"]=="administradorG") {
 
 	############ CONSULTO TOTAL ACTUAL DE COMPRAS ##############
 	$sql = "SELECT
@@ -17278,7 +17238,7 @@ public function EliminarDetallesCompras()
 public function EliminarCompras()
 {
 	self::SetNames();
-	if ($_SESSION["acceso"]=="administradorS") {
+	if ($_SESSION["acceso"]=="administradorS" || $_SESSION["acceso"]=="administradorG") {
 
 	########################## CONSULTO DATOS DE COMPRA ##########################
 	$sql = "SELECT
