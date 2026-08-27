@@ -12735,6 +12735,9 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-warning font-weight-bold text-dark shadow-sm mr-1" title="Descargar Acta Completa con Faltantes y Sobrantes">
 					<i class="fa fa-file-text-o text-danger"></i> 📊 Acta Completa
 				</a>
+				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("AJUSTES_CONTEO"); ?>" target="_blank" class="btn btn-primary font-weight-bold text-white shadow-sm mr-1" title="Descargar Acta Oficial de Productos Ajustados y Cuadrados">
+					<i class="fa fa-check-circle"></i> ✅ Acta de Ajustados
+				</a>
 				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank" class="btn btn-danger font-weight-bold shadow-sm mr-1" title="Descargar Solo Faltantes">
 					<i class="fa fa-file-pdf-o"></i> 🔴 Solo Faltantes
 				</a>
@@ -12743,7 +12746,7 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 				</a>
 				<?php } ?>
 				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-success font-weight-bold">
-					<i class="fa fa-print"></i> Imprimir Comprobante
+					<i class="fa fa-print"></i> WhatsApp
 				</a>
 			</div>
 		</div>

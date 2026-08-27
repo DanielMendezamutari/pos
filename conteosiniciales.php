@@ -32,6 +32,11 @@ if (isset($_SESSION['acceso'])) {
     <script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
     <script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
     <![endif]-->
+    <style>
+        .table-responsive { overflow-y: visible !important; }
+        .dropdown-menu.show { display: block !important; z-index: 1050 !important; }
+        .btn-group .dropdown-menu { margin-top: 2px; }
+    </style>
 </head>
 
 <body onLoad="muestraReloj()" class="fix-header">

@@ -13,6 +13,21 @@ $(document).ready(function () {
     $(document).off('focusin.bs.modal');
 });
 
+// Manejador delegado para abrir y cerrar menús desplegables en tablas AJAX y modales
+$(document).on('click', '.dropdown-toggle', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var $menu = $(this).next('.dropdown-menu');
+    $('.dropdown-menu').not($menu).removeClass('show');
+    $menu.toggleClass('show');
+});
+
+$(document).on('click', function (e) {
+    if (!$(e.target).closest('.dropdown, .btn-group').length) {
+        $('.dropdown-menu').removeClass('show');
+    }
+});
+
 function AbrirModalConteoInicial(idconteo, codsucursal) {
     idconteo = idconteo || "";
     codsucursal = codsucursal || ($("#codsucursal").length > 0 ? $("#codsucursal").val() : "") || "";
