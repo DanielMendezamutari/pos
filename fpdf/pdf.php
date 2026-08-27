@@ -23806,21 +23806,6 @@ public function TablaBajaInventario()
         ));
     }
 
-    $this->Ln(3);
-
-    // Totales
-    $this->SetFont('Courier','B',9);
-    $this->SetFillColor(245, 245, 245);
-    $this->Cell(95,6,_u8d("TOTAL ÍTEMS RETIRADOS: ").number_format($total_unidades, 0)." u.",1,0,'L',true);
-    $this->Cell(95,6,_u8d("VALOR TOTAL COSTO: ").$simbolo." ".number_format($total_costo, 2, '.', ','),1,1,'R',true);
-
-    if (!empty($cab['observaciones'])) {
-        $this->Ln(2);
-        $this->SetFont('Courier','I',8);
-        $this->MultiCell(0,4,_u8d("OBSERVACIONES / JUSTIFICACIÓN: ".$cab['observaciones']),0,'L');
-    }
-
-    // Firmas
     $this->Ln(15);
     $this->SetFont('Courier','B',8);
     $this->Cell(95,4,'__________________________________________',0,0,'C');

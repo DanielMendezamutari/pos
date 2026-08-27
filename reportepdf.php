@@ -605,6 +605,11 @@ $casos = [
     'func'    => 'TablaAuditoriaAperturaDiscrepancias',
     'output'  => ['Informe de Sobrantes Inventario Inicial.pdf', 'I'],
   ],
+  'AJUSTES_CONTEO'         => [
+    'medidas' => ['L', 'mm', 'A4'],
+    'func'    => 'TablaAuditoriaAjustesRealizados',
+    'output'  => ['Acta de Ajustes de Inventario Inicial.pdf', 'I'],
+  ],
   'BAJAINVENTARIO'         => [
     'medidas' => ['P', 'mm', 'A4'],
     'func'    => 'TablaBajaInventario',

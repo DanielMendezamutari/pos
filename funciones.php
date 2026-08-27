@@ -12510,6 +12510,7 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		$count_faltantes = 0;
 		$count_sobrantes = 0;
 		$count_cuadran = 0;
+		$count_ajustados = 0;
 		$count_sobrantes_pendientes = 0;
 		$count_faltantes_pendientes = 0;
 		$total_unidades_sobrantes = 0;
@@ -12520,6 +12521,10 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 			$fis = (float)($item_c['cantidad_fisica'] ?? 0);
 			$df = $fis - $stk;
 			$estaAjustado = !empty($item_c['ajustado']) && (int)$item_c['ajustado'] === 1;
+
+			if ($estaAjustado) {
+				$count_ajustados++;
+			}
 
 			if (abs($df) < 0.001) {
 				$count_cuadran++;
@@ -12539,73 +12544,78 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		}
 		?>
 		<?php if ($isAdmin) { ?>
-		<!-- Panel Exclusivo de Administrador -->
+		<!-- Panel Minimalista de Edición / Desbloqueo Admin -->
 		<form id="form_edicion_conteo_admin" onsubmit="return false;">
 		<input type="hidden" name="idconteo" value="<?php echo encrypt($cab['idconteo']); ?>">
-		<div class="alert alert-info py-2 px-3 mb-2 d-flex justify-content-between align-items-center flex-wrap">
-			<div>
-				<i class="fa fa-shield fa-lg text-primary mr-1"></i>
-				<strong>Opciones de Administrador:</strong> Si la sucursal se equivocó, puedes permitirle contar de nuevo o corregir valores.
+		<div class="d-flex justify-content-between align-items-center flex-wrap py-1 px-2 mb-2 bg-light border rounded small">
+			<div class="text-muted">
+				<i class="fa fa-info-circle text-primary"></i> <strong>Conteo Folio #<?php echo str_pad($cab['idconteo'], 5, "0", STR_PAD_LEFT); ?></strong> | <?php echo htmlspecialchars($cab['nomsucursal']); ?> (<?php echo date("d/m/Y h:i A", strtotime($cab['fechaconteo'])); ?>)
 			</div>
-			<div class="mt-1 mt-md-0">
-				<button type="button" class="btn btn-sm btn-outline-primary font-weight-bold" id="btn_habilitar_edicion_conteo" onclick="HabilitarEdicionConteoAdmin()">
-					<i class="fa fa-pencil"></i> ✏️ Corregir Cantidades
+			<div>
+				<button type="button" class="btn btn-xs btn-outline-secondary font-weight-bold" id="btn_habilitar_edicion_conteo" onclick="HabilitarEdicionConteoAdmin()">
+					<i class="fa fa-pencil"></i> Corregir Cantidades
 				</button>
-				<button type="button" class="btn btn-sm btn-danger font-weight-bold ml-1" onclick="DesbloquearConteoInicial('<?php echo encrypt($cab['idconteo']); ?>', '<?php echo htmlspecialchars($cab['nomsucursal'] ?? 'esta sucursal'); ?>')">
-					<i class="fa fa-unlock"></i> 🔓 Permitir Re-conteo (Desbloquear)
+				<button type="button" class="btn btn-xs btn-outline-danger font-weight-bold ml-1" onclick="DesbloquearConteoInicial('<?php echo encrypt($cab['idconteo']); ?>', '<?php echo htmlspecialchars($cab['nomsucursal'] ?? 'esta sucursal'); ?>')">
+					<i class="fa fa-unlock"></i> Desbloquear
 				</button>
 			</div>
 		</div>
 		<?php } ?>
 
-		<!-- Barra de Filtros y Cuadre Rápido -->
-		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2 p-2 bg-light border rounded">
-			<div class="d-flex align-items-center flex-wrap mb-1 mb-md-0">
-				<span class="font-weight-bold text-dark mr-2"><i class="fa fa-filter text-primary"></i> Filtrar Vista:</span>
+		<!-- Barra Minimalista de Filtros y Acciones -->
+		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2 p-1 bg-white border rounded">
+			<div class="d-flex align-items-center flex-wrap">
 				<?php if ($isAdmin) { ?>
-				<div class="btn-group btn-group-sm" role="group" id="grupo_filtros_tabla_conteo">
-					<button type="button" class="btn btn-dark active font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('todos', this)">Todos (<?php echo $count_todos; ?>)</button>
-					<button type="button" class="btn btn-outline-danger font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('faltante', this)"><i class="fa fa-exclamation-triangle"></i> Faltantes (<?php echo $count_faltantes; ?>)</button>
-					<button type="button" class="btn btn-outline-info font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('sobrante', this)"><i class="fa fa-info-circle"></i> Sobrantes (<?php echo $count_sobrantes; ?>)</button>
-					<button type="button" class="btn btn-outline-success font-weight-bold py-1 px-2" onclick="FiltrarTablaDiagnostico('cuadra', this)"><i class="fa fa-check"></i> Cuadran (<?php echo $count_cuadran; ?>)</button>
+				<div class="btn-group btn-group-xs" role="group" id="grupo_filtros_tabla_conteo">
+					<button type="button" class="btn btn-dark active font-weight-bold px-2 py-1" data-filtro="todos" onclick="FiltrarTablaDiagnostico('todos', this)">Todos <span class="badge badge-light text-dark ml-1"><?php echo $count_todos; ?></span></button>
+					<button type="button" class="btn btn-outline-danger font-weight-bold px-2 py-1" data-filtro="faltante" onclick="FiltrarTablaDiagnostico('faltante', this)">Faltantes <span class="badge badge-danger ml-1"><?php echo $count_faltantes; ?></span></button>
+					<button type="button" class="btn btn-outline-info font-weight-bold px-2 py-1" data-filtro="sobrante" onclick="FiltrarTablaDiagnostico('sobrante', this)">Sobrantes <span class="badge badge-info ml-1"><?php echo $count_sobrantes; ?></span></button>
+					<button type="button" class="btn btn-outline-success font-weight-bold px-2 py-1" data-filtro="cuadra" onclick="FiltrarTablaDiagnostico('cuadra', this)">Cuadran <span class="badge badge-success ml-1"><?php echo $count_cuadran; ?></span></button>
+					<?php if ($count_ajustados > 0) { ?>
+					<button type="button" class="btn btn-outline-primary font-weight-bold px-2 py-1" data-filtro="ajustado" onclick="FiltrarTablaDiagnostico('ajustado', this)"><i class="fa fa-check-double"></i> Ajustados <span class="badge badge-primary ml-1"><?php echo $count_ajustados; ?></span></button>
+					<?php } ?>
 				</div>
 				<?php } else { ?>
-				<span class="badge badge-info font-14">Total: <?php echo $count_todos; ?> ítems</span>
+				<span class="badge badge-secondary font-12">Total: <?php echo $count_todos; ?> productos contados</span>
 				<?php } ?>
 			</div>
 
-			<div class="d-flex align-items-center flex-wrap mt-1 mt-md-0">
+			<div class="d-flex align-items-center flex-wrap">
 				<?php if ($isAdmin) { ?>
 					<?php if ($count_sobrantes_pendientes > 0) { ?>
-					<button type="button" class="btn btn-sm btn-info font-weight-bold text-white shadow-sm mr-1" onclick="AjustarTodosSobrantesModal('<?php echo encrypt($cab['idconteo']); ?>', <?php echo $count_sobrantes_pendientes; ?>, <?php echo $total_unidades_sobrantes; ?>)" title="Ingresar sobrantes al stock del sistema">
-						<i class="fa fa-magic"></i> ⚡ Cuadrar Sobrantes (+<?php echo number_format($total_unidades_sobrantes, 0); ?> unid.)
+					<button type="button" class="btn btn-xs btn-info font-weight-bold text-white shadow-sm mr-1" onclick="AjustarTodosSobrantesModal('<?php echo encrypt($cab['idconteo']); ?>', <?php echo $count_sobrantes_pendientes; ?>, <?php echo $total_unidades_sobrantes; ?>)" title="Ingresar sobrantes al stock del sistema">
+						<i class="fa fa-magic"></i> Cuadrar Sobrantes (+<?php echo number_format($total_unidades_sobrantes, 0); ?>)
 					</button>
 					<?php } ?>
 					<?php if ($count_sobrantes_pendientes > 0 || $count_faltantes_pendientes > 0) { ?>
-					<button type="button" class="btn btn-sm btn-dark font-weight-bold text-white shadow-sm mr-1" onclick="AjustarTodoConteoModal('<?php echo encrypt($cab['idconteo']); ?>', <?php echo ($count_sobrantes_pendientes + $count_faltantes_pendientes); ?>)" title="Cuadrar todo el inventario con el conteo físico">
-						<i class="fa fa-sync-alt"></i> 🔄 Cuadrar Todo el Conteo
+					<button type="button" class="btn btn-xs btn-dark font-weight-bold text-white shadow-sm mr-1" onclick="AjustarTodoConteoModal('<?php echo encrypt($cab['idconteo']); ?>', <?php echo ($count_sobrantes_pendientes + $count_faltantes_pendientes); ?>)" title="Cuadrar todo el inventario con el conteo físico">
+						<i class="fa fa-sync-alt"></i> Cuadrar Todo
 					</button>
 					<?php } ?>
 				<?php } ?>
 
-				<div class="btn-group btn-group-sm ml-1" role="group">
-					<button type="button" class="btn btn-sm btn-warning font-weight-bold text-dark dropdown-toggle shadow-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Descargar Reportes PDF">
-						<i class="fa fa-file-pdf-o text-danger"></i> PDF <span class="caret"></span>
+				<div class="btn-group btn-group-xs" role="group">
+					<button type="button" class="btn btn-xs btn-outline-danger font-weight-bold dropdown-toggle shadow-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Descargar Reportes PDF">
+						<i class="fa fa-file-pdf-o"></i> Reportes PDF <span class="caret"></span>
 					</button>
-					<div class="dropdown-menu dropdown-menu-right shadow">
+					<div class="dropdown-menu dropdown-menu-right shadow font-12 py-1">
 						<?php if ($isAdmin) { ?>
-						<a class="dropdown-item font-weight-bold text-dark py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank">
-							<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta Completa
+						<a class="dropdown-item font-weight-bold text-dark py-1" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank">
+							<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta de Discrepancias (Completa)
 						</a>
-						<a class="dropdown-item font-weight-bold text-danger py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank">
-							<i class="fa fa-exclamation-triangle mr-2"></i> 🔴 Solo Faltantes
+						<a class="dropdown-item font-weight-bold text-primary py-1" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("AJUSTES_CONTEO"); ?>" target="_blank">
+							<i class="fa fa-check-circle text-primary mr-2"></i> ✅ Acta de Productos Ajustados
 						</a>
-						<a class="dropdown-item font-weight-bold text-info py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank">
-							<i class="fa fa-info-circle mr-2"></i> 🔵 Solo Sobrantes
+						<div class="dropdown-divider my-1"></div>
+						<a class="dropdown-item font-weight-bold text-danger py-1" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank">
+							<i class="fa fa-exclamation-triangle mr-2"></i> 🔴 Solo Faltantes (PDF)
+						</a>
+						<a class="dropdown-item font-weight-bold text-info py-1" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank">
+							<i class="fa fa-info-circle mr-2"></i> 🔵 Solo Sobrantes (PDF)
 						</a>
 						<div class="dropdown-divider my-1"></div>
 						<?php } ?>
-						<a class="dropdown-item font-weight-bold text-success py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank">
+						<a class="dropdown-item font-weight-bold text-success py-1" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank">
 							<i class="fa fa-print mr-2"></i> 📄 Comprobante WhatsApp
 						</a>
 					</div>
@@ -12614,18 +12624,18 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		</div>
 
 		<div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-			<table class="table table-striped table-bordered table-sm mb-0" id="tabla_modal_conteo">
+			<table class="table table-hover table-striped table-bordered table-sm mb-0 font-12" id="tabla_modal_conteo">
 				<thead class="bg-warning text-dark font-weight-bold text-center">
 					<tr>
-						<th style="width: 40px;">#</th>
-						<th style="width: 100px;">Código</th>
+						<th style="width: 35px;">#</th>
+						<th style="width: 90px;">Código</th>
 						<th>Producto</th>
 						<?php if ($isAdmin) { ?>
-						<th style="width: 95px;" class="bg-dark text-white">Stock Sistema</th>
-						<th style="width: 100px;" class="bg-warning text-dark">Físico Cajera</th>
-						<th style="width: 90px;">Diferencia</th>
-						<th style="width: 110px;">Diagnóstico</th>
-						<th style="width: 130px;" class="bg-light">Acción / Cuadre</th>
+						<th style="width: 90px;" class="bg-dark text-white">Stock Sis.</th>
+						<th style="width: 95px;" class="bg-warning text-dark">Físico</th>
+						<th style="width: 80px;">Dif.</th>
+						<th style="width: 100px;">Estado</th>
+						<th style="width: 120px;" class="bg-light">Acción / Cuadre</th>
 						<?php } else { ?>
 						<th style="width: 140px;">Cantidad Física</th>
 						<?php } ?>
@@ -12641,20 +12651,20 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 						$diag_attr = (abs($dif_ap) < 0.001 ? 'cuadra' : ($dif_ap < 0 ? 'faltante' : 'sobrante'));
 						$estaAjustado = !empty($item['ajustado']) && (int)$item['ajustado'] === 1;
 					?>
-					<tr class="fila-detalle-conteo" data-diagnostico="<?php echo $diag_attr; ?>">
+					<tr class="fila-detalle-conteo" data-diagnostico="<?php echo $diag_attr; ?>" data-ajustado="<?php echo $estaAjustado ? '1' : '0'; ?>">
 						<td class="text-center font-weight-bold align-middle"><?php echo $c++; ?></td>
 						<td class="text-center align-middle font-11 text-muted"><?php echo htmlspecialchars($item['codproducto']); ?></td>
 						<td class="align-middle"><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
 						<?php if ($isAdmin) { ?>
-						<td class="text-center font-weight-bold align-middle bg-light text-dark font-14"><?php echo number_format($stock_sis, 0); ?></td>
-						<td class="text-center font-weight-bold align-middle font-15 text-primary" style="background-color: #fff9e6;">
+						<td class="text-center font-weight-bold align-middle bg-light text-dark font-13"><?php echo number_format($stock_sis, 0); ?></td>
+						<td class="text-center font-weight-bold align-middle font-14 text-primary" style="background-color: #fff9e6;">
 							<span class="vista-lectura-conteo"><?php echo number_format($fisico_caj, 0); ?></span>
 							<div class="vista-edicion-conteo" style="display: none;">
 								<input type="hidden" name="iddetalleconteo[]" value="<?php echo $item['iddetalleconteo']; ?>">
-								<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold border-danger" name="cantidad_fisica[]" value="<?php echo $fisico_caj; ?>">
+								<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold border-danger py-0" name="cantidad_fisica[]" value="<?php echo $fisico_caj; ?>">
 							</div>
 						</td>
-						<td class="text-center font-weight-bold align-middle font-14">
+						<td class="text-center font-weight-bold align-middle font-13">
 							<?php if (abs($dif_ap) < 0.001) { ?>
 								<span class="text-success">0</span>
 							<?php } elseif ($dif_ap < 0) { ?>
@@ -12667,9 +12677,9 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 							<?php if (abs($dif_ap) < 0.001) { ?>
 								<span class="badge badge-success p-1"><i class="fa fa-check"></i> Cuadra</span>
 							<?php } elseif ($dif_ap < 0) { ?>
-								<span class="badge badge-danger p-1"><i class="fa fa-exclamation-triangle"></i> Faltante (<?php echo number_format($dif_ap, 0); ?>)</span>
+								<span class="badge badge-danger p-1"><i class="fa fa-exclamation-triangle"></i> Faltante</span>
 							<?php } else { ?>
-								<span class="badge badge-info p-1"><i class="fa fa-info-circle"></i> Sobrante (+<?php echo number_format($dif_ap, 0); ?>)</span>
+								<span class="badge badge-info p-1"><i class="fa fa-info-circle"></i> Sobrante</span>
 							<?php } ?>
 						</td>
 						<td class="text-center align-middle">
@@ -12686,7 +12696,7 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 									<i class="fa fa-minus-circle"></i> Cuadrar (<?php echo number_format($dif_ap, 0); ?>)
 								</button>
 							<?php } else { ?>
-								<span class="text-muted font-11"><i class="fa fa-check text-success"></i> Cuadrado</span>
+								<span class="text-muted font-11"><i class="fa fa-check text-success"></i> OK</span>
 							<?php } ?>
 						</td>
 						<?php } else { ?>
@@ -12960,7 +12970,10 @@ if (isset($_GET['BuscaHistorialConteosIniciales'])) {
 								</button>
 								<div class="dropdown-menu dropdown-menu-right shadow">
 									<a class="dropdown-item font-weight-bold text-dark py-2" href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('DISCREPANCIAS_CONTEO'); ?>" target="_blank">
-										<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta Completa (Faltantes + Sobrantes)
+										<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta Completa (Discrepancias)
+									</a>
+									<a class="dropdown-item font-weight-bold text-primary py-2" href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('AJUSTES_CONTEO'); ?>" target="_blank">
+										<i class="fa fa-check-circle text-primary mr-2"></i> ✅ Acta de Productos Ajustados
 									</a>
 									<div class="dropdown-divider my-1"></div>
 									<a class="dropdown-item font-weight-bold text-danger py-2" href="reportepdf?idconteo=<?php echo encrypt($row['idconteo']); ?>&tipo=<?php echo encrypt('CONTEO_FALTANTES'); ?>" target="_blank">

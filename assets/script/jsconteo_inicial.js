@@ -270,25 +270,38 @@ function GuardarEdicionConteoAdmin() {
 
 function FiltrarTablaDiagnostico(tipo, btn) {
     if (btn) {
-        $("#grupo_filtros_tabla_conteo button").removeClass("active btn-dark btn-danger btn-info btn-success");
+        $("#grupo_filtros_tabla_conteo button").removeClass("active btn-dark btn-danger btn-info btn-success btn-primary");
         $("#grupo_filtros_tabla_conteo button").each(function () {
             var $b = $(this);
-            if ($b.text().indexOf("Todos") > -1) $b.addClass("btn-outline-dark");
-            else if ($b.text().indexOf("Faltantes") > -1) $b.addClass("btn-outline-danger");
-            else if ($b.text().indexOf("Sobrantes") > -1) $b.addClass("btn-outline-info");
-            else if ($b.text().indexOf("Cuadran") > -1) $b.addClass("btn-outline-success");
+            var f = $b.data("filtro");
+            $b.removeClass("btn-dark btn-danger btn-info btn-success btn-primary");
+            if (f === "todos") $b.addClass("btn-outline-dark");
+            else if (f === "faltante") $b.addClass("btn-outline-danger");
+            else if (f === "sobrante") $b.addClass("btn-outline-info");
+            else if (f === "cuadra") $b.addClass("btn-outline-success");
+            else if (f === "ajustado") $b.addClass("btn-outline-primary");
         });
         var $activeBtn = $(btn);
-        $activeBtn.removeClass("btn-outline-dark btn-outline-danger btn-outline-info btn-outline-success").addClass("active");
+        $activeBtn.removeClass("btn-outline-dark btn-outline-danger btn-outline-info btn-outline-success btn-outline-primary").addClass("active");
         if (tipo === "todos") $activeBtn.addClass("btn-dark");
         else if (tipo === "faltante") $activeBtn.addClass("btn-danger");
         else if (tipo === "sobrante") $activeBtn.addClass("btn-info");
         else if (tipo === "cuadra") $activeBtn.addClass("btn-success");
+        else if (tipo === "ajustado") $activeBtn.addClass("btn-primary");
     }
 
     $("#tabla_modal_conteo tbody tr.fila-detalle-conteo").each(function () {
         var diag = $(this).data("diagnostico");
-        if (tipo === "todos" || diag === tipo) {
+        var esAjustado = $(this).data("ajustado");
+        if (tipo === "todos") {
+            $(this).show();
+        } else if (tipo === "ajustado") {
+            if (esAjustado == 1) {
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        } else if (diag === tipo) {
             $(this).show();
         } else {
             $(this).hide();
