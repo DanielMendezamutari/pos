@@ -337,4 +337,105 @@ class ConteoAjusteService {
         $stmt = $this->dbh->prepare($sql);
         $stmt->execute(array($motivo, $nomusuario, $iddetalleconteo));
     }
+
+    /**
+     * Obtiene el detalle completo y trazabilidad de productos ajustados para un conteo
+     *
+     * @param int $idconteo
+     * @return array Cabecera, lista de ítems ajustados y resumen de totales
+     */
+    public function obtenerHistorialAjustesConteo($idconteo) {
+        $idconteo = (int)$idconteo;
+        if ($idconteo <= 0) {
+            return array('cabecera' => null, 'ajustados' => array(), 'totales' => array('items' => 0, 'sobrantes_unidades' => 0, 'faltantes_unidades' => 0));
+        }
+
+        // Cabecera del conteo
+        $sqlCab = "SELECT 
+            cid.*,
+            s.cuitsucursal,
+            s.nomsucursal,
+            s.direcsucursal,
+            s.tlfsucursal,
+            u.nombres AS nomusuario
+            FROM conteo_inicial_diario cid
+            INNER JOIN sucursales s ON cid.codsucursal = s.codsucursal
+            LEFT JOIN usuarios u ON cid.codusuario = u.codigo
+            WHERE cid.idconteo = ?
+            LIMIT 1";
+        $stmtCab = $this->dbh->prepare($sqlCab);
+        $stmtCab->execute(array($idconteo));
+        $cabecera = $stmtCab->fetch(PDO::FETCH_ASSOC);
+
+        if (!$cabecera) {
+            return array('cabecera' => null, 'ajustados' => array(), 'totales' => array('items' => 0, 'sobrantes_unidades' => 0, 'faltantes_unidades' => 0));
+        }
+
+        // Ítems ajustados
+        $sqlDet = "SELECT 
+            dci.*,
+            COALESCE(k.movimiento, '') AS kardex_movimiento,
+            COALESCE(k.entradas, 0.00) AS kardex_entradas,
+            COALESCE(k.salidas, 0.00) AS kardex_salidas,
+            COALESCE(k.stockactual, dci.cantidad_fisica) AS stock_resultante,
+            COALESCE(k.documento, '') AS kardex_documento
+            FROM detalle_conteo_inicial dci
+            LEFT JOIN kardex k ON (
+                k.codproceso = ? 
+                AND k.codproducto = dci.codproducto 
+                AND k.codsucursal = ?
+                AND k.documento LIKE '%CONTEO INICIAL%'
+            )
+            WHERE dci.idconteo = ? AND dci.ajustado = 1
+            ORDER BY dci.iddetalleconteo ASC";
+
+        $codsuc = (int)$cabecera['codsucursal'];
+        $stmtDet = $this->dbh->prepare($sqlDet);
+        $stmtDet->execute(array((string)$idconteo, $codsuc, $idconteo));
+        $rawItems = $stmtDet->fetchAll(PDO::FETCH_ASSOC);
+
+        $ajustados = array();
+        $totalSobrantesUnid = 0;
+        $totalFaltantesUnid = 0;
+
+        foreach ($rawItems as $row) {
+            $entradas = (float)$row['kardex_entradas'];
+            $salidas = (float)$row['kardex_salidas'];
+            $cantFis = (float)$row['cantidad_fisica'];
+
+            if ($entradas > 0) {
+                $tipoAjuste = "SOBRANTE";
+                $unidadesAjuste = $entradas;
+                $txtAjuste = "+" . number_format($entradas, 0) . " u. (Sobr)";
+                $totalSobrantesUnid += $entradas;
+            } elseif ($salidas > 0) {
+                $tipoAjuste = "FALTANTE";
+                $unidadesAjuste = $salidas;
+                $txtAjuste = "-" . number_format($salidas, 0) . " u. (Falt)";
+                $totalFaltantesUnid += $salidas;
+            } else {
+                $tipoAjuste = "CUADRADO";
+                $unidadesAjuste = 0;
+                $txtAjuste = "Cuadrado";
+            }
+
+            $row['tipo_ajuste'] = $tipoAjuste;
+            $row['unidades_ajuste'] = $unidadesAjuste;
+            $row['txt_ajuste'] = $txtAjuste;
+            $row['stock_resultante'] = (float)$row['stock_resultante'];
+
+            $ajustados[] = $row;
+        }
+
+        return array(
+            'cabecera' => $cabecera,
+            'ajustados' => $ajustados,
+            'totales' => array(
+                'items' => count($ajustados),
+                'sobrantes_unidades' => $totalSobrantesUnid,
+                'faltantes_unidades' => $totalFaltantesUnid
+            )
+        );
+    }
 }
+

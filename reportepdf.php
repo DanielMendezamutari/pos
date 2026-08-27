@@ -7,6 +7,7 @@ ob_start();
 require_once 'fpdf/pdf.php';
 require_once 'fpdf/barcode.php';
 require_once 'class/class.php';
+require_once 'class/class.conteo_ajustes.php';
 
 $casos = [
   'PROVINCIAS'               => [

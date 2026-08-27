@@ -23705,19 +23705,10 @@ public function TablaAuditoriaAperturaDiscrepancias()
 ########################## FUNCION COMPROBANTE OFICIAL DE RETIRO / BAJA DE INVENTARIO ##############################
 public function TablaBajaInventario()
 {
-    $raw = isset($_GET['idbaja']) ? $_GET['idbaja'] : '';
-    $idbaja = 0;
-    if (is_numeric($raw)) {
-        $idbaja = (int)$raw;
-    } else if (!empty($raw)) {
-        $dec = decrypt($raw);
-        if (is_numeric($dec)) {
-            $idbaja = (int)$dec;
-        }
-    }
+    $idbaja = isset($_GET['idbaja']) ? (int)decrypt($_GET['idbaja']) : 0;
     if (empty($idbaja)) {
         $this->SetFont('Courier','B',12);
-        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ EL FOLIO DE BAJA"),0,1,'C');
+        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ LA BAJA DE INVENTARIO"),0,1,'C');
         return;
     }
 
@@ -23726,7 +23717,7 @@ public function TablaBajaInventario()
 
     if (!$data || empty($data['cabecera'])) {
         $this->SetFont('Courier','B',12);
-        $this->Cell(0,10,_u8d("REGISTRO DE BAJA NO ENCONTRADO"),0,1,'C');
+        $this->Cell(0,10,_u8d("COMPROBANTE DE BAJA NO ENCONTRADO"),0,1,'C');
         return;
     }
 
@@ -23742,10 +23733,10 @@ public function TablaBajaInventario()
     $this->Cell(35,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 26),0,0,'C');
     $this->Cell(155,5,_u8d($cab['nomsucursal']),0,0,'C');
     $this->Ln(6);
-    $this->SetFont('Courier','B',11);
+    $this->SetFont('Courier','B',10);
     $this->SetTextColor(180,0,0);
     $this->Cell(35,5,"",0,0,'C');
-    $this->Cell(155,5,_u8d("COMPROBANTE OFICIAL DE SALIDA / BAJA DE MERCADERÍA"),0,0,'C');
+    $this->Cell(155,5,_u8d("COMPROBANTE OFICIAL DE RETIRO / BAJA DE INVENTARIO"),0,0,'C');
     $this->Ln(4);
     $this->SetFont('Courier','I',8);
     $this->SetTextColor(80,80,80);
@@ -23806,6 +23797,20 @@ public function TablaBajaInventario()
         ));
     }
 
+    $this->Ln(3);
+
+    // Totales
+    $this->SetFont('Courier','B',9);
+    $this->SetFillColor(245, 245, 245);
+    $this->Cell(95,6,_u8d("TOTAL ÍTEMS RETIRADOS: ").number_format($total_unidades, 0)." u.",1,0,'L',true);
+    $this->Cell(95,6,_u8d("VALOR TOTAL COSTO: ").$simbolo." ".number_format($total_costo, 2, '.', ','),1,1,'R',true);
+
+    if (!empty($cab['observaciones'])) {
+        $this->Ln(2);
+        $this->SetFont('Courier','I',8);
+        $this->MultiCell(0,4,_u8d("OBSERVACIONES / JUSTIFICACIÓN: ".$cab['observaciones']),0,'L');
+    }
+
     $this->Ln(15);
     $this->SetFont('Courier','B',8);
     $this->Cell(95,4,'__________________________________________',0,0,'C');
@@ -23821,6 +23826,165 @@ public function TablaBajaInventario()
     $this->Cell(0,4,_u8d("Este comprobante respalda la salida física de inventario para que no compute como faltante en la auditoría."),0,1,'C');
 }
 ########################## FIN FUNCION COMPROBANTE OFICIAL DE RETIRO / BAJA DE INVENTARIO ##############################
+
+########################## FUNCION ACTA DE PRODUCTOS AJUSTADOS / CUADRADOS EN CONTEO INICIAL ##############################
+public function TablaAuditoriaAjustesRealizados()
+{
+    $idconteo = isset($_GET['idconteo']) ? (int)decrypt($_GET['idconteo']) : 0;
+    if (empty($idconteo)) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("NO SE ESPECIFICÓ EL FOLIO DE CONTEO"),0,1,'C');
+        return;
+    }
+
+    if (!class_exists('ConteoAjusteService')) {
+        require_once 'class/class.conteo_ajustes.php';
+    }
+
+    $servicio = new ConteoAjusteService();
+    $data = $servicio->obtenerHistorialAjustesConteo($idconteo);
+
+    if (!$data || empty($data['cabecera'])) {
+        $this->SetFont('Courier','B',12);
+        $this->Cell(0,10,_u8d("CONTEO INICIAL NO ENCONTRADO"),0,1,'C');
+        return;
+    }
+
+    $cab = $data['cabecera'];
+    $ajustados = $data['ajustados'];
+    $totales = $data['totales'];
+
+    // Encabezado
+    $logo = ( file_exists("./fotos/logo_pdf.png") == "" ? "./assets/images/null.png" : "./fotos/logo_pdf.png");
+    $this->Ln(1);
+    $this->SetFont('Courier','B',12);
+    $this->SetTextColor(3,3,3);
+    $this->Cell(35,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 26),0,0,'C');
+    $this->Cell(240,5,_u8d($cab['nomsucursal']),0,0,'C');
+    $this->Ln(6);
+    $this->SetFont('Courier','B',11);
+    $this->SetTextColor(0, 102, 153);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(240,5,_u8d("ACTA OFICIAL DE PRODUCTOS AJUSTADOS Y CUADRADOS EN INVENTARIO"),0,0,'C');
+    $this->Ln(4);
+    $this->SetFont('Courier','I',8);
+    $this->SetTextColor(70,70,70);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(240,5,_u8d("Respaldo de Ajustes en Sistema y Kardex derivados del Conteo Físico Inicial (2:00 PM)"),0,0,'C');
+    $this->Ln(6);
+
+    $this->SetFont('Courier','',8);
+    $this->SetTextColor(0,0,0);
+    $this->Cell(150,4,_u8d("SUCURSAL: ".$cab['cuitsucursal']." - ".$cab['nomsucursal']),0,0,'L');
+    $this->Cell(125,4,_u8d("FOLIO CONTEO Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)),0,1,'R');
+
+    $this->Cell(150,4,_u8d("FECHA CONTEO FÍSICO: ".date("d/m/Y h:i A", strtotime($cab['fechaconteo']))),0,0,'L');
+    $this->Cell(125,4,_u8d("FECHA DE EMISIÓN DE ACTA: ".date("d/m/Y h:i A")),0,1,'R');
+
+    $this->Cell(150,4,_u8d("TOTAL ÍTEMS AJUSTADOS: ".count($ajustados)." productos"),0,0,'L');
+    $this->Cell(125,4,_u8d("AUDITOR / EMISOR: ".($_SESSION['nombres'] ?? 'Administrador General')),0,1,'R');
+    $this->Ln(3);
+
+    if (empty($ajustados)) {
+        $this->SetFillColor(255, 243, 205);
+        $this->SetTextColor(133, 100, 4);
+        $this->SetFont('Courier','B',10);
+        $this->Cell(276, 15, _u8d("AÚN NO SE HA APLICADO NINGÚN AJUSTE O CUADRE DE SOBRANTES/FALTANTES EN ESTE CONTEO."), 1, 1, 'C', true);
+        $this->SetTextColor(0, 0, 0);
+    } else {
+        // Anchos de Columna (Total = 276mm)
+        // # (7), Código (20), Producto (72), Ajuste (24), Stock Resultante (25), Fecha/Hora Ajuste (35), Usuario (28), Motivo (65)
+        $this->SetWidths(array(7, 20, 72, 24, 25, 35, 28, 65));
+        $this->SetAligns(array('C', 'C', 'L', 'C', 'C', 'C', 'L', 'L'));
+
+        $this->SetFont('Courier','B',8);
+        $this->SetFillColor(0, 102, 153);
+        $this->SetTextColor(255, 255, 255);
+
+        $this->Cell(7, 7, '#', 1, 0, 'C', true);
+        $this->Cell(20, 7, _u8d('CÓDIGO'), 1, 0, 'C', true);
+        $this->Cell(72, 7, _u8d('DESCRIPCIÓN DEL PRODUCTO'), 1, 0, 'C', true);
+        $this->Cell(24, 7, _u8d('AJUSTE'), 1, 0, 'C', true);
+        $this->Cell(25, 7, _u8d('STOCK FINAL'), 1, 0, 'C', true);
+        $this->Cell(35, 7, _u8d('FECHA AJUSTE'), 1, 0, 'C', true);
+        $this->Cell(28, 7, _u8d('AUTORIZÓ'), 1, 0, 'C', true);
+        $this->Cell(65, 7, _u8d('MOTIVO / JUSTIFICACIÓN'), 1, 1, 'C', true);
+
+        $this->SetFont('Courier','',8);
+        $this->SetTextColor(0, 0, 0);
+
+        $n = 1;
+        foreach ($ajustados as $d) {
+            $txtAjuste = $d['txt_ajuste'];
+            $stockFinal = $d['stock_resultante'];
+            $fechaAj = !empty($d['fecha_ajuste']) ? date("d/m/Y h:i A", strtotime($d['fecha_ajuste'])) : "-";
+            $usuarioAj = !empty($d['usuario_ajuste']) ? $d['usuario_ajuste'] : "Admin";
+            $motivoAj = !empty($d['motivo_ajuste']) ? $d['motivo_ajuste'] : "Ajuste por conteo físico";
+
+            if ($this->GetY() >= 170) {
+                $this->AddPage();
+                $this->SetFont('Courier','I',8);
+                $this->SetTextColor(80, 80, 80);
+                $this->Cell(0, 5, _u8d("Continuación: Acta de Productos Ajustados - Folio Nº: ".str_pad($cab['idconteo'], 6, "0", STR_PAD_LEFT)), 0, 1, 'L');
+                $this->Ln(1);
+
+                $this->SetFont('Courier','B',8);
+                $this->SetFillColor(0, 102, 153);
+                $this->SetTextColor(255, 255, 255);
+                $this->Cell(7, 7, '#', 1, 0, 'C', true);
+                $this->Cell(20, 7, _u8d('CÓDIGO'), 1, 0, 'C', true);
+                $this->Cell(72, 7, _u8d('DESCRIPCIÓN DEL PRODUCTO'), 1, 0, 'C', true);
+                $this->Cell(24, 7, _u8d('AJUSTE'), 1, 0, 'C', true);
+                $this->Cell(25, 7, _u8d('STOCK FINAL'), 1, 0, 'C', true);
+                $this->Cell(35, 7, _u8d('FECHA AJUSTE'), 1, 0, 'C', true);
+                $this->Cell(28, 7, _u8d('AUTORIZÓ'), 1, 0, 'C', true);
+                $this->Cell(65, 7, _u8d('MOTIVO / JUSTIFICACIÓN'), 1, 1, 'C', true);
+
+                $this->SetFont('Courier','',8);
+                $this->SetTextColor(0, 0, 0);
+            }
+
+            $this->Row(array(
+                $n++,
+                _u8d($d['codproducto']),
+                _u8d($d['producto']),
+                _u8d($txtAjuste),
+                number_format($stockFinal, 0)." u.",
+                _u8d($fechaAj),
+                _u8d($usuarioAj),
+                _u8d($motivoAj)
+            ));
+        }
+
+        $this->Ln(3);
+
+        // Resumen
+        $this->SetFont('Courier','B',8);
+        $this->SetFillColor(245, 245, 245);
+        $this->Cell(92, 6, _u8d("TOTAL ÍTEMS SINCRONIZADOS: ").$totales['items'], 1, 0, 'C', true);
+        $this->Cell(92, 6, _u8d("SOBRANTES INGRESADOS: +").number_format($totales['sobrantes_unidades'], 0)." unid.", 1, 0, 'C', true);
+        $this->Cell(92, 6, _u8d("FALTANTES DESCONTADOS: -").number_format($totales['faltantes_unidades'], 0)." unid.", 1, 1, 'C', true);
+    }
+
+    if ($this->GetY() >= 155) {
+        $this->AddPage();
+    }
+
+    $this->Ln(15);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(138,4,'__________________________________________',0,0,'C');
+    $this->Cell(138,4,'__________________________________________',0,1,'C');
+
+    $this->Cell(138,4,_u8d("ADMINISTRADOR / AUDITOR QUE AJUSTÓ"),0,0,'C');
+    $this->Cell(138,4,_u8d("RESPONSABLE DE SUCURSAL / CAJERO"),0,1,'C');
+
+    $this->SetFont('Courier','I',7);
+    $this->Cell(138,3,_u8d("(".($_SESSION['nombres'] ?? 'Administrador').")"),0,0,'C');
+    $this->Cell(138,3,_u8d("(".($cab['nomusuario'] ?? 'Cajero').")"),0,1,'C');
+    $this->Ln(2);
+    $this->Cell(0,4,_u8d("Este documento certifica que los movimientos fueron asentados en el Kardex y el inventario del sistema quedó cuadrado con el conteo físico."),0,1,'C');
+}
+########################## FIN FUNCION ACTA DE PRODUCTOS AJUSTADOS ##############################
 
  // FIN Class PDF
 }
