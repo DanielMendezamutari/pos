@@ -151,7 +151,7 @@ if (isset($_SESSION['acceso'])) {
             </div>
 
             <!-- MODAL INVENTARIO INICIAL CAJEROS / ADMIN -->
-            <div id="myModalConteoInicial" class="modal fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabelConteo" aria-hidden="true">
+            <div id="myModalConteoInicial" class="modal fade" role="dialog" aria-labelledby="myModalLabelConteo" aria-hidden="true">
                 <div class="modal-dialog modal-lg">
                     <div class="modal-content">
                         <div class="modal-header bg-warning text-dark">

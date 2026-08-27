@@ -1,5 +1,6 @@
 <?php
 require_once("class/class.php");
+require_once("class/class.conteo_ajustes.php");
 ?>
 
 <?php
@@ -12509,16 +12510,31 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		$count_faltantes = 0;
 		$count_sobrantes = 0;
 		$count_cuadran = 0;
+		$count_sobrantes_pendientes = 0;
+		$count_faltantes_pendientes = 0;
+		$total_unidades_sobrantes = 0;
+		$total_unidades_faltantes = 0;
+
 		foreach ($det as $item_c) {
 			$stk = (float)($item_c['stock_sistema'] ?? 0);
 			$fis = (float)($item_c['cantidad_fisica'] ?? 0);
 			$df = $fis - $stk;
+			$estaAjustado = !empty($item_c['ajustado']) && (int)$item_c['ajustado'] === 1;
+
 			if (abs($df) < 0.001) {
 				$count_cuadran++;
 			} elseif ($df < 0) {
 				$count_faltantes++;
+				if (!$estaAjustado) {
+					$count_faltantes_pendientes++;
+					$total_unidades_faltantes += abs($df);
+				}
 			} else {
 				$count_sobrantes++;
+				if (!$estaAjustado) {
+					$count_sobrantes_pendientes++;
+					$total_unidades_sobrantes += $df;
+				}
 			}
 		}
 		?>
@@ -12542,6 +12558,7 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		</div>
 		<?php } ?>
 
+		<!-- Barra de Filtros y Cuadre Rápido -->
 		<div class="d-flex justify-content-between align-items-center flex-wrap mb-2 p-2 bg-light border rounded">
 			<div class="d-flex align-items-center flex-wrap mb-1 mb-md-0">
 				<span class="font-weight-bold text-dark mr-2"><i class="fa fa-filter text-primary"></i> Filtrar Vista:</span>
@@ -12556,22 +12573,43 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 				<span class="badge badge-info font-14">Total: <?php echo $count_todos; ?> ítems</span>
 				<?php } ?>
 			</div>
+
 			<div class="d-flex align-items-center flex-wrap mt-1 mt-md-0">
-				<span class="font-weight-bold text-dark mr-2"><i class="fa fa-file-pdf-o text-danger"></i> Exportar PDF:</span>
 				<?php if ($isAdmin) { ?>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank" class="btn btn-sm btn-warning font-weight-bold text-dark shadow-sm mr-1" title="Descargar Acta Completa con Faltantes y Sobrantes">
-					<i class="fa fa-file-text-o text-danger"></i> 📊 Acta Completa
-				</a>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank" class="btn btn-sm btn-danger font-weight-bold shadow-sm mr-1" title="Descargar Solo Productos Faltantes">
-					<i class="fa fa-file-pdf-o"></i> 🔴 Solo Faltantes
-				</a>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank" class="btn btn-sm btn-info font-weight-bold shadow-sm mr-1" title="Descargar Solo Productos Sobrantes">
-					<i class="fa fa-file-pdf-o"></i> 🔵 Solo Sobrantes
-				</a>
+					<?php if ($count_sobrantes_pendientes > 0) { ?>
+					<button type="button" class="btn btn-sm btn-info font-weight-bold text-white shadow-sm mr-1" onclick="AjustarTodosSobrantesModal('<?php echo encrypt($cab['idconteo']); ?>', <?php echo $count_sobrantes_pendientes; ?>, <?php echo $total_unidades_sobrantes; ?>)" title="Ingresar sobrantes al stock del sistema">
+						<i class="fa fa-magic"></i> ⚡ Cuadrar Sobrantes (+<?php echo number_format($total_unidades_sobrantes, 0); ?> unid.)
+					</button>
+					<?php } ?>
+					<?php if ($count_sobrantes_pendientes > 0 || $count_faltantes_pendientes > 0) { ?>
+					<button type="button" class="btn btn-sm btn-dark font-weight-bold text-white shadow-sm mr-1" onclick="AjustarTodoConteoModal('<?php echo encrypt($cab['idconteo']); ?>', <?php echo ($count_sobrantes_pendientes + $count_faltantes_pendientes); ?>)" title="Cuadrar todo el inventario con el conteo físico">
+						<i class="fa fa-sync-alt"></i> 🔄 Cuadrar Todo el Conteo
+					</button>
+					<?php } ?>
 				<?php } ?>
-				<a href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-sm btn-success font-weight-bold shadow-sm" title="Comprobante Físico para Enviar por WhatsApp">
-					<i class="fa fa-print"></i> WhatsApp
-				</a>
+
+				<div class="btn-group btn-group-sm ml-1" role="group">
+					<button type="button" class="btn btn-sm btn-warning font-weight-bold text-dark dropdown-toggle shadow-sm" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" title="Descargar Reportes PDF">
+						<i class="fa fa-file-pdf-o text-danger"></i> PDF <span class="caret"></span>
+					</button>
+					<div class="dropdown-menu dropdown-menu-right shadow">
+						<?php if ($isAdmin) { ?>
+						<a class="dropdown-item font-weight-bold text-dark py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("DISCREPANCIAS_CONTEO"); ?>" target="_blank">
+							<i class="fa fa-file-text-o text-warning mr-2"></i> 📊 Acta Completa
+						</a>
+						<a class="dropdown-item font-weight-bold text-danger py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_FALTANTES"); ?>" target="_blank">
+							<i class="fa fa-exclamation-triangle mr-2"></i> 🔴 Solo Faltantes
+						</a>
+						<a class="dropdown-item font-weight-bold text-info py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEO_SOBRANTES"); ?>" target="_blank">
+							<i class="fa fa-info-circle mr-2"></i> 🔵 Solo Sobrantes
+						</a>
+						<div class="dropdown-divider my-1"></div>
+						<?php } ?>
+						<a class="dropdown-item font-weight-bold text-success py-2" href="reportepdf?idconteo=<?php echo encrypt($cab['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank">
+							<i class="fa fa-print mr-2"></i> 📄 Comprobante WhatsApp
+						</a>
+					</div>
+				</div>
 			</div>
 		</div>
 
@@ -12579,14 +12617,15 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 			<table class="table table-striped table-bordered table-sm mb-0" id="tabla_modal_conteo">
 				<thead class="bg-warning text-dark font-weight-bold text-center">
 					<tr>
-						<th style="width: 45px;">#</th>
-						<th style="width: 110px;">Código</th>
+						<th style="width: 40px;">#</th>
+						<th style="width: 100px;">Código</th>
 						<th>Producto</th>
 						<?php if ($isAdmin) { ?>
-						<th style="width: 110px;" class="bg-dark text-white">Stock Sistema</th>
-						<th style="width: 120px;" class="bg-warning text-dark">Físico Cajera</th>
-						<th style="width: 110px;">Diferencia</th>
-						<th style="width: 120px;">Diagnóstico</th>
+						<th style="width: 95px;" class="bg-dark text-white">Stock Sistema</th>
+						<th style="width: 100px;" class="bg-warning text-dark">Físico Cajera</th>
+						<th style="width: 90px;">Diferencia</th>
+						<th style="width: 110px;">Diagnóstico</th>
+						<th style="width: 130px;" class="bg-light">Acción / Cuadre</th>
 						<?php } else { ?>
 						<th style="width: 140px;">Cantidad Física</th>
 						<?php } ?>
@@ -12600,10 +12639,11 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 						$fisico_caj = (float)$item['cantidad_fisica'];
 						$dif_ap = $fisico_caj - $stock_sis;
 						$diag_attr = (abs($dif_ap) < 0.001 ? 'cuadra' : ($dif_ap < 0 ? 'faltante' : 'sobrante'));
+						$estaAjustado = !empty($item['ajustado']) && (int)$item['ajustado'] === 1;
 					?>
 					<tr class="fila-detalle-conteo" data-diagnostico="<?php echo $diag_attr; ?>">
 						<td class="text-center font-weight-bold align-middle"><?php echo $c++; ?></td>
-						<td class="text-center align-middle"><?php echo htmlspecialchars($item['codproducto']); ?></td>
+						<td class="text-center align-middle font-11 text-muted"><?php echo htmlspecialchars($item['codproducto']); ?></td>
 						<td class="align-middle"><strong><?php echo htmlspecialchars($item['producto']); ?></strong></td>
 						<?php if ($isAdmin) { ?>
 						<td class="text-center font-weight-bold align-middle bg-light text-dark font-14"><?php echo number_format($stock_sis, 0); ?></td>
@@ -12630,6 +12670,23 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 								<span class="badge badge-danger p-1"><i class="fa fa-exclamation-triangle"></i> Faltante (<?php echo number_format($dif_ap, 0); ?>)</span>
 							<?php } else { ?>
 								<span class="badge badge-info p-1"><i class="fa fa-info-circle"></i> Sobrante (+<?php echo number_format($dif_ap, 0); ?>)</span>
+							<?php } ?>
+						</td>
+						<td class="text-center align-middle">
+							<?php if ($estaAjustado) { ?>
+								<span class="badge badge-primary font-11 p-1" title="Ajustado el <?php echo htmlspecialchars($item['fecha_ajuste'] ?? ''); ?> por <?php echo htmlspecialchars($item['usuario_ajuste'] ?? 'Admin'); ?>">
+									<i class="fa fa-check-double"></i> Ajustado
+								</span>
+							<?php } elseif ($dif_ap > 0.001) { ?>
+								<button type="button" class="btn btn-xs btn-info font-weight-bold text-white shadow-sm" onclick="AjustarDiscrepanciaIndividual('<?php echo encrypt($item['iddetalleconteo']); ?>', 'sobrante', '<?php echo addslashes(htmlspecialchars($item['producto'])); ?>', <?php echo $dif_ap; ?>, '<?php echo encrypt($cab['idconteo']); ?>')" title="Sumar sobrante al stock del sistema">
+									<i class="fa fa-plus-circle"></i> Cuadrar (+<?php echo number_format($dif_ap, 0); ?>)
+								</button>
+							<?php } elseif ($dif_ap < -0.001) { ?>
+								<button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" onclick="AjustarDiscrepanciaIndividual('<?php echo encrypt($item['iddetalleconteo']); ?>', 'faltante', '<?php echo addslashes(htmlspecialchars($item['producto'])); ?>', <?php echo $dif_ap; ?>, '<?php echo encrypt($cab['idconteo']); ?>')" title="Descontar faltante del stock del sistema">
+									<i class="fa fa-minus-circle"></i> Cuadrar (<?php echo number_format($dif_ap, 0); ?>)
+								</button>
+							<?php } else { ?>
+								<span class="text-muted font-11"><i class="fa fa-check text-success"></i> Cuadrado</span>
 							<?php } ?>
 						</td>
 						<?php } else { ?>
@@ -12781,6 +12838,66 @@ if (isset($_GET['ActualizarConteoInicialAdmin'])) {
 if (isset($_GET['DesbloquearConteoInicialAdmin'])) {
 	$login = new Login();
 	$login->DesbloquearConteoInicialAdmin();
+	exit;
+}
+
+if (isset($_GET['AjustarDiscrepanciaConteoIndividual'])) {
+	if (empty($_SESSION["acceso"]) || ($_SESSION["acceso"] != "administradorG" && $_SESSION["acceso"] != "administradorS")) {
+		echo json_encode(array("status" => 0, "msg" => "No tienes permisos de Administrador para realizar ajustes de inventario."));
+		exit;
+	}
+
+	$iddetalleconteo = !empty($_POST["iddetalleconteo"]) ? (int)decrypt($_POST["iddetalleconteo"]) : 0;
+	if ($iddetalleconteo <= 0 && is_numeric($_POST["iddetalleconteo"])) {
+		$iddetalleconteo = (int)$_POST["iddetalleconteo"];
+	}
+	$motivo = isset($_POST["motivo"]) ? limpiar($_POST["motivo"]) : "";
+	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
+	$nomusuario = isset($_SESSION["nombres"]) ? $_SESSION["nombres"] : "Administrador";
+
+	$servicioAjuste = new ConteoAjusteService();
+	$res = $servicioAjuste->ajustarItemIndividual($iddetalleconteo, $motivo, $codusuario, $nomusuario);
+	echo json_encode($res);
+	exit;
+}
+
+if (isset($_GET['AjustarTodosSobrantesConteo'])) {
+	if (empty($_SESSION["acceso"]) || ($_SESSION["acceso"] != "administradorG" && $_SESSION["acceso"] != "administradorS")) {
+		echo json_encode(array("status" => 0, "msg" => "No tienes permisos de Administrador para realizar ajustes de inventario."));
+		exit;
+	}
+
+	$idconteo = !empty($_POST["idconteo"]) ? (int)decrypt($_POST["idconteo"]) : 0;
+	if ($idconteo <= 0 && is_numeric($_POST["idconteo"])) {
+		$idconteo = (int)$_POST["idconteo"];
+	}
+	$motivo = isset($_POST["motivo"]) ? limpiar($_POST["motivo"]) : "";
+	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
+	$nomusuario = isset($_SESSION["nombres"]) ? $_SESSION["nombres"] : "Administrador";
+
+	$servicioAjuste = new ConteoAjusteService();
+	$res = $servicioAjuste->ajustarSobrantesLote($idconteo, $motivo, $codusuario, $nomusuario);
+	echo json_encode($res);
+	exit;
+}
+
+if (isset($_GET['AjustarTodoConteoDiscrepancias'])) {
+	if (empty($_SESSION["acceso"]) || ($_SESSION["acceso"] != "administradorG" && $_SESSION["acceso"] != "administradorS")) {
+		echo json_encode(array("status" => 0, "msg" => "No tienes permisos de Administrador para realizar ajustes de inventario."));
+		exit;
+	}
+
+	$idconteo = !empty($_POST["idconteo"]) ? (int)decrypt($_POST["idconteo"]) : 0;
+	if ($idconteo <= 0 && is_numeric($_POST["idconteo"])) {
+		$idconteo = (int)$_POST["idconteo"];
+	}
+	$motivo = isset($_POST["motivo"]) ? limpiar($_POST["motivo"]) : "";
+	$codusuario = isset($_SESSION["codigo"]) ? (int)$_SESSION["codigo"] : 0;
+	$nomusuario = isset($_SESSION["nombres"]) ? $_SESSION["nombres"] : "Administrador";
+
+	$servicioAjuste = new ConteoAjusteService();
+	$res = $servicioAjuste->ajustarTodosLote($idconteo, $motivo, $codusuario, $nomusuario);
+	echo json_encode($res);
 	exit;
 }
 

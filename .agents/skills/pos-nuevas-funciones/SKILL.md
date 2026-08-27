@@ -55,35 +55,54 @@ Usa ese archivo como plantilla, adaptando nombres y flujos.
 - Mantener la estructura HTML común: preloader, `main-wrapper`, `menu.php`, `page-wrapper`, `container-fluid`.
 - Usar `card-header bg-danger` y componentes Bootstrap 4 del proyecto.
 
-#### 4.2 Métodos en `class/class.php` con Transaccionalidad
-- Añade métodos dentro de la clase `Login`.
-- Usa `self::SetNames()` al inicio si trabajas con texto.
-- Para operaciones compuestas (cabecera-detalle, stock, caja), usa **Transacciones PDO**:
-  ```php
-  public function RegistrarNuevoModulo() {
-      self::SetNames();
-      if(empty($_POST["campo_obligatorio"])) {
-          echo "1"; // o código de validación correspondiente
-          exit;
-      }
-      try {
-          $this->dbh->beginTransaction();
-          
-          $sql = "INSERT INTO tabla (campo1, campo2) VALUES (?, ?)";
-          $stmt = $this->dbh->prepare($sql);
-          $stmt->execute(array(limpiar($_POST["campo1"]), limpiar($_POST["campo2"])));
-          
-          // ... inserción de detalles / actualización de stock / movimientos ...
-          
-          $this->dbh->commit();
-          echo "2"; // Éxito
-      } catch (Exception $e) {
-          $this->dbh->rollBack();
-          error_log("Error en RegistrarNuevoModulo: " . $e->getMessage());
-          echo "3"; // Error
-      }
-  }
-  ```
+#### 4.2 Arquitectura y Principios SOLID en Clases PHP
+Al implementar nueva lógica, aplica los **Principios SOLID** adaptados al entorno PHP del proyecto para garantizar código escalable y mantenible:
+
+- **S - Responsabilidad Única (Single Responsibility Principle):**
+  - **No sobrecargar clases existentes**: En lugar de seguir agregando todos los métodos a la clase monolítica `Login` en `class.php`, crea clases de dominio dedicadas (ej. `class/class.<modulo>.php` o clases con propósito único como `VentaService`, `InventarioRepository`, `FacturacionHelper`).
+  - Cada método debe resolver una sola tarea (validar, calcular o persistir).
+- **O - Abierto / Cerrado (Open/Closed Principle):**
+  - Diseña componentes que puedan extenderse sin modificar el código base probado (ej. soporte para nuevos tipos de pago, nuevos comprobantes o formatos de exportación mediante estrategias o controladores independientes).
+- **L - Sustitución de Liskov (Liskov Substitution Principle):**
+  - Si creas clases hijas o implementaciones alternativas, asegura que cumplan estrictamente los contratos, tipos de parámetros y tipos de retorno esperados sin alterar el comportamiento del llamador.
+- **I - Segregación de Interfaces (Interface Segregation Principle):**
+  - Evita clases o interfaces sobrecargadas con métodos innecesarios para el consumidor. Define contratos o clases base pequeñas y especializadas.
+- **D - Inversión de Dependencias (Dependency Inversion Principle):**
+  - Desacopla la lógica de negocio recibiendo dependencias necesarias (como la conexión PDO `$dbh` o configuraciones) en lugar de instanciarlas rígidamente dentro de cada método o depender ciegamente del estado global.
+
+##### Ejemplo de Implementación Modular con Transacciones PDO:
+```php
+class ModuloService {
+    private $dbh;
+
+    public function __construct($dbh) {
+        $this->dbh = $dbh;
+    }
+
+    public function registrar($datos) {
+        if (empty($datos["campo_obligatorio"])) {
+            return ["status" => 1, "mensaje" => "Campo obligatorio vacío"];
+        }
+
+        try {
+            $this->dbh->beginTransaction();
+
+            $sql = "INSERT INTO tabla (campo1, campo2) VALUES (?, ?)";
+            $stmt = $this->dbh->prepare($sql);
+            $stmt->execute([limpiar($datos["campo1"]), limpiar($datos["campo2"])]);
+
+            // Inserciones de detalle o actualizaciones relacionadas...
+
+            $this->dbh->commit();
+            return ["status" => 2, "mensaje" => "Registrado exitosamente"];
+        } catch (Exception $e) {
+            $this->dbh->rollBack();
+            error_log("Error en ModuloService::registrar: " . $e->getMessage());
+            return ["status" => 3, "mensaje" => "Error interno al registrar"];
+        }
+    }
+}
+```
 
 #### 4.3 Script JS (`assets/script/js<modulo>.js`)
 - Si hay interacción dinámica o modales, crea su archivo JS correspondiente.
@@ -105,6 +124,7 @@ Usa ese archivo como plantilla, adaptando nombres y flujos.
 - Página solo accesible para roles indicados.
 - IDs encriptados en URL/formulario con `encrypt()` y desencriptados con `decrypt()`.
 - Consultas PDO con *prepared statements* y sanitización con `limpiar()`.
+- Respeto estricto a los principios SOLID (evitar acoplamiento y clases dios).
 
 ### 6. Validar
 - Revisa sintaxis PHP con `php -l archivo.php`.
@@ -114,9 +134,10 @@ Usa ese archivo como plantilla, adaptando nombres y flujos.
 ## Checklist final
 
 - [ ] Requerimiento y reglas de negocio clarificadas.
+- [ ] Principios SOLID evaluados (responsabilidad única, clases/servicios desacoplados).
 - [ ] Script SQL de migración creado en `migrations/` o `bd-sql/` si hubo cambios en BD.
 - [ ] Página creada en raíz con control de sesión y roles.
-- [ ] Métodos CRUD en `class/class.php` con transacciones PDO (`try/catch`).
+- [ ] Métodos con transacciones PDO (`try/catch`) y consultas preparadas.
 - [ ] Validaciones de reglas de negocio antes de persistir.
 - [ ] Script JS creado o actualizado con SweetAlert.
 - [ ] Menú actualizado con restricción de roles.

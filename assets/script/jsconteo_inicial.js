@@ -1,9 +1,23 @@
 // JavaScript para Gestión del Inventario Inicial Diario de Cajeros (2:00 PM)
 
+// Desactivar restricción de foco de Bootstrap para permitir escribir libremente en inputs de SweetAlert sobre modales
+$(document).ready(function () {
+    if ($.fn.modal && $.fn.modal.Constructor) {
+        if ($.fn.modal.Constructor.prototype._enforceFocus) {
+            $.fn.modal.Constructor.prototype._enforceFocus = function () {};
+        }
+        if ($.fn.modal.Constructor.prototype.enforceFocus) {
+            $.fn.modal.Constructor.prototype.enforceFocus = function () {};
+        }
+    }
+    $(document).off('focusin.bs.modal');
+});
+
 function AbrirModalConteoInicial(idconteo, codsucursal) {
     idconteo = idconteo || "";
     codsucursal = codsucursal || ($("#codsucursal").length > 0 ? $("#codsucursal").val() : "") || "";
     $("#contenido_modal_conteo").html('<div class="text-center p-5"><i class="fa fa-spinner fa-spin fa-3x text-warning"></i><p class="mt-2 font-weight-bold">Cargando inventario inicial...</p></div>');
+    $("#myModalConteoInicial").removeAttr("tabindex");
     $("#myModalConteoInicial").modal("show");
 
     var url = "funciones.php?CargaModalConteoInicial=si" + (idconteo !== "" ? "&idconteo=" + encodeURIComponent(idconteo) : "") + (codsucursal !== "" ? "&codsucursal=" + encodeURIComponent(codsucursal) : "");
@@ -280,4 +294,207 @@ function FiltrarTablaDiagnostico(tipo, btn) {
             $(this).hide();
         }
     });
+}
+
+function AjustarDiscrepanciaIndividual(iddetalleconteo, tipo, nombreProd, diferencia, idconteo) {
+    if (!iddetalleconteo) {
+        swal("Aviso", "Identificador de producto inválido.", "warning");
+        return;
+    }
+
+    // Desactivar bloqueo de foco de modales
+    $(".modal").removeAttr("tabindex");
+    $(document).off('focusin.bs.modal');
+
+    var esSobrante = (tipo === "sobrante" || diferencia > 0);
+    var titulo = esSobrante ? "➕ ¿Cuadrar Sobrante en Sistema?" : "➖ ¿Ajustar Faltante en Sistema?";
+    var texto = esSobrante 
+        ? "Se sumarán +" + Math.abs(diferencia) + " unidades al stock del sistema de: " + nombreProd + " y se registrará la Entrada en Kardex.\n\nIndique el motivo (opcional):"
+        : "Se descontarán " + Math.abs(diferencia) + " unidades del stock del sistema de: " + nombreProd + " y se registrará la Salida en Kardex.\n\nIndique el motivo (opcional):";
+
+    swal({
+        title: titulo,
+        text: texto,
+        type: "input",
+        showCancelButton: true,
+        confirmButtonColor: esSobrante ? "#17a2b8" : "#dc3545",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: esSobrante ? "Sí, Cuadrar (+)" : "Sí, Descontar (-)",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        inputPlaceholder: "Ej: Mercadería ingresada sin registrar / Conteo validado...",
+        showLoaderOnConfirm: true
+    }, function (motivo) {
+        if (motivo === false) return false;
+
+        $.ajax({
+            type: "POST",
+            url: "funciones.php?AjustarDiscrepanciaConteoIndividual=si",
+            data: {
+                iddetalleconteo: iddetalleconteo,
+                motivo: motivo || (esSobrante ? "Cuadre de sobrante en conteo físico" : "Cuadre de faltante en conteo físico")
+            },
+            dataType: "json",
+            success: function (resp) {
+                if (resp && resp.status === 1) {
+                    swal({
+                        title: "¡Inventario Cuadrado!",
+                        text: resp.msg,
+                        type: "success",
+                        confirmButtonText: "Aceptar"
+                    }, function () {
+                        if (idconteo) {
+                            AbrirModalConteoInicial(idconteo);
+                        }
+                        if (typeof BuscaHistorialConteosIniciales === "function" && $("#muestra_historial_conteos").length > 0) {
+                            BuscaHistorialConteosIniciales();
+                        }
+                        if (typeof CargarProductosAuditoria === "function" && $("#codsucursal").val()) {
+                            CargarProductosAuditoria();
+                        }
+                    });
+                } else {
+                    swal("Error", resp ? resp.msg : "No se pudo realizar el ajuste.", "error");
+                }
+            },
+            error: function () {
+                swal("Error", "Error de comunicación con el servidor.", "error");
+            }
+        });
+    });
+
+    setTimeout(function () {
+        var $swalInput = $(".sweet-alert input:visible");
+        if ($swalInput.length > 0) {
+            $swalInput.focus();
+        }
+    }, 200);
+}
+
+function AjustarTodosSobrantesModal(idconteo, countSobrantes, totalUnidades) {
+    if (!idconteo) {
+        swal("Aviso", "Identificador de conteo no proporcionado.", "warning");
+        return;
+    }
+
+    // Desactivar bloqueo de foco de modales
+    $(".modal").removeAttr("tabindex");
+    $(document).off('focusin.bs.modal');
+
+    swal({
+        title: "⚡ ¿Cuadrar TODOS los Sobrantes?",
+        text: "Se ingresarán al stock del sistema +" + totalUnidades + " unidades distribuidas en " + countSobrantes + " productos con sobrante y se generarán sus movimientos de Entrada en Kardex.\n\nIndique el motivo general:",
+        type: "input",
+        showCancelButton: true,
+        confirmButtonColor: "#17a2b8",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, Cuadrar Todos los Sobrantes",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        inputPlaceholder: "Ej: Cuadre de excedentes verificado por Administración...",
+        showLoaderOnConfirm: true
+    }, function (motivo) {
+        if (motivo === false) return false;
+
+        $.ajax({
+            type: "POST",
+            url: "funciones.php?AjustarTodosSobrantesConteo=si",
+            data: {
+                idconteo: idconteo,
+                motivo: motivo || "Cuadre masivo de sobrantes de conteo inicial"
+            },
+            dataType: "json",
+            success: function (resp) {
+                if (resp && resp.status === 1) {
+                    swal({
+                        title: "¡Sobrantes Cuadrados!",
+                        text: resp.msg,
+                        type: "success",
+                        confirmButtonText: "Aceptar"
+                    }, function () {
+                        AbrirModalConteoInicial(idconteo);
+                        if (typeof BuscaHistorialConteosIniciales === "function" && $("#muestra_historial_conteos").length > 0) {
+                            BuscaHistorialConteosIniciales();
+                        }
+                    });
+                } else {
+                    swal("Error", resp ? resp.msg : "No se pudo procesar el ajuste.", "error");
+                }
+            },
+            error: function () {
+                swal("Error", "Error de comunicación con el servidor.", "error");
+            }
+        });
+    });
+
+    setTimeout(function () {
+        var $swalInput = $(".sweet-alert input:visible");
+        if ($swalInput.length > 0) {
+            $swalInput.focus();
+        }
+    }, 200);
+}
+
+function AjustarTodoConteoModal(idconteo, totalDiscrepancias) {
+    if (!idconteo) {
+        swal("Aviso", "Identificador de conteo no proporcionado.", "warning");
+        return;
+    }
+
+    // Desactivar bloqueo de foco de modales
+    $(".modal").removeAttr("tabindex");
+    $(document).off('focusin.bs.modal');
+
+    swal({
+        title: "🔄 ¿Cuadrar TODO el Inventario al Conteo Físico?",
+        text: "Se sincronizarán todas las discrepancias (" + totalDiscrepancias + " productos: sobrantes y faltantes) para que el stock del sistema quede idéntico al físico.\n\nIndique la justificación de la auditoría:",
+        type: "input",
+        showCancelButton: true,
+        confirmButtonColor: "#343a40",
+        cancelButtonColor: "#6c757d",
+        confirmButtonText: "Sí, Sincronizar Todo el Conteo",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false,
+        inputPlaceholder: "Ej: Ajuste general por auditoría física diaria...",
+        showLoaderOnConfirm: true
+    }, function (motivo) {
+        if (motivo === false) return false;
+
+        $.ajax({
+            type: "POST",
+            url: "funciones.php?AjustarTodoConteoDiscrepancias=si",
+            data: {
+                idconteo: idconteo,
+                motivo: motivo || "Sincronización total de inventario con conteo físico"
+            },
+            dataType: "json",
+            success: function (resp) {
+                if (resp && resp.status === 1) {
+                    swal({
+                        title: "¡Inventario Totalmente Sincronizado!",
+                        text: resp.msg,
+                        type: "success",
+                        confirmButtonText: "Aceptar"
+                    }, function () {
+                        AbrirModalConteoInicial(idconteo);
+                        if (typeof BuscaHistorialConteosIniciales === "function" && $("#muestra_historial_conteos").length > 0) {
+                            BuscaHistorialConteosIniciales();
+                        }
+                    });
+                } else {
+                    swal("Error", resp ? resp.msg : "No se pudo procesar la sincronización.", "error");
+                }
+            },
+            error: function () {
+                swal("Error", "Error de comunicación con el servidor.", "error");
+            }
+        });
+    });
+
+    setTimeout(function () {
+        var $swalInput = $(".sweet-alert input:visible");
+        if ($swalInput.length > 0) {
+            $swalInput.focus();
+        }
+    }, 200);
 }

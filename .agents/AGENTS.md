@@ -11,6 +11,7 @@ Este repositorio cuenta con dos flujos principales especializados para su desarr
 
 2. **`pos-nuevas-funciones`** (`.agents/skills/pos-nuevas-funciones/SKILL.md`):
    - Especialista en crear nuevos módulos, pantallas, carritos, CRUDs y procesos de negocio.
+   - Aplica principios **SOLID** (responsabilidad única, clases/servicios de dominio desacoplados, alta cohesión).
    - Implementa transacciones PDO (`beginTransaction`, `commit`, `rollBack`) y manejo `try/catch`.
    - Genera scripts de migración SQL en `migrations/` o `bd-sql/`.
    - Adapta el patrón visual Bootstrap 4 y la arquitectura nativa del proyecto.
