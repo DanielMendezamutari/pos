@@ -38697,7 +38697,25 @@ public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fech
 			AND cid.codsucursal = productos.codsucursal 
 			AND DATE(cid.fechaconteo) = DATE(?) 
 			ORDER BY cid.idconteo DESC LIMIT 1
-		), 0) AS conteo_cajero
+		), 0) AS conteo_cajero,
+		COALESCE((
+			SELECT dci.stock_sistema 
+			FROM detalle_conteo_inicial dci 
+			INNER JOIN conteo_inicial_diario cid ON dci.idconteo = cid.idconteo 
+			WHERE dci.idproducto = productos.idproducto 
+			AND cid.codsucursal = productos.codsucursal 
+			AND DATE(cid.fechaconteo) = DATE(?) 
+			ORDER BY cid.idconteo DESC LIMIT 1
+		), productos.existencia) AS stock_sistema_conteo,
+		COALESCE((
+			SELECT dci.diferencia 
+			FROM detalle_conteo_inicial dci 
+			INNER JOIN conteo_inicial_diario cid ON dci.idconteo = cid.idconteo 
+			WHERE dci.idproducto = productos.idproducto 
+			AND cid.codsucursal = productos.codsucursal 
+			AND DATE(cid.fechaconteo) = DATE(?) 
+			ORDER BY cid.idconteo DESC LIMIT 1
+		), 0) AS dif_conteo_cajero
 		FROM productos 
 		LEFT JOIN marcas ON productos.codmarca = marcas.codmarca 
 		LEFT JOIN familias ON productos.codfamilia = familias.codfamilia 
@@ -39072,9 +39090,18 @@ public function RegistrarConteoInicialCajero()
 		$stmtCab->execute(array($codsucursal, $codusuario, $fechaconteo, $total_productos, $observaciones));
 		$idconteo = $this->dbh->lastInsertId();
 
+		// Congelar el snapshot del stock vivo al momento exacto del conteo
+		$sqlStock = "SELECT idproducto, existencia FROM productos WHERE codsucursal = ?";
+		$stmtStock = $this->dbh->prepare($sqlStock);
+		$stmtStock->execute(array($codsucursal));
+		$mapaStock = array();
+		while ($rowStk = $stmtStock->fetch(PDO::FETCH_ASSOC)) {
+			$mapaStock[(int)$rowStk['idproducto']] = (float)$rowStk['existencia'];
+		}
+
 		$sqlDet = "INSERT INTO detalle_conteo_inicial 
-			(idconteo, idproducto, codproducto, producto, cantidad_fisica) 
-			VALUES (?, ?, ?, ?, ?)";
+			(idconteo, idproducto, codproducto, producto, cantidad_fisica, stock_sistema, diferencia) 
+			VALUES (?, ?, ?, ?, ?, ?, ?)";
 		$stmtDet = $this->dbh->prepare($sqlDet);
 
 		foreach ($_POST["idproducto"] as $i => $idprod) {
@@ -39082,8 +39109,10 @@ public function RegistrarConteoInicialCajero()
 			$codproducto = limpiar($_POST["codproducto"][$i]);
 			$producto = limpiar($_POST["producto"][$i]);
 			$cantidad_fisica = (float)$_POST["cantidad_fisica"][$i];
+			$stock_sistema = isset($mapaStock[$idproducto]) ? (float)$mapaStock[$idproducto] : 0.00;
+			$diferencia = $cantidad_fisica - $stock_sistema;
 
-			$stmtDet->execute(array($idconteo, $idproducto, $codproducto, $producto, $cantidad_fisica));
+			$stmtDet->execute(array($idconteo, $idproducto, $codproducto, $producto, $cantidad_fisica, $stock_sistema, $diferencia));
 		}
 
 		$this->dbh->commit();
@@ -39130,8 +39159,9 @@ public function BuscarConteoInicialPorId($idconteo)
 		$codsuc = (int)$cabecera['codsucursal'];
 		$sqlDet = "SELECT 
 			detalle_conteo_inicial.*,
-			COALESCE(productos.existencia, 0) AS stock_sistema,
-			(detalle_conteo_inicial.cantidad_fisica - COALESCE(productos.existencia, 0)) AS dif_apertura,
+			COALESCE(detalle_conteo_inicial.stock_sistema, productos.existencia, 0) AS stock_sistema,
+			COALESCE(detalle_conteo_inicial.diferencia, (detalle_conteo_inicial.cantidad_fisica - COALESCE(productos.existencia, 0))) AS dif_apertura,
+			COALESCE(productos.existencia, 0) AS stock_actual_vivo,
 			productos.precioxpublico AS precioventa,
 			productos.preciocompra
 			FROM detalle_conteo_inicial 
@@ -39172,13 +39202,16 @@ public function ActualizarConteoInicialAdmin()
 	try {
 		$this->dbh->beginTransaction();
 
-		$sqlUpd = "UPDATE detalle_conteo_inicial SET cantidad_fisica = ? WHERE iddetalleconteo = ? AND idconteo = ?";
+		$sqlUpd = "UPDATE detalle_conteo_inicial SET 
+			cantidad_fisica = ?, 
+			diferencia = (? - COALESCE(stock_sistema, 0)) 
+			WHERE iddetalleconteo = ? AND idconteo = ?";
 		$stmtUpd = $this->dbh->prepare($sqlUpd);
 
 		foreach ($_POST["iddetalleconteo"] as $i => $iddet) {
 			$iddetalle = (int)$iddet;
 			$cantidad_fisica = (float)$_POST["cantidad_fisica"][$i];
-			$stmtUpd->execute(array($cantidad_fisica, $iddetalle, $idconteo));
+			$stmtUpd->execute(array($cantidad_fisica, $cantidad_fisica, $iddetalle, $idconteo));
 		}
 
 		$nota = "\n[Corregido el " . date("d/m/Y h:i A") . " por " . $nomadmin . ($justificacion ? ": " . $justificacion : "") . "]";

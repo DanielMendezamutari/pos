@@ -12144,10 +12144,11 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 					$monto_descuadre_inicio = 0;
 					foreach ($productos as $p_chk) {
 						$ini_chk = (!empty($p_chk['conteo_cajero']) && (float)$p_chk['conteo_cajero'] > 0) ? (float)$p_chk['conteo_cajero'] : 0;
-						$stock_chk = (float)$p_chk['existencia'];
-						if ($ini_chk > 0 && abs($ini_chk - $stock_chk) > 0.001) {
+						$stock_conteo_chk = isset($p_chk['stock_sistema_conteo']) ? (float)$p_chk['stock_sistema_conteo'] : (float)$p_chk['existencia'];
+						$dif_u = isset($p_chk['dif_conteo_cajero']) && $ini_chk > 0 ? (float)$p_chk['dif_conteo_cajero'] : ($ini_chk - $stock_conteo_chk);
+
+						if ($ini_chk > 0 && abs($dif_u) > 0.001) {
 							$descuadres_inicio++;
-							$dif_u = $ini_chk - $stock_chk;
 							if ($dif_u < 0) {
 								$monto_descuadre_inicio += abs($dif_u) * (float)$p_chk['precioxpublico'];
 							}
@@ -12162,7 +12163,7 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 								<i class="fa fa-exclamation-triangle"></i> ¡ALERTA DE DESCUADRE EN APERTURA DE TURNO (2:00 PM)!
 							</h5>
 							<p class="mb-0 text-dark">
-								Se detectaron <strong><?php echo $descuadres_inicio; ?> producto(s)</strong> donde el conteo físico declarado por la cajera <strong>NO COINCIDE</strong> con el stock del sistema.
+								Se detectaron <strong><?php echo $descuadres_inicio; ?> producto(s)</strong> donde el conteo físico declarado por la cajera <strong>NO COINCIDIÓ</strong> con el stock del sistema en apertura.
 								<?php if ($monto_descuadre_inicio > 0) { ?>
 								<strong class="text-danger">(Faltante al Abrir: Bs. <?php echo number_format($monto_descuadre_inicio, 2, '.', ','); ?>)</strong>
 								<?php } ?>
@@ -12224,6 +12225,8 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 									$precioventa = (float)$p['precioxpublico'];
 									$preciocompra = (float)$p['preciocompra'];
 									$conteo_cajero_ini = (!empty($p['conteo_cajero']) && (float)$p['conteo_cajero'] > 0) ? (float)$p['conteo_cajero'] : 0;
+									$stock_conteo_fila = isset($p['stock_sistema_conteo']) ? (float)$p['stock_sistema_conteo'] : (float)$p['existencia'];
+									$dif_inicio = isset($p['dif_conteo_cajero']) && $conteo_cajero_ini > 0 ? (float)$p['dif_conteo_cajero'] : ($conteo_cajero_ini - $stock_conteo_fila);
 								?>
 								<tr class="fila-auditoria" id="fila_<?php echo $i; ?>" data-index="<?php echo $i; ?>">
 									<td class="text-center font-weight-bold align-middle"><?php echo $n++; ?></td>
@@ -12246,17 +12249,16 @@ if (isset($_GET['BuscaProductosAuditoria']) && isset($_GET['codsucursal']) && is
 										<input type="number" step="any" min="0" class="form-control form-control-sm text-center font-weight-bold input-cuaderno" name="inicial_cuaderno[]" id="inicial_cuaderno_<?php echo $i; ?>" value="<?php echo $conteo_cajero_ini; ?>" oninput="CalcularFila(<?php echo $i; ?>)" style="background-color: #fff9e6; border: 2px solid #ffc107;">
 										<?php 
 										if ($conteo_cajero_ini > 0) {
-											$dif_inicio = $conteo_cajero_ini - (float)$p['existencia'];
 											if (abs($dif_inicio) < 0.001) { ?>
-												<span class="badge badge-success d-block mt-1 font-10" title="El conteo de la cajera coincide con el stock del sistema (<?php echo number_format($p['existencia'], 0); ?>)">
-													<i class="fa fa-check"></i> Cuadra Stock (<?php echo number_format($p['existencia'], 0); ?>)
+												<span class="badge badge-success d-block mt-1 font-10" title="El conteo de la cajera coincidió con el stock del sistema en apertura (<?php echo number_format($stock_conteo_fila, 0); ?>)">
+													<i class="fa fa-check"></i> Cuadra Stock (<?php echo number_format($stock_conteo_fila, 0); ?>)
 												</span>
 											<?php } elseif ($dif_inicio < 0) { ?>
-												<span class="badge badge-danger d-block mt-1 font-10" title="Cajera contó <?php echo number_format($conteo_cajero_ini, 0); ?> pero en sistema hay <?php echo number_format($p['existencia'], 0); ?>">
+												<span class="badge badge-danger d-block mt-1 font-10" title="Cajera contó <?php echo number_format($conteo_cajero_ini, 0); ?> pero en apertura había <?php echo number_format($stock_conteo_fila, 0); ?>">
 													<i class="fa fa-exclamation-triangle"></i> Falta inicio: <?php echo number_format($dif_inicio, 0); ?>u
 												</span>
 											<?php } else { ?>
-												<span class="badge badge-info d-block mt-1 font-10" title="Cajera contó <?php echo number_format($conteo_cajero_ini, 0); ?> pero en sistema hay <?php echo number_format($p['existencia'], 0); ?>">
+												<span class="badge badge-info d-block mt-1 font-10" title="Cajera contó <?php echo number_format($conteo_cajero_ini, 0); ?> pero en apertura había <?php echo number_format($stock_conteo_fila, 0); ?>">
 													<i class="fa fa-info-circle"></i> Sobra inicio: +<?php echo number_format($dif_inicio, 0); ?>u
 												</span>
 											<?php }

@@ -46,7 +46,9 @@ class ConteoAjusteService {
                 dci.*, 
                 cid.idconteo,
                 cid.codsucursal,
-                COALESCE(p.existencia, 0) AS stock_sistema,
+                COALESCE(dci.stock_sistema, p.existencia, 0) AS stock_sistema_conteo,
+                COALESCE(dci.diferencia, (dci.cantidad_fisica - COALESCE(p.existencia, 0))) AS diferencia_conteo,
+                COALESCE(p.existencia, 0) AS stock_actual_vivo,
                 p.codproducto AS codigo_prod_bd,
                 p.producto AS nom_prod_bd,
                 COALESCE(p.preciocompra, 0.00) AS preciocompra,
@@ -72,11 +74,12 @@ class ConteoAjusteService {
             }
 
             $cantidad_fisica = (float)$item['cantidad_fisica'];
-            $stock_sistema = (float)$item['stock_sistema'];
-            $diferencia = $cantidad_fisica - $stock_sistema;
+            $stock_sistema_conteo = (float)$item['stock_sistema_conteo'];
+            $diferencia = (float)$item['diferencia_conteo'];
+            $stock_actual_vivo = (float)$item['stock_actual_vivo'];
 
             if (abs($diferencia) < 0.0001) {
-                // Ya cuadra exactamente
+                // Ya cuadra exactamente con la foto de apertura
                 $this->marcarDetalleAjustado($iddetalleconteo, $motivo ?: "Stock ya se encontraba cuadrado con conteo físico", $nomusuario);
                 return array("status" => 1, "msg" => "El producto ya se encontraba cuadrado con el conteo físico.", "diferencia" => 0);
             }
@@ -89,18 +92,19 @@ class ConteoAjusteService {
             $codproducto = !empty($item['codproducto']) ? $item['codproducto'] : $item['codigo_prod_bd'];
             $folioFormat = "#" . str_pad($idconteo, 5, "0", STR_PAD_LEFT);
 
-            // 1. Actualizar la existencia en la tabla productos para que sea exactamente la cantidad física contada
+            // 1. Ajuste Delta: se aplica la variación (+/- diferencia) sobre el stock actual vivo para no pisar ventas intermedias
+            $nuevo_stock = max(0.00, (float)number_format($stock_actual_vivo + $diferencia, 2, '.', ''));
             $sqlUpdStock = "UPDATE productos SET existencia = ? WHERE idproducto = ? AND codsucursal = ?";
             $stmtUpdStock = $this->dbh->prepare($sqlUpdStock);
-            $stmtUpdStock->execute(array($cantidad_fisica, $idproducto, $codsucursal));
+            $stmtUpdStock->execute(array($nuevo_stock, $idproducto, $codsucursal));
 
             // 2. Registrar movimiento en KARDEX para auditoría y trazabilidad
             $this->registrarMovimientoKardex(
                 $codsucursal,
                 $idconteo,
                 $codproducto,
-                $stock_sistema,
-                $cantidad_fisica,
+                $stock_actual_vivo,
+                $nuevo_stock,
                 $diferencia,
                 $item['preciocompra'],
                 $item['ivaproducto'],
@@ -126,8 +130,8 @@ class ConteoAjusteService {
             $tipoTexto = $diferencia > 0 ? "Sobrante (+".number_format($diferencia, 0).")" : "Faltante (".number_format($diferencia, 0).")";
             return array(
                 "status" => 1,
-                "msg" => "¡Ajuste aplicado con éxito! Se cuadró el $tipoTexto para " . htmlspecialchars($item['producto']) . ". Nuevo stock: " . number_format($cantidad_fisica, 0),
-                "nuevo_stock" => $cantidad_fisica,
+                "msg" => "¡Ajuste aplicado con éxito! Se cuadró el $tipoTexto para " . htmlspecialchars($item['producto']) . ". Stock vivo actualizado: " . number_format($nuevo_stock, 0) . " (Anterior: " . number_format($stock_actual_vivo, 0) . ")",
+                "nuevo_stock" => $nuevo_stock,
                 "diferencia" => $diferencia
             );
 
@@ -179,7 +183,9 @@ class ConteoAjusteService {
             $sqlItems = "SELECT 
                 dci.*, 
                 cid.codsucursal,
-                COALESCE(p.existencia, 0) AS stock_sistema,
+                COALESCE(dci.stock_sistema, p.existencia, 0) AS stock_sistema_conteo,
+                COALESCE(dci.diferencia, (dci.cantidad_fisica - COALESCE(p.existencia, 0))) AS diferencia_conteo,
+                COALESCE(p.existencia, 0) AS stock_actual_vivo,
                 p.codproducto AS codigo_prod_bd,
                 COALESCE(p.preciocompra, 0.00) AS preciocompra,
                 COALESCE(p.ivaproducto, 'NO') AS ivaproducto,
@@ -199,9 +205,7 @@ class ConteoAjusteService {
 
             $itemsParaAjustar = array();
             foreach ($items as $it) {
-                $cant_fisica = (float)$it['cantidad_fisica'];
-                $stock_sis = (float)$it['stock_sistema'];
-                $dif = $cant_fisica - $stock_sis;
+                $dif = (float)$it['diferencia_conteo'];
 
                 if ($filtro === "sobrantes" && $dif > 0.0001) {
                     $itemsParaAjustar[] = array('item' => $it, 'dif' => $dif);
@@ -233,23 +237,23 @@ class ConteoAjusteService {
 
             foreach ($itemsParaAjustar as $reg) {
                 $it = $reg['item'];
-                $dif = $reg['dif'];
-                $cant_fisica = (float)$it['cantidad_fisica'];
-                $stock_sis = (float)$it['stock_sistema'];
+                $dif = (float)$reg['dif'];
+                $stock_actual_vivo = (float)$it['stock_actual_vivo'];
                 $idprod = (int)$it['idproducto'];
                 $codsuc = (int)$it['codsucursal'];
                 $codprod = !empty($it['codproducto']) ? $it['codproducto'] : $it['codigo_prod_bd'];
 
-                // Actualizar stock
-                $stmtUpdStock->execute(array($cant_fisica, $idprod, $codsuc));
+                // Ajuste Delta: se suma la diferencia al stock actual vivo
+                $nuevo_stock = max(0.00, (float)number_format($stock_actual_vivo + $dif, 2, '.', ''));
+                $stmtUpdStock->execute(array($nuevo_stock, $idprod, $codsuc));
 
                 // Registrar en Kardex
                 $this->registrarMovimientoKardex(
                     $codsuc,
                     $idconteo,
                     $codprod,
-                    $stock_sis,
-                    $cant_fisica,
+                    $stock_actual_vivo,
+                    $nuevo_stock,
                     $dif,
                     $it['preciocompra'],
                     $it['ivaproducto'],
@@ -269,7 +273,7 @@ class ConteoAjusteService {
             return array(
                 "status" => 1,
                 "total_ajustados" => $totalAjustados,
-                "msg" => "¡Se ajustaron y cuadraron con éxito $totalAjustados productos en el inventario del sistema!"
+                "msg" => "¡Se ajustaron y sincronizaron con éxito $totalAjustados productos en el inventario del sistema!"
             );
 
         } catch (Exception $e) {
