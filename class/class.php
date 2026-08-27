@@ -38596,7 +38596,9 @@ public function ConsultarProductosParaAuditoria($codsucursal, $fechadesde, $fech
 		$fechadesde, $fechahasta, // traspasos entrada
 		$fechadesde, $fechahasta, // traspasos salida
 		$fechadesde, $fechahasta, // bajas_salidas (retiros dueña, consumo interno, mermas)
-		$fechadesde,              // conteo inicial cajero
+		$fechadesde,              // conteo inicial cajero (cantidad_fisica)
+		$fechadesde,              // conteo inicial cajero (stock_sistema)
+		$fechadesde,              // conteo inicial cajero (diferencia)
 		$codsucursal
 	);
 
