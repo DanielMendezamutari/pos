@@ -277,4 +277,61 @@ function updateDashboardKPIs(){
             $("#kpi-credito-compras").html(data[0].creditocompraspendiente);
         }
     }, "json");
+
+    updateDashboardControlInventario();
+}
+
+/* ACTUALIZACION DE KPIS DE CONTROL DE INVENTARIO Y RELEVOS */
+function updateDashboardControlInventario(){
+    $.get("data.php?DashboardControlInventario=si", function(res){
+        if(res && res.kpis){
+            var k = res.kpis;
+            var faltPendUds = parseFloat(k.unidades_faltantes_pendientes) || 0;
+            var costoPend = parseFloat(k.costo_faltante_pendiente) || 0;
+            var cuadTotalUds = parseFloat(k.unidades_cuadradas_total) || 0;
+            var sinConteo = parseInt(k.cajas_sin_conteo) || 0;
+            var conteosPend = parseInt(k.conteos_con_pendientes) || 0;
+            var conteosResueltos = parseInt(k.conteos_resueltos) || 0;
+
+            if (faltPendUds > 0) {
+                $("#kpi-inv-faltantes-uds").html("-" + faltPendUds.toFixed(0)).removeClass("text-success").addClass("text-danger font-weight-bold");
+                var textoMonto = "Est. -Bs. " + costoPend.toFixed(2) + " pendiente";
+                if (cuadTotalUds > 0) {
+                    textoMonto += '<br><small class="text-info font-weight-bold"><i class="fa fa-check"></i> ' + cuadTotalUds.toFixed(0) + ' uds ya cuadradas</small>';
+                }
+                $("#kpi-inv-faltantes-monto").html(textoMonto).removeClass("text-muted text-success").addClass("text-danger font-weight-bold");
+            } else {
+                $("#kpi-inv-faltantes-uds").html("0").removeClass("text-danger font-weight-bold").addClass("text-success font-weight-bold");
+                var textoCuad = (cuadTotalUds > 0) ? ("✓ " + cuadTotalUds.toFixed(0) + " uds Cuadradas/Ajustadas") : "100% Cuadrado";
+                $("#kpi-inv-faltantes-monto").html(textoCuad).removeClass("text-danger font-weight-bold text-muted").addClass("text-success font-weight-bold");
+            }
+
+            $("#kpi-inv-total-conteos").html(k.total_conteos_hoy);
+            if (sinConteo > 0) {
+                $("#kpi-inv-cajas-alerta").html("⚠️ " + sinConteo + " caja(s) sin contar").removeClass("text-muted").addClass("badge badge-warning text-dark font-weight-bold");
+            } else {
+                $("#kpi-inv-cajas-alerta").html("Cajas al día").removeClass("badge badge-warning text-dark font-weight-bold").addClass("text-muted");
+            }
+
+            $("#kpi-inv-cuadrados").html(k.conteos_cuadrados_totales);
+            if (conteosPend > 0) {
+                var txtPend = '<span class="text-danger font-weight-bold">' + conteosPend + ' con faltante activo</span>';
+                if (conteosResueltos > 0) {
+                    txtPend += '<br><small class="text-info font-weight-bold">(' + conteosResueltos + ' cuadrados por ajuste/compra)</small>';
+                }
+                $("#kpi-inv-diferencias").html(txtPend);
+            } else {
+                var txtOk = '<span class="text-success font-weight-bold"><i class="fa fa-check"></i> Todos resueltos</span>';
+                if (conteosResueltos > 0) {
+                    txtOk += '<br><small class="text-info font-weight-bold">(' + conteosResueltos + ' cuadrados por ajuste/compra)</small>';
+                }
+                $("#kpi-inv-diferencias").html(txtOk);
+            }
+
+            if (k.dias_anteriores_faltantes_uds !== undefined && $("#btn_faltantes_anteriores").length > 0) {
+                var antUds = parseFloat(k.dias_anteriores_faltantes_uds) || 0;
+                $("#btn_faltantes_anteriores").html('<i class="fa fa-history"></i> Faltantes Días Anteriores (' + antUds.toFixed(0) + ' uds)');
+            }
+        }
+    }, "json");
 }

@@ -6578,6 +6578,109 @@ header("content-disposition: attachment;filename=".$archivo.$extension);
 break;
 ############################### MODULO DE AUDITORIA DE PRODUCTOS ###############################
 
+############################### MODULO DE REPORTE CONSOLIDADO DE PERDIDAS ###############################
+case 'PERDIDASXFECHAS':
+
+require_once("class/class.reporte_perdidas.php");
+$service = new ReportePerdidasService();
+
+$codsucursal = 0;
+if (!empty($_GET["codsucursal"])) {
+    $rawSuc = $_GET["codsucursal"];
+    if (is_numeric($rawSuc)) {
+        $codsucursal = (int)$rawSuc;
+    } else {
+        $decSuc = decrypt($rawSuc);
+        if (is_numeric($decSuc)) {
+            $codsucursal = (int)$decSuc;
+        }
+    }
+}
+
+$desde = !empty($_GET["desde"]) ? limpiar($_GET["desde"]) : date('Y-m-01');
+$hasta = !empty($_GET["hasta"]) ? limpiar($_GET["hasta"]) : date('Y-m-d');
+$filtroCategoria = !empty($_GET["tipofiltro"]) ? strtoupper(limpiar($_GET["tipofiltro"])) : 'TODAS';
+
+$registros = $service->obtenerPerdidas($codsucursal, $desde, $hasta, $filtroCategoria);
+$kpis = $service->calcularResumenKPIs($registros);
+$sucInfo = $service->obtenerSucursalInfo($codsucursal);
+
+$nombreSucLimpio = preg_replace('/[^A-Za-z0-9_-]/', '_', $sucInfo['nomsucursal']);
+$archivo = "INFORME_EJECUTIVO_PERDIDAS_" . $nombreSucLimpio . "_" . date("Ymd_His");
+
+header("Content-Type: application/vnd.ms-$documento");
+header("Expires: 0");
+header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+header("content-disposition: attachment;filename=" . $archivo . $extension);
+?>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<table border="1" cellpadding="4" cellspacing="0">
+  <tr style="background-color: #d9534f; color: #ffffff; font-weight: bold; text-align: center; font-size: 13pt;">
+    <th colspan="8">
+      INFORME EJECUTIVO DE PÉRDIDAS, FALTANTES Y RETIROS - <?php echo strtoupper($sucInfo['nomsucursal']); ?>
+    </th>
+  </tr>
+  <tr style="background-color: #f9f9f9;">
+    <td colspan="4"><strong>Sucursal:</strong> <?php echo ($sucInfo['cuitsucursal'] ? $sucInfo['cuitsucursal'] . ": " : "") . $sucInfo['nomsucursal']; ?></td>
+    <td colspan="4"><strong>Período:</strong> <?php echo date("d/m/Y", strtotime($desde)); ?> al <?php echo date("d/m/Y", strtotime($hasta)); ?></td>
+  </tr>
+  <tr style="background-color: #f2f2f2;">
+    <td colspan="4"><strong>Filtro Aplicado:</strong> <?php echo $filtroCategoria; ?></td>
+    <td colspan="4"><strong>Fecha de Emisión:</strong> <?php echo date("d/m/Y H:i"); ?></td>
+  </tr>
+  
+  <!-- Resumen Ejecutivo para la Dueña -->
+  <tr style="font-weight: bold; text-align: center;">
+    <td colspan="2" style="background-color: #ffeef0; color: #c9302c;">
+      🔴 FALTANTE EN CAJA (A COBRAR):<br>Bs. <?php echo number_format($kpis['monto_faltantes_caja'], 2, '.', ','); ?> (-<?php echo number_format($kpis['unid_faltantes_caja'], 0); ?> u.)
+    </td>
+    <td colspan="2" style="background-color: #f3edff; color: #5a28b4;">
+      🟣 RETIROS DE LA DUEÑA (GYM/CONSUMO):<br>Bs. <?php echo number_format($kpis['monto_retiros_duena'], 2, '.', ','); ?> (-<?php echo number_format($kpis['unid_retiros_duena'], 0); ?> u.)
+    </td>
+    <td colspan="2" style="background-color: #fff9e6; color: #966400;">
+      🟡 MERMAS / BOTELLAS ROTAS:<br>Bs. <?php echo number_format($kpis['monto_mermas'], 2, '.', ','); ?> (-<?php echo number_format($kpis['unid_mermas'], 0); ?> u.)
+    </td>
+    <td colspan="2" style="background-color: #ebfaeb; color: #007828;">
+      🟢 CUADRADOS / ACLARADOS:<br>Bs. <?php echo number_format($kpis['monto_aclarados'], 2, '.', ','); ?> (-<?php echo number_format($kpis['unid_aclarados'], 0); ?> u.)
+    </td>
+  </tr>
+
+  <tr style="background-color: #333333; color: #ffffff; font-weight: bold; text-align: center;">
+    <th>Nº</th>
+    <th>FECHA / TURNO</th>
+    <th>PRODUCTO</th>
+    <th>CANT.</th>
+    <th>SITUACIÓN</th>
+    <th>¿POR QUÉ FALTÓ? / MOTIVO REAL</th>
+    <th>RESPONSABLE</th>
+    <th>VALOR (Bs.)</th>
+  </tr>
+  <?php
+  $a = 1;
+  foreach ($registros as $r) {
+  ?>
+  <tr>
+    <td align="center"><?php echo $a++; ?></td>
+    <td align="center"><?php echo date("d/m/Y H:i", strtotime($r['fecha'])); ?></td>
+    <td><strong><?php echo $r['producto']; ?></strong> (Ref: <?php echo $r['codigo_referencia']; ?>)</td>
+    <td align="center" style="color: red; font-weight: bold; background-color: #fff3f3;">-<?php echo number_format($r['cantidad_perdida'], 0); ?></td>
+    <td align="center"><?php echo $r['categoria_nombre']; ?></td>
+    <td><?php echo $r['razon_real']; ?></td>
+    <td><?php echo $r['responsable']; ?></td>
+    <td align="right" style="color: red; font-weight: bold;">Bs. <?php echo number_format($r['total_venta'], 2, '.', ','); ?></td>
+  </tr>
+  <?php } ?>
+  <tr style="background-color: #f2f2f2; font-weight: bold;">
+    <td colspan="3" align="right">TOTAL GENERAL:</td>
+    <td align="center" style="color: red;">-<?php echo number_format($kpis['total_unidades'], 0); ?></td>
+    <td colspan="3"></td>
+    <td align="right" style="color: red;">Bs. <?php echo number_format($kpis['total_venta'], 2, '.', ','); ?></td>
+  </tr>
+</table>
+<?php
+break;
+############################### FIN MODULO DE REPORTE CONSOLIDADO DE PERDIDAS ###############################
+
 }
  
 ?>

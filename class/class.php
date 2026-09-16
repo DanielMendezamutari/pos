@@ -3034,7 +3034,7 @@ public function RegistrarSucursales()
 	$num = $stmt->rowCount();
 	if($num == 0)
 	{
-		$query = " INSERT INTO sucursales values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+		$query = " INSERT INTO sucursales values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 		$stmt = $this->dbh->prepare($query);
 		$stmt->bindParam(1, $documsucursal);
 		$stmt->bindParam(2, $cuitsucursal);
@@ -3062,6 +3062,7 @@ public function RegistrarSucursales()
 		$stmt->bindParam(24, $codmoneda2);
 		$stmt->bindParam(25, $membrete);
 		$stmt->bindParam(26, $estado);
+		$stmt->bindParam(27, $esbillar);
 
 		$documsucursal = limpiar($_POST['documsucursal'] == '' ? "0" : $_POST['documsucursal']);
 		$cuitsucursal = limpiar($_POST["cuitsucursal"]);
@@ -3089,7 +3090,13 @@ public function RegistrarSucursales()
 		$codmoneda2 = limpiar($_POST["codmoneda2"]);
 		$membrete = limpiar($_POST["membrete"]);
 		$estado = limpiar("1");
+		$esbillar = limpiar(!empty($_POST["esbillar"]) ? $_POST["esbillar"] : "NO");
 		$stmt->execute();
+		$codsucursal_new = $this->dbh->lastInsertId();
+		if ($codsucursal_new > 0) {
+			$stmt_m_new = $this->dbh->prepare("INSERT INTO marcas (nommarca, codsucursal) VALUES ('ACTUALIZAR', ?)");
+			$stmt_m_new->execute(array($codsucursal_new));
+		}
 
       ############################ SUBIR LOGO DE SUCURSAL ############################
 	   //datos del arhivo  
@@ -8097,9 +8104,9 @@ public function RegistrarProductos()
 		$descripcion = limpiar($_POST["descripcion"]);
 		$imei = limpiar($_POST["imei"]);
 		$condicion = limpiar($_POST["condicion"]);
-		$tipoproducto = limpiar($_POST["tipoproducto"] == '' ? "PRODUCTO" : $_POST["tipoproducto"]);
-		$preciohora = limpiar($_POST["preciohora"] == '' ? "0.00" : $_POST["preciohora"]);
-		$esaccesoriobillar = limpiar($_POST["esaccesoriobillar"] == '' ? "NO" : $_POST["esaccesoriobillar"]);
+		$tipoproducto = limpiar(!empty($_POST["tipoproducto"]) ? $_POST["tipoproducto"] : "PRODUCTO");
+		$preciohora = limpiar(!empty($_POST["preciohora"]) ? $_POST["preciohora"] : "0.00");
+		$esaccesoriobillar = limpiar(!empty($_POST["esaccesoriobillar"]) ? $_POST["esaccesoriobillar"] : "NO");
 		$fabricante = limpiar($_POST["modulo"] == 1 ? $_POST["fabricante"] : "");
 		$codfamilia = limpiar(decrypt($_POST["codfamilia"]));
 		
@@ -8151,6 +8158,13 @@ public function RegistrarProductos()
 		$motivoajuste = limpiar("NINGUNO");
 		$codsucursal = decrypt($_POST["codsucursal"]);
 		try {
+		if (empty($codmarca) || $codmarca == "0" || $codmarca === 0) {
+			$stmtM = $this->dbh->prepare("SELECT codmarca FROM marcas WHERE codsucursal = ? ORDER BY codmarca ASC LIMIT 1");
+			$stmtM->execute(array($codsucursal));
+			if ($rowM = $stmtM->fetch(PDO::FETCH_ASSOC)) {
+				$codmarca = $rowM["codmarca"];
+			}
+		}
 		$this->dbh->beginTransaction();
 
 	$stmt->execute();
@@ -10309,9 +10323,9 @@ public function ActualizarProductos()
 		$descripcion = limpiar($_POST["descripcion"]);
 		$imei = limpiar($_POST["imei"]);
 		$condicion = limpiar($_POST["condicion"]);
-		$tipoproducto = limpiar($_POST["tipoproducto"] == '' ? "PRODUCTO" : $_POST["tipoproducto"]);
-		$preciohora = limpiar($_POST["preciohora"] == '' ? "0.00" : $_POST["preciohora"]);
-		$esaccesoriobillar = limpiar($_POST["esaccesoriobillar"] == '' ? "NO" : $_POST["esaccesoriobillar"]);
+		$tipoproducto = limpiar(!empty($_POST["tipoproducto"]) ? $_POST["tipoproducto"] : "PRODUCTO");
+		$preciohora = limpiar(!empty($_POST["preciohora"]) ? $_POST["preciohora"] : "0.00");
+		$esaccesoriobillar = limpiar(!empty($_POST["esaccesoriobillar"]) ? $_POST["esaccesoriobillar"] : "NO");
 		$fabricante = limpiar($_POST["fabricante"]);
 		$codfamilia = limpiar(decrypt($_POST["codfamilia"]));
 		$codsubfamilia = limpiar($_POST['codsubfamilia'] == '' ? "0" : decrypt($_POST['codsubfamilia']));
@@ -10344,6 +10358,13 @@ public function ActualizarProductos()
 		$idproducto = limpiar(decrypt($_POST["idproducto"]));
 		$codsucursal = decrypt($_POST["codsucursal"]);
 		try {
+		if (empty($codmarca) || $codmarca == "0" || $codmarca === 0) {
+			$stmtM = $this->dbh->prepare("SELECT codmarca FROM marcas WHERE codsucursal = ? ORDER BY codmarca ASC LIMIT 1");
+			$stmtM->execute(array($codsucursal));
+			if ($rowM = $stmtM->fetch(PDO::FETCH_ASSOC)) {
+				$codmarca = $rowM["codmarca"];
+			}
+		}
 		$this->dbh->beginTransaction();
 
 	$stmt->execute();
@@ -27720,25 +27741,34 @@ public function RegistrarVentas()
 		} elseif(limpiar($v[$i]['tipodetalle']) == 2){ // SI EL DETALLE ES UN COMBO
 
 			$sql = "SELECT 
+		   idcombo,
+		   codcombo,
 		   existencia 
 		   FROM combos 
-		   WHERE idcombo = '".limpiar($v[$i]['id'])."' 
-			AND codcombo = '".limpiar($v[$i]['txtCodigo'])."'
+		   WHERE (idcombo = '".limpiar($v[$i]['id'])."' OR (codcombo != '' AND codcombo = '".limpiar($v[$i]['txtCodigo'])."' AND codcombo != '0')) 
 		   AND codsucursal = '".limpiar(decrypt($_POST['codsucursal']))."'";
-		   foreach ($this->dbh->query($sql) as $row)
-		   {
-			   $this->p[] = $row;
-		   }
+			$row = null;
+			foreach ($this->dbh->query($sql) as $r)
+			{
+				$row = $r;
+				$this->p[] = $r;
+			}
 		
-		   $existenciabd = $row['existencia'];
-		   $cantidad = $v[$i]['cantidad'];
+			$existenciabd = ($row && isset($row['existencia']) ? $row['existencia'] : 0);
+			$cantidad = $v[$i]['cantidad'];
+
+			if ($row && !empty($row['codcombo'])) {
+				$v[$i]['txtCodigo'] = $row['codcombo'];
+				if (isset($_SESSION["CarritoVenta"][$i])) {
+					$_SESSION["CarritoVenta"][$i]['txtCodigo'] = $row['codcombo'];
+				}
+			}
 
 	      if ($cantidad > $existenciabd) 
 	      { 
 		      echo "5";
 		      exit;
 	      }
-
 		   ############## VERIFICO SI EL COMBO TIENE PRODUCTO RELACIONADOS #################
 		   $sql = "SELECT * FROM combosxproductos WHERE codcombo = ? AND codsucursal = ?";
 			$stmt = $this->dbh->prepare($sql);
@@ -28324,28 +28354,28 @@ public function RegistrarVentas()
 
    } elseif(limpiar($detalle[$i]['tipodetalle']) == 2){ // SI EL DETALLE ES UN COMBO
 
-	   ############## VERIFICO LA EXISTENCIA DEL COMBO EN ALMACEN #################
-		$sql = "SELECT 
-		existencia 
+		################ VERIFICO LA EXISTENCIA DEL COMBO EN ALMACEN ################
+		$sql = "SELECT * 
 		FROM combos 
-		WHERE idcombo = '".limpiar($detalle[$i]['id'])."'
-		AND codcombo = '".limpiar($detalle[$i]['txtCodigo'])."'
+		WHERE (idcombo = '".limpiar($detalle[$i]['id'])."' OR (codcombo != '' AND codcombo = '".limpiar($detalle[$i]['txtCodigo'])."' AND codcombo != '0'))
 		AND codsucursal = '".limpiar(decrypt($_POST['codsucursal']))."'";
-		foreach ($this->dbh->query($sql) as $row)
+		$row = null;
+		foreach ($this->dbh->query($sql) as $r)
 		{
-			$this->p[] = $row;
+			$row = $r;
+			$this->p[] = $r;
 		}
-		$existenciacombobd = $row['existencia'];
+		$existenciacombobd = ($row && isset($row['existencia']) ? $row['existencia'] : 0);
+		$idcomboReal = ($row && !empty($row['idcombo']) ? $row['idcombo'] : $detalle[$i]['id']);
+		$codcomboReal = ($row && !empty($row['codcombo']) ? $row['codcombo'] : $detalle[$i]['txtCodigo']);
 		############## VERIFICO LA EXISTENCIA DEL COMBO EN ALMACEN #################
 
 	   ##################### ACTUALIZO LA EXISTENCIA DEL COMBO DEL ALMACEN ####################
 		$sql = " UPDATE combos set "
 			." existencia = ? "
 			." WHERE "
-			." idcombo = '".limpiar($detalle[$i]['id'])."'
-		   AND codcombo = '".limpiar($detalle[$i]['txtCodigo'])."'
-	      AND codsucursal = '".limpiar(decrypt($_POST['codsucursal']))."';
-			";
+			." idcombo = '".limpiar($idcomboReal)."'"
+	      ." AND codsucursal = '".limpiar(decrypt($_POST['codsucursal']))."';";
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->bindParam(1, $existencia);
 		$cantventa = number_format($detalle[$i]['cantidad'], 2, '.', '');
@@ -28374,7 +28404,7 @@ public function RegistrarVentas()
 		$stmt->bindParam(16, $codsucursal);
 		$stmt->bindParam(17, $codigo);
 
-		$codproducto = limpiar($detalle[$i]['txtCodigo']);
+		$codproducto = limpiar(!empty($codcomboReal) ? $codcomboReal : $detalle[$i]['txtCodigo']);
 		$movimiento = limpiar("SALIDAS");
 		$entradas = limpiar("0.00");
 		$salidas= number_format($detalle[$i]['cantidad'], 2, '.', '');
@@ -39017,7 +39047,7 @@ public function BuscarAuditoriaPorId($idauditoria)
 
 ######################## FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
 
-public function VerificarConteoInicialHoy($codsucursal, $fecha = null)
+public function VerificarConteoInicialHoy($codsucursal, $fecha = null, $codarqueo = null)
 {
 	self::SetNames();
 	if (empty($fecha)) {
@@ -39025,6 +39055,24 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null)
 	}
 
 	try {
+		// Si se envía un arqueo específico (sesión de caja activa del cajero), verificar si ESE turno ya tiene conteo
+		if (!empty($codarqueo) && (int)$codarqueo > 0) {
+			$sqlArq = "SELECT 
+				conteo_inicial_diario.*,
+				usuarios.nombres AS nomusuario
+				FROM conteo_inicial_diario
+				LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+				WHERE conteo_inicial_diario.codarqueo = ?
+				ORDER BY conteo_inicial_diario.idconteo DESC LIMIT 1";
+			$stmtArq = $this->dbh->prepare($sqlArq);
+			$stmtArq->execute(array((int)$codarqueo));
+			$resArq = $stmtArq->fetch(PDO::FETCH_ASSOC);
+			if ($resArq) {
+				return $resArq;
+			}
+			return false;
+		}
+
 		$sql = "SELECT 
 			conteo_inicial_diario.*,
 			usuarios.nombres AS nomusuario
@@ -39037,15 +39085,31 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null)
 		$stmt = $this->dbh->prepare($sql);
 		$stmt->execute(array($codsucursal, $fecha));
 		return $stmt->fetch(PDO::FETCH_ASSOC);
-	} catch (Exception $e) {
+	} catch (\Throwable $e) {
 		error_log("Error en VerificarConteoInicialHoy: " . $e->getMessage());
 		return false;
 	}
 }
 
-public function ConsultarConteoInicialHoy($codsucursal, $fecha = null)
+public function ConsultarConteoInicialHoy($codsucursal, $fecha = null, $codarqueo = null)
 {
-	return $this->VerificarConteoInicialHoy($codsucursal, $fecha);
+	return $this->VerificarConteoInicialHoy($codsucursal, $fecha, $codarqueo);
+}
+
+public function ConsultarCajasPorSucursal($codsucursal)
+{
+	self::SetNames();
+	try {
+		$sql = "SELECT codcaja, nrocaja, nomcaja FROM cajas 
+				WHERE codsucursal = ? AND nomcaja NOT LIKE '%ADM%' 
+				ORDER BY codcaja ASC";
+		$stmt = $this->dbh->prepare($sql);
+		$stmt->execute(array((int)$codsucursal));
+		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+	} catch (Exception $e) {
+		error_log("Error en ConsultarCajasPorSucursal: " . $e->getMessage());
+		return array();
+	}
 }
 
 public function RegistrarConteoInicialCajero()
@@ -39065,31 +39129,68 @@ public function RegistrarConteoInicialCajero()
 	$observaciones = isset($_POST["observaciones"]) ? limpiar($_POST["observaciones"]) : "";
 	$total_productos = count($_POST["idproducto"]);
 
-	// Validar si ya existe un inventario inicial registrado para esta sucursal el día de hoy
-	$sqlCheck = "SELECT idconteo, fechaconteo FROM conteo_inicial_diario 
-		WHERE codsucursal = ? AND DATE(fechaconteo) = CURDATE() 
-		ORDER BY idconteo DESC LIMIT 1";
-	$stmtCheck = $this->dbh->prepare($sqlCheck);
-	$stmtCheck->execute(array($codsucursal));
-	$conteoExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-	if ($conteoExistente) {
-		echo json_encode(array(
-			"status" => 1,
-			"idconteo" => encrypt($conteoExistente['idconteo']),
-			"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
-			"msg" => "El inventario inicial ya se encuentra registrado para hoy (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
-		));
-		exit;
+	// Extraer datos del turno / arqueo si viene de una caja activa
+	$codarqueo = 0;
+	if (!empty($_POST["codarqueo"])) {
+		$decArq = decrypt($_POST["codarqueo"]);
+		$codarqueo = is_numeric($decArq) ? (int)$decArq : (is_numeric($_POST["codarqueo"]) ? (int)$_POST["codarqueo"] : 0);
+	}
+	$codcaja = !empty($_POST["codcaja"]) ? (int)$_POST["codcaja"] : 0;
+	$turno = !empty($_POST["turno"]) ? limpiar($_POST["turno"]) : "TURNO TARDE";
+
+	// Validar si ya existe un inventario inicial registrado para este arqueo específico
+	if ($codarqueo > 0) {
+		$sqlCheck = "SELECT idconteo, fechaconteo, turno FROM conteo_inicial_diario 
+			WHERE codarqueo = ? 
+			ORDER BY idconteo DESC LIMIT 1";
+		$stmtCheck = $this->dbh->prepare($sqlCheck);
+		$stmtCheck->execute(array($codarqueo));
+		$conteoExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+		if ($conteoExistente) {
+			echo json_encode(array(
+				"status" => 1,
+				"idconteo" => encrypt($conteoExistente['idconteo']),
+				"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
+				"msg" => "El inventario inicial de este turno (" . ($conteoExistente['turno'] ?: 'Turno') . ") ya se encuentra registrado (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
+			));
+			exit;
+		}
+	} else {
+		// Si no tiene arqueo (ej: admin general), validar por sucursal, fecha y turno seleccionado
+		$sqlCheck = "SELECT idconteo, fechaconteo, turno FROM conteo_inicial_diario 
+			WHERE codsucursal = ? AND DATE(fechaconteo) = CURDATE() AND turno = ?
+			ORDER BY idconteo DESC LIMIT 1";
+		$stmtCheck = $this->dbh->prepare($sqlCheck);
+		$stmtCheck->execute(array($codsucursal, $turno));
+		$conteoExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+		if ($conteoExistente) {
+			echo json_encode(array(
+				"status" => 1,
+				"idconteo" => encrypt($conteoExistente['idconteo']),
+				"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
+				"msg" => "El inventario inicial para " . $turno . " de hoy ya se encuentra registrado (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
+			));
+			exit;
+		}
 	}
 
 	try {
 		$this->dbh->beginTransaction();
 
 		$sqlCab = "INSERT INTO conteo_inicial_diario 
-			(codsucursal, codusuario, fechaconteo, total_productos, observaciones) 
-			VALUES (?, ?, ?, ?, ?)";
+			(codsucursal, codusuario, codarqueo, codcaja, turno, fechaconteo, total_productos, observaciones) 
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
 		$stmtCab = $this->dbh->prepare($sqlCab);
-		$stmtCab->execute(array($codsucursal, $codusuario, $fechaconteo, $total_productos, $observaciones));
+		$stmtCab->execute(array(
+			$codsucursal, 
+			$codusuario, 
+			($codarqueo > 0 ? $codarqueo : null), 
+			($codcaja > 0 ? $codcaja : null), 
+			(!empty($turno) ? $turno : null), 
+			$fechaconteo, 
+			$total_productos, 
+			$observaciones
+		));
 		$idconteo = $this->dbh->lastInsertId();
 
 		// Congelar el snapshot del stock vivo al momento exacto del conteo

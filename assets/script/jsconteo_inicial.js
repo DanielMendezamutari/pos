@@ -28,14 +28,24 @@ $(document).on('click', function (e) {
     }
 });
 
-function AbrirModalConteoInicial(idconteo, codsucursal) {
+function AbrirModalConteoInicial(idconteo, codsucursal, codarqueo, codcaja, turno) {
     idconteo = idconteo || "";
     codsucursal = codsucursal || ($("#codsucursal").length > 0 ? $("#codsucursal").val() : "") || "";
+    codarqueo = codarqueo || "";
+    codcaja = codcaja || "";
+    turno = turno || "";
+
     $("#contenido_modal_conteo").html('<div class="text-center p-5"><i class="fa fa-spinner fa-spin fa-3x text-warning"></i><p class="mt-2 font-weight-bold">Cargando inventario inicial...</p></div>');
     $("#myModalConteoInicial").removeAttr("tabindex");
     $("#myModalConteoInicial").modal("show");
 
-    var url = "funciones.php?CargaModalConteoInicial=si" + (idconteo !== "" ? "&idconteo=" + encodeURIComponent(idconteo) : "") + (codsucursal !== "" ? "&codsucursal=" + encodeURIComponent(codsucursal) : "");
+    var url = "funciones.php?CargaModalConteoInicial=si" + 
+        (idconteo !== "" ? "&idconteo=" + encodeURIComponent(idconteo) : "") + 
+        (codsucursal !== "" ? "&codsucursal=" + encodeURIComponent(codsucursal) : "") +
+        (codarqueo !== "" ? "&codarqueo=" + encodeURIComponent(codarqueo) : "") +
+        (codcaja !== "" ? "&codcaja=" + encodeURIComponent(codcaja) : "") +
+        (turno !== "" ? "&turno=" + encodeURIComponent(turno) : "");
+
     $.get(url, function (data) {
         $("#contenido_modal_conteo").html(data);
         setTimeout(function() {
@@ -70,9 +80,11 @@ function GuardarConteoInicialCajero() {
         return;
     }
 
+    var turnoSeleccionado = $("#turno_conteo").length > 0 ? $("#turno_conteo").val() : "tu turno";
+
     swal({
         title: "¿Confirmar Inventario Inicial?",
-        text: "Se registrarán las cantidades físicas contadas para iniciar el turno de la tarde.",
+        text: "Se registrarán las cantidades físicas contadas para: " + turnoSeleccionado,
         type: "info",
         showCancelButton: true,
         confirmButtonColor: "#ffc107",
@@ -526,3 +538,17 @@ function AjustarTodoConteoModal(idconteo, totalDiscrepancias) {
         }
     }, 200);
 }
+
+// Abre el modal de faltantes pendientes de días anteriores para el dashboard del Administrador General
+function AbrirModalFaltantesAnteriores() {
+    $("#contenido_modal_faltantes_anteriores").html('<div class="text-center p-5"><i class="fa fa-spinner fa-spin fa-3x text-danger"></i><p class="mt-2 font-weight-bold">Cargando faltantes de días anteriores...</p></div>');
+    $("#myModalFaltantesAnteriores").removeAttr("tabindex");
+    $("#myModalFaltantesAnteriores").modal("show");
+
+    $.get("funciones.php?CargaModalFaltantesHistoricos=si", function (data) {
+        $("#contenido_modal_faltantes_anteriores").html(data);
+    }).fail(function () {
+        $("#contenido_modal_faltantes_anteriores").html('<div class="alert alert-danger text-center p-4">Error al cargar los faltantes de días anteriores.</div>');
+    });
+}
+

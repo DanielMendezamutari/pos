@@ -23986,6 +23986,173 @@ public function TablaAuditoriaAjustesRealizados()
 }
 ########################## FIN FUNCION ACTA DE PRODUCTOS AJUSTADOS ##############################
 
+########################## INICIO REPORTE CONSOLIDADO DE PERDIDAS Y FALTANTES ##############################
+public function TablaReportePerdidas() {
+    require_once(__DIR__ . "/../class/class.reporte_perdidas.php");
+    $service = new ReportePerdidasService();
+
+    $codsucursal = 0;
+    if (!empty($_GET["codsucursal"])) {
+        $rawSuc = $_GET["codsucursal"];
+        if (is_numeric($rawSuc)) {
+            $codsucursal = (int)$rawSuc;
+        } else {
+            $decSuc = decrypt($rawSuc);
+            if (is_numeric($decSuc)) {
+                $codsucursal = (int)$decSuc;
+            }
+        }
+    }
+
+    $desde = !empty($_GET["desde"]) ? (function_exists('limpiar') ? limpiar($_GET["desde"]) : trim(strip_tags($_GET["desde"]))) : date('Y-m-01');
+    $hasta = !empty($_GET["hasta"]) ? (function_exists('limpiar') ? limpiar($_GET["hasta"]) : trim(strip_tags($_GET["hasta"]))) : date('Y-m-d');
+    $filtroCategoria = !empty($_GET["tipofiltro"]) ? strtoupper(function_exists('limpiar') ? limpiar($_GET["tipofiltro"]) : trim(strip_tags($_GET["tipofiltro"]))) : 'TODAS';
+
+    $registros = $service->obtenerPerdidas($codsucursal, $desde, $hasta, $filtroCategoria);
+    $kpis = $service->calcularResumenKPIs($registros);
+    $sucInfo = $service->obtenerSucursalInfo($codsucursal);
+
+    $logo = ( file_exists("./fotos/logo_pdf.png") == "" ? "./assets/images/null.png" : "./fotos/logo_pdf.png");
+    $this->Ln(1);
+    $this->SetFont('Courier','B',12);
+    $this->SetTextColor(3,3,3);
+    $this->Cell(35,5,$this->Image($logo, $this->GetX()+2, $this->GetY(), 26),0,0,'C');
+    $this->Cell(240,5,_u8d($sucInfo['nomsucursal']),0,0,'C');
+    $this->Ln(6);
+    $this->SetFont('Courier','B',11);
+    $this->SetTextColor(180, 0, 0);
+    $this->Cell(35,5,"",0,0,'C');
+    
+    $this->Cell(240,5,_u8d("INFORME EJECUTIVO DE PÉRDIDAS, FALTANTES Y RETIROS"),0,0,'C');
+    $this->Ln(4);
+    $this->SetFont('Courier','I',8);
+    $this->SetTextColor(70,70,70);
+    $this->Cell(35,5,"",0,0,'C');
+    $this->Cell(240,5,_u8d("Acta Oficial para la Propietaria y Gerencia - Clasificación de Salidas y Diferencias"),0,0,'C');
+    $this->Ln(6);
+
+    $this->SetFont('Courier','',8);
+    $this->SetTextColor(0,0,0);
+    $this->Cell(150,4,_u8d("SUCURSAL: ".($sucInfo['cuitsucursal'] ? $sucInfo['cuitsucursal']." - " : "").$sucInfo['nomsucursal']),0,0,'L');
+    $this->Cell(125,4,_u8d("PERÍODO: ".date("d/m/Y", strtotime($desde))." AL ".date("d/m/Y", strtotime($hasta))),0,1,'R');
+
+    $this->Cell(150,4,_u8d("FILTRO APLICADO: ".$filtroCategoria),0,0,'L');
+    $this->Cell(125,4,_u8d("FECHA DE EMISIÓN: ".date("d/m/Y h:i A")),0,1,'R');
+
+    $this->Cell(150,4,_u8d("TOTAL REGISTROS ANALIZADOS: ".$kpis['total_eventos']." movimientos"),0,0,'L');
+    $this->Cell(125,4,_u8d("AUDITOR: ".($_SESSION['nombres'] ?? 'Administrador General')),0,1,'R');
+    $this->Ln(3);
+
+    // 4 Bloques de Resumen Ejecutivo para la Dueña
+    $this->SetFont('Courier','B',8);
+    $this->SetFillColor(255, 235, 238);
+    $this->SetTextColor(180, 0, 0);
+    $this->Cell(69, 7, _u8d("FALTANTE EN CAJA: Bs. ").number_format($kpis['monto_faltantes_caja'], 2, '.', ','), 1, 0, 'C', true);
+    
+    $this->SetFillColor(245, 240, 255);
+    $this->SetTextColor(90, 40, 180);
+    $this->Cell(69, 7, _u8d("RETIROS DE LA DUEÑA: Bs. ").number_format($kpis['monto_retiros_duena'], 2, '.', ','), 1, 0, 'C', true);
+
+    $this->SetFillColor(255, 248, 225);
+    $this->SetTextColor(150, 100, 0);
+    $this->Cell(69, 7, _u8d("MERMAS/ROTURAS: Bs. ").number_format($kpis['monto_mermas'], 2, '.', ','), 1, 0, 'C', true);
+
+    $this->SetFillColor(235, 248, 235);
+    $this->SetTextColor(0, 120, 40);
+    $this->Cell(69, 7, _u8d("CUADRADOS/ACLARADOS: Bs. ").number_format($kpis['monto_aclarados'], 2, '.', ','), 1, 1, 'C', true);
+    $this->Ln(3);
+
+    if (empty($registros)) {
+        $this->SetFillColor(245, 245, 245);
+        $this->SetTextColor(0,0,0);
+        $this->SetFont('Courier','B',10);
+        $this->Cell(276, 12, _u8d("NO SE REGISTRARON PÉRDIDAS NI DIFERENCIAS EN ESTE PERÍODO."), 1, 1, 'C', true);
+    } else {
+        // Anchos: 8, 26, 60, 16, 42, 66, 30, 28 = 276 mm
+        $this->SetWidths(array(8, 26, 60, 16, 42, 66, 30, 28));
+        $this->SetAligns(array('C', 'C', 'L', 'C', 'C', 'L', 'L', 'R'));
+
+        $this->SetFont('Courier','B',7);
+        $this->SetFillColor(180, 0, 0);
+        $this->SetTextColor(255, 255, 255);
+        $this->Cell(8, 6, '#', 1, 0, 'C', true);
+        $this->Cell(26, 6, _u8d('FECHA/TURNO'), 1, 0, 'C', true);
+        $this->Cell(60, 6, _u8d('PRODUCTO'), 1, 0, 'C', true);
+        $this->Cell(16, 6, _u8d('CANT.'), 1, 0, 'C', true);
+        $this->Cell(42, 6, _u8d('SITUACIÓN'), 1, 0, 'C', true);
+        $this->Cell(66, 6, _u8d('¿POR QUÉ FALTÓ? / MOTIVO REAL'), 1, 0, 'C', true);
+        $this->Cell(30, 6, _u8d('RESPONSABLE'), 1, 0, 'C', true);
+        $this->Cell(28, 6, _u8d('VALOR (Bs.)'), 1, 1, 'C', true);
+
+        $this->SetFont('Courier','',7);
+        $this->SetTextColor(0, 0, 0);
+
+        $n = 1;
+        foreach ($registros as $r) {
+            if ($this->GetY() >= 170) {
+                $this->AddPage();
+                $this->SetFont('Courier','I',7);
+                $this->SetTextColor(80, 80, 80);
+                $this->Cell(0, 5, _u8d("Continuación: Informe de Pérdidas y Salidas - ".$sucInfo['nomsucursal']), 0, 1, 'L');
+                $this->Ln(1);
+
+                $this->SetFont('Courier','B',7);
+                $this->SetFillColor(180, 0, 0);
+                $this->SetTextColor(255, 255, 255);
+                $this->Cell(8, 6, '#', 1, 0, 'C', true);
+                $this->Cell(26, 6, _u8d('FECHA/TURNO'), 1, 0, 'C', true);
+                $this->Cell(60, 6, _u8d('PRODUCTO'), 1, 0, 'C', true);
+                $this->Cell(16, 6, _u8d('CANT.'), 1, 0, 'C', true);
+                $this->Cell(42, 6, _u8d('SITUACIÓN'), 1, 0, 'C', true);
+                $this->Cell(66, 6, _u8d('¿POR QUÉ FALTÓ? / MOTIVO REAL'), 1, 0, 'C', true);
+                $this->Cell(30, 6, _u8d('RESPONSABLE'), 1, 0, 'C', true);
+                $this->Cell(28, 6, _u8d('VALOR (Bs.)'), 1, 1, 'C', true);
+
+                $this->SetFont('Courier','',7);
+                $this->SetTextColor(0, 0, 0);
+            }
+
+            $this->Row(array(
+                $n++,
+                date("d/m/y H:i", strtotime($r['fecha'])),
+                _u8d($r['producto']),
+                "-".number_format($r['cantidad_perdida'], 0),
+                _u8d($r['categoria_nombre']),
+                _u8d($r['razon_real']),
+                _u8d($r['responsable']),
+                "Bs.".number_format($r['total_venta'], 2, '.', ',')
+            ));
+        }
+
+        // Fila de Totales
+        $this->SetFont('Courier','B',7);
+        $this->SetFillColor(245, 245, 245);
+        $this->Cell(94, 6, _u8d("TOTAL GENERAL:"), 1, 0, 'R', true);
+        $this->Cell(16, 6, "-".number_format($kpis['total_unidades'], 0), 1, 0, 'C', true);
+        $this->Cell(138, 6, "", 1, 0, 'C', true);
+        $this->Cell(28, 6, "Bs.".number_format($kpis['total_venta'], 2, '.', ','), 1, 1, 'R', true);
+    }
+
+    if ($this->GetY() >= 155) {
+        $this->AddPage();
+    }
+
+    $this->Ln(15);
+    $this->SetFont('Courier','B',8);
+    $this->Cell(138,4,'__________________________________________',0,0,'C');
+    $this->Cell(138,4,'__________________________________________',0,1,'C');
+
+    $this->Cell(138,4,_u8d("PROPIETARIA DEL LOCAL"),0,0,'C');
+    $this->Cell(138,4,_u8d("ADMINISTRACIÓN / AUDITORÍA"),0,1,'C');
+
+    $this->SetFont('Courier','I',7);
+    $this->Cell(138,3,_u8d("(Revisado y Conforme)"),0,0,'C');
+    $this->Cell(138,3,_u8d("(".($_SESSION['nombres'] ?? 'Administrador General').")"),0,1,'C');
+    $this->Ln(2);
+    $this->Cell(0,4,_u8d("Documento ejecutivo interno generado por el Sistema POS para control directo de la propietaria."),0,1,'C');
+}
+########################## FIN REPORTE CONSOLIDADO DE PERDIDAS Y FALTANTES ##############################
+
  // FIN Class PDF
 }
 ?>

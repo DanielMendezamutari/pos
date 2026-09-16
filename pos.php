@@ -531,15 +531,39 @@ exit;
     <div class="col-lg-12">
         <div class="card">
             <?php
-            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"]);
+            $codarqueo_activo = (!empty($arqueo) && isset($arqueo[0]['codarqueo'])) ? (int)$arqueo[0]['codarqueo'] : 0;
+            $nomcaja_raw = (!empty($arqueo) && isset($arqueo[0]['nomcaja'])) ? $arqueo[0]['nomcaja'] : '';
+            $es_caja_operativa = (!empty($nomcaja_raw) && stripos($nomcaja_raw, 'ADM') === false);
+            $nomcaja_activo = $es_caja_operativa ? $nomcaja_raw : '';
+            $codcaja_activo = (!empty($arqueo) && isset($arqueo[0]['codcaja'])) ? (int)$arqueo[0]['codcaja'] : 0;
+
+            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"], null, $codarqueo_activo);
             ?>
             <div class="card-header bg-danger d-flex justify-content-between align-items-center flex-wrap">
                 <h4 class="card-title text-white mb-0"><i class="fa fa-tasks"></i> POS Terminal</h4>
-                <div id="contenedor_boton_conteo" class="mt-1 mt-md-0">
+                <div id="contenedor_boton_conteo" class="mt-1 mt-md-0 d-flex flex-wrap align-items-center">
+                    <button type="button" class="btn btn-dark font-weight-bold shadow-sm mr-1" id="btn_comandas_pendientes" onclick="abrirModalComandas()" title="Comandas de Meseras en tiempo real">
+                        <i class="fa fa-bell"></i> 🔔 COMANDAS <span class="badge badge-secondary" id="badge_comandas_count">0</span>
+                    </button>
+                    <button type="button" class="btn btn-dark font-weight-bold shadow-sm mr-1" onclick="abrirModalGestionMesas()" title="Administrar Mesas y Sectores de la Sucursal">
+                        <i class="fa fa-th"></i> MESAS
+                    </button>
+                    <button type="button" class="btn btn-dark font-weight-bold shadow-sm mr-1" onclick="abrirModalGestionMeseras()" title="Administrar Meseras de Turno y sus PINs">
+                        <i class="fa fa-users"></i> MESERAS
+                    </button>
+                    <a href="comandas.apk" download class="btn btn-dark font-weight-bold shadow-sm mr-2 text-warning" title="Descargar APK de Comandas para teléfonos Android">
+                        <i class="fa fa-android"></i> APK
+                    </a>
                 <?php if(!$verif_conteo){ ?>
-                    <button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm pulse-conteo" onclick="AbrirModalConteoInicial()"><i class="fa fa-clipboard"></i> 📦 REGISTRAR INVENTARIO INICIAL (2:00 PM)</button>
+                    <button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm pulse-conteo" 
+                        onclick="AbrirModalConteoInicial('', '', '<?php echo encrypt($codarqueo_activo); ?>', '<?php echo $codcaja_activo; ?>', '<?php echo htmlspecialchars(addslashes($nomcaja_activo)); ?>')">
+                        <i class="fa fa-clipboard"></i> 📦 INVENTARIO INICIAL <?php echo !empty($nomcaja_activo) ? '(TURNO: ' . htmlspecialchars($nomcaja_activo) . ')' : '(SELECCIONAR TURNO)'; ?>
+                    </button>
                 <?php } else { ?>
-                    <button type="button" class="btn btn-success font-weight-bold shadow-sm mr-1" onclick="AbrirModalConteoInicial(<?php echo $verif_conteo['idconteo']; ?>)"><i class="fa fa-check-circle"></i> ✅ INVENTARIO INICIAL REGISTRADO (<?php echo date("h:i A", strtotime($verif_conteo['fechaconteo'])); ?>)</button>
+                    <button type="button" class="btn btn-success font-weight-bold shadow-sm mr-1" 
+                        onclick="AbrirModalConteoInicial(<?php echo $verif_conteo['idconteo']; ?>, '', '<?php echo encrypt($codarqueo_activo); ?>', '<?php echo $codcaja_activo; ?>', '<?php echo htmlspecialchars(addslashes($nomcaja_activo)); ?>')">
+                        <i class="fa fa-check-circle"></i> ✅ INVENTARIO INICIAL (<?php echo !empty($verif_conteo['turno']) ? htmlspecialchars($verif_conteo['turno']) . ' - ' : ''; ?><?php echo date("h:i A", strtotime($verif_conteo['fechaconteo'])); ?>)
+                    </button>
                     <a href="reportepdf?idconteo=<?php echo encrypt($verif_conteo['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-light font-weight-bold" title="Descargar Comprobante PDF para WhatsApp"><i class="fa fa-file-pdf-o text-danger"></i> PDF WhatsApp</a>
                 <?php } ?>
                 </div>
@@ -1057,6 +1081,154 @@ exit;
         </div>
     </div>
     </script>
+
+    <!-- ============================================================== -->
+    <!-- MODALES DEL MÓDULO DE COMANDAS, MESAS Y MESERAS -->
+    <!-- ============================================================== -->
+
+    <!-- Modal Comandas Pendientes -->
+    <div id="myModalComandas" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning">
+                    <h4 class="modal-title font-weight-bold text-dark"><i class="fa fa-bell"></i> 🔔 Comandas de Meseras</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                </div>
+                <div class="modal-body">
+                    <!-- Pestañas de Comandas -->
+                    <ul class="nav nav-pills mb-3" id="pills-comandas" role="tablist">
+                        <li class="nav-item mr-2">
+                            <a class="nav-link active font-weight-bold" id="pills-pendientes-tab" data-toggle="pill" href="#pills-pendientes" role="tab" aria-selected="true" onclick="consultarComandasPendientes()">
+                                <i class="fa fa-clock-o"></i> Pendientes de Cobro <span class="badge badge-danger ml-1" id="tab_badge_pendientes">0</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link font-weight-bold" id="pills-cobradas-tab" data-toggle="pill" href="#pills-cobradas" role="tab" aria-selected="false" onclick="cargarComandasCobradas()">
+                                <i class="fa fa-check-circle"></i> Ya Cobradas Hoy <span class="badge badge-success ml-1" id="tab_badge_cobradas">0</span>
+                            </a>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="pills-tabContent">
+                        <!-- TAB PENDIENTES -->
+                        <div class="tab-pane fade show active" id="pills-pendientes" role="tabpanel">
+                            <!-- Filtros rápidos por mesa -->
+                            <div id="contenedor_filtros_mesas" class="mb-3 d-flex flex-wrap align-items-center">
+                                <!-- Se llena dinámicamente -->
+                            </div>
+                            <div id="contenedor_lista_comandas">
+                                <!-- Se llena vía AJAX -->
+                            </div>
+                        </div>
+
+                        <!-- TAB COBRADAS -->
+                        <div class="tab-pane fade" id="pills-cobradas" role="tabpanel">
+                            <div id="contenedor_lista_cobradas">
+                                <!-- Se llena vía AJAX -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary font-weight-bold" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gestión de Mesas -->
+    <div id="myModalGestionMesas" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h4 class="modal-title font-weight-bold text-white"><i class="fa fa-th"></i> Mesas y Sectores de la Sucursal</h4>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-hidden="true">×</button>
+                </div>
+                <div class="modal-body">
+                    <div class="input-group mb-3">
+                        <input type="text" id="input_nombre_mesa" class="form-control font-weight-bold" placeholder="Nombre (Ej: Mesa 9, Mesa VIP, Barra...)">
+                        <div class="input-group-append">
+                            <button class="btn btn-success font-weight-bold" onclick="guardarNuevaMesa()"><i class="fa fa-plus"></i> Agregar</button>
+                        </div>
+                    </div>
+                    <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Mesa / Sector</th>
+                                    <th>Estado</th>
+                                    <th class="text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla_mesas_body">
+                                <!-- Se llena vía AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Gestión de Meseras y PINs -->
+    <div id="myModalGestionMeseras" class="modal fade" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h4 class="modal-title font-weight-bold text-white"><i class="fa fa-users"></i> Meseras de Turno y Asignación de PIN</h4>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-hidden="true">×</button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="input_id_mesera" value="">
+                    <div class="row mb-3">
+                        <div class="col-7">
+                            <label class="font-12 font-weight-bold">Nombre de la Mesera:</label>
+                            <input type="text" id="input_nombre_mesera" class="form-control font-weight-bold" placeholder="Ej: Yessica, María...">
+                        </div>
+                        <div class="col-5">
+                            <label class="font-12 font-weight-bold">PIN (4 Dígitos):</label>
+                            <input type="text" id="input_pin_mesera" class="form-control text-center font-20 font-weight-bold" maxlength="4" placeholder="1234">
+                        </div>
+                    </div>
+                    <button id="btn_guardar_mesera" class="btn btn-success btn-block font-weight-bold mb-3" onclick="guardarNuevaMesera()">
+                        <i class="fa fa-plus-circle"></i> Registrar / Guardar Mesera
+                    </button>
+
+                    <h5 class="font-14 font-weight-bold mt-3 mb-2">Meseras Habilitadas para esta Sucursal:</h5>
+                    <div class="table-responsive" style="max-height: 250px; overflow-y: auto;">
+                        <table class="table table-sm table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Nombre</th>
+                                    <th>PIN</th>
+                                    <th>Estado</th>
+                                    <th class="text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabla_meseras_body">
+                                <!-- Se llena vía AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-between">
+                    <a href="comandas.apk" download class="btn btn-warning font-weight-bold">
+                        <i class="fa fa-android"></i> Descargar APK Celulares
+                    </a>
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Variable de Sucursal e Inclusión de Scripts de Comandas -->
+    <script>
+        window.CODSUCURSAL_ACTIVA = <?php echo (int)$_SESSION["codsucursal"]; ?>;
+    </script>
+    <script src="assets/script/jscomandas_pos.js?v=<?php echo time(); ?>"></script>
 
 </body>
 </html>

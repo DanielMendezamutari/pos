@@ -8,6 +8,7 @@ require_once 'fpdf/pdf.php';
 require_once 'fpdf/barcode.php';
 require_once 'class/class.php';
 require_once 'class/class.conteo_ajustes.php';
+require_once 'class/class.reporte_perdidas.php';
 
 $casos = [
   'PROVINCIAS'               => [
@@ -615,6 +616,11 @@ $casos = [
     'medidas' => ['P', 'mm', 'A4'],
     'func'    => 'TablaBajaInventario',
     'output'  => ['Comprobante de Baja de Inventario.pdf', 'I'],
+  ],
+  'PERDIDASXFECHAS'        => [
+    'medidas' => ['L', 'mm', 'A4'],
+    'func'    => 'TablaReportePerdidas',
+    'output'  => ['Informe de Perdidas y Faltantes.pdf', 'I'],
   ],
 ];
 

@@ -1,8 +1,12 @@
-
 RewriteOptions inherit
+
 <IfModule mod_rewrite.c>
     Options +FollowSymLinks
     RewriteEngine On
+
+    # Pasar Authorization Header a PHP
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
      
     # Remover trailing slashes.
     # ejemplo  miweb.com/algo/ redirije a miweb.com/algo
@@ -10,19 +14,20 @@ RewriteOptions inherit
     RewriteRule ^(.+)/$ /$1 [R=permanent,QSA]
      
     # Redirige a HTML si existe.
-    # ejemplo  miweb.com/algo muestra contenido de miweb.com/algo.html
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME}.html -f
     RewriteRule ^(.+)$ $1.html [L,QSA]
      
-    # Redirije a PHP si existe.
-    # ejemplo  miweb.com/algo miestra contenido de miweb.com/algo.php
+    # Redirige a PHP si existe.
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME}.php -f
     RewriteRule ^(.+)$ $1.php [L,QSA]
+</IfModule>
 
+<IfModule mod_setenvif.c>
+    SetEnvIf Authorization "(.*)" HTTP_AUTHORIZATION=$1
 </IfModule>
 
 # php -- BEGIN cPanel-generated handler, do not edit

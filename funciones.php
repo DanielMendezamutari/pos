@@ -12460,7 +12460,79 @@ if (isset($_GET['BuscaHistorialAuditorias']) && isset($_GET['codsucursal']) && i
 </div>
 <?php
 }
-########################## FIN BUSQUEDA HISTORIAL AUDITORIAS ##########################
+########################## MODAL FALTANTES PENDIENTES DE DÍAS ANTERIORES ##########################
+if (isset($_GET['CargaModalFaltantesHistoricos'])) {
+	require_once("class/class.dashboard_control.php");
+	$ctrl = new DashboardControlService();
+	$anteriores = $ctrl->obtenerFaltantesDiasAnteriores(40);
+?>
+    <div class="table-responsive">
+        <table class="table table-hover table-striped mb-0">
+            <thead class="bg-danger text-white">
+                <tr>
+                    <th class="text-center">Fecha</th>
+                    <th>Sucursal / Turno</th>
+                    <th>Cajero Responsable</th>
+                    <th class="text-center">Faltante</th>
+                    <th class="text-center">Valor Est.</th>
+                    <th class="text-center">Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php if (empty($anteriores)) { ?>
+                <tr>
+                    <td colspan="6" class="text-center py-4 text-success font-weight-bold">
+                        <i class="fa fa-check-circle fa-2x"></i><br>
+                        ¡Excelente! No existen faltantes pendientes en días anteriores. Todo está cuadrado o ajustado.
+                    </td>
+                </tr>
+                <?php } else { 
+                    $totalUds = 0;
+                    $totalMonto = 0;
+                    foreach ($anteriores as $ant) { 
+                        $totalUds += (float)$ant['unidades_faltantes'];
+                        $totalMonto += (float)$ant['costo_faltante'];
+                ?>
+                <tr>
+                    <td class="text-center align-middle font-weight-bold">
+                        <?php echo date("d/m/Y", strtotime($ant['fecha'])); ?>
+                        <br><small class="text-muted"><?php echo date("H:i", strtotime($ant['fechaconteo'])); ?></small>
+                    </td>
+                    <td class="align-middle">
+                        <span class="font-weight-bold"><?php echo htmlspecialchars($ant['nomsucursal']); ?></span>
+                        <br><span class="badge badge-secondary"><?php echo htmlspecialchars($ant['turno']); ?></span>
+                    </td>
+                    <td class="align-middle">
+                        <span class="font-medium"><?php echo htmlspecialchars($ant['cajero']); ?></span>
+                        <br><small class="text-muted"><?php echo $ant['prods_con_faltante']; ?> producto(s) con faltante</small>
+                    </td>
+                    <td class="text-center align-middle text-danger font-weight-bold" style="font-size: 15px;">
+                        -<?php echo number_format($ant['unidades_faltantes'], 0); ?> uds
+                    </td>
+                    <td class="text-center align-middle font-weight-bold text-dark">
+                        Bs. <?php echo number_format($ant['costo_faltante'], 2, '.', ','); ?>
+                    </td>
+                    <td class="text-center align-middle">
+                        <button type="button" class="btn btn-sm btn-outline-danger" title="Ver detalle del conteo y cuadrar productos" onclick="$('#myModalFaltantesAnteriores').modal('hide'); AbrirModalConteoInicial('<?php echo $ant['idconteo']; ?>', '<?php echo $ant['codsucursal']; ?>');">
+                            <i class="fa fa-search"></i> Ver / Cuadrar
+                        </button>
+                    </td>
+                </tr>
+                <?php } ?>
+                <tr class="bg-light font-weight-bold" style="font-size: 15px;">
+                    <td colspan="3" class="text-right">TOTAL PENDIENTE HISTÓRICO:</td>
+                    <td class="text-center text-danger">-<?php echo number_format($totalUds, 0); ?> uds</td>
+                    <td class="text-center text-danger">Bs. <?php echo number_format($totalMonto, 2, '.', ','); ?></td>
+                    <td></td>
+                </tr>
+                <?php } ?>
+            </tbody>
+        </table>
+    </div>
+<?php
+	exit;
+}
+########################## FIN MODAL FALTANTES PENDIENTES DE DÍAS ANTERIORES ##########################
 
 ########################## MODAL Y PROCESO CONTEO INICIAL CAJERO (CONTEO A CIEGAS) ##########################
 if (isset($_GET['CargaModalConteoInicial'])) {
@@ -12485,9 +12557,31 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 		}
 	}
 
-	// Si no vino idconteo pero tenemos codsucursal, verificamos si ya contó hoy
-	if ($idconteo == 0 && $codsucursal > 0) {
-		$conteoHoy = $login->VerificarConteoInicialHoy($codsucursal);
+	$codarqueo = 0;
+	if (!empty($_GET['codarqueo'])) {
+		$decArq = decrypt($_GET['codarqueo']);
+		if (is_numeric($decArq) && $decArq > 0) {
+			$codarqueo = (int)$decArq;
+		} else if (is_numeric($_GET['codarqueo'])) {
+			$codarqueo = (int)$_GET['codarqueo'];
+		}
+	}
+	$codcaja = !empty($_GET['codcaja']) ? (int)$_GET['codcaja'] : 0;
+	$turno = !empty($_GET['turno']) ? limpiar($_GET['turno']) : "";
+
+	// Si no vino codarqueo en GET, intentar detectar sesión activa del cajero
+	if ($codarqueo == 0) {
+		$arqSesion = $login->ArqueoCajaPorUsuario();
+		if (!empty($arqSesion) && isset($arqSesion[0]['codarqueo'])) {
+			$codarqueo = (int)$arqSesion[0]['codarqueo'];
+			if (empty($codcaja) && isset($arqSesion[0]['codcaja'])) $codcaja = (int)$arqSesion[0]['codcaja'];
+			if (empty($turno) && isset($arqSesion[0]['nomcaja'])) $turno = $arqSesion[0]['nomcaja'];
+		}
+	}
+
+	// Si no vino idconteo pero tenemos codarqueo o codsucursal, verificamos si ya contó este turno
+	if ($idconteo == 0 && ($codarqueo > 0 || $codsucursal > 0)) {
+		$conteoHoy = $login->VerificarConteoInicialHoy($codsucursal, null, $codarqueo);
 		if ($conteoHoy && !empty($conteoHoy['idconteo'])) {
 			$idconteo = (int)$conteoHoy['idconteo'];
 		}
@@ -12762,13 +12856,42 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 ?>
 	<form id="form_conteo_inicial_cajero" onsubmit="return false;">
 		<input type="hidden" name="codsucursal" value="<?php echo encrypt($codsucursal); ?>">
+		<input type="hidden" name="codarqueo" value="<?php echo !empty($codarqueo) ? encrypt($codarqueo) : ''; ?>">
+		<input type="hidden" name="codcaja" id="codcaja_conteo" value="<?php echo (int)$codcaja; ?>">
 
-		<div class="alert alert-warning text-dark py-2 px-3 mb-3 d-flex align-items-center justify-content-between flex-wrap">
-			<div>
-				<i class="fa fa-clipboard-check fa-lg text-dark mr-1"></i>
-				<strong>Conteo Físico Inicial (2:00 PM):</strong> Cuente y anote la cantidad real en refrigeradores y barra.
+		<div class="card mb-3 border-warning shadow-sm" style="background-color: #fffdf5;">
+			<div class="card-body p-3">
+				<div class="row align-items-center">
+					<div class="col-md-6">
+						<label class="control-label font-weight-bold text-dark mb-1">
+							<i class="fa fa-clock-o text-warning mr-1"></i> Selecciona el Turno para este Conteo: <span class="text-danger">*</span>
+						</label>
+						<select name="turno" id="turno_conteo" class="form-control font-weight-bold text-dark border-warning" style="font-size: 15px;" required>
+							<?php
+							$cajasTurno = $login->ConsultarCajasPorSucursal($codsucursal);
+							if (!empty($cajasTurno)) {
+								foreach ($cajasTurno as $cj) {
+									$sel = (!empty($turno) && (strtoupper($turno) == strtoupper($cj['nomcaja']) || stripos($turno, $cj['nomcaja']) !== false)) ? 'selected' : '';
+									$icono = (stripos($cj['nomcaja'], 'NOCHE') !== false) ? '🌙' : '☀️';
+									echo '<option value="' . htmlspecialchars($cj['nomcaja']) . '" ' . $sel . '>' . $icono . ' ' . htmlspecialchars($cj['nomcaja']) . '</option>';
+								}
+							} else {
+								$selT = (empty($turno) || stripos($turno, 'NOCHE') === false) ? 'selected' : '';
+								$selN = (!empty($turno) && stripos($turno, 'NOCHE') !== false) ? 'selected' : '';
+								echo '<option value="TURNO TARDE" ' . $selT . '>☀️ TURNO TARDE</option>';
+								echo '<option value="TURNO NOCHE" ' . $selN . '>🌙 TURNO NOCHE</option>';
+							}
+							?>
+						</select>
+					</div>
+					<div class="col-md-6 mt-2 mt-md-0">
+						<div class="alert alert-info py-2 px-3 mb-0 font-12 border-0 shadow-none">
+							<i class="fa fa-info-circle fa-lg text-primary mr-1"></i>
+							<strong>Relevo de Turno:</strong> El conteo y las diferencias quedarán selladas a nombre del turno que elijas.
+						</div>
+					</div>
+				</div>
 			</div>
-			<span class="badge badge-dark text-warning font-weight-bold p-2"><i class="fa fa-eye-slash"></i> Conteo Físico a Ciegas</span>
 		</div>
 
 		<div class="form-group mb-2">
@@ -12949,6 +13072,9 @@ if (isset($_GET['BuscaHistorialConteosIniciales'])) {
 					</td>
 					<td class="align-middle text-left">
 						<i class="fa fa-user text-muted mr-1"></i> <?php echo htmlspecialchars($row['nomusuario'] ?? 'Cajero'); ?>
+						<?php if (!empty($row['turno'])) { ?>
+							<br><span class="badge badge-warning text-dark font-11"><i class="fa fa-clock-o"></i> <?php echo htmlspecialchars($row['turno']); ?></span>
+						<?php } ?>
 					</td>
 					<td class="align-middle">
 						<span class="badge badge-light border text-dark font-12 font-weight-bold">
@@ -13334,4 +13460,324 @@ if (isset($_GET['AnularBajaInventario']) && $_GET['AnularBajaInventario'] == 'si
 }
 
 ########################## FIN MODULO DE RETIROS Y BAJAS DE INVENTARIO ##########################
+
+########################## MODULO DE REPORTE DE PERDIDAS Y FALTANTES ##########################
+if (isset($_GET['BuscarReportePerdidas']) && $_GET['BuscarReportePerdidas'] == 'si') {
+	require_once("class/class.reporte_perdidas.php");
+	$service = new ReportePerdidasService();
+
+	$codsucursal = 0;
+	if (!empty($_GET["codsucursal"])) {
+		$rawSuc = $_GET["codsucursal"];
+		if (is_numeric($rawSuc)) {
+			$codsucursal = (int)$rawSuc;
+		} else {
+			$decSuc = decrypt($rawSuc);
+			if (is_numeric($decSuc)) {
+				$codsucursal = (int)$decSuc;
+			}
+		}
+	}
+
+	$desde = !empty($_GET["desde"]) ? limpiar($_GET["desde"]) : date('Y-m-01');
+	$hasta = !empty($_GET["hasta"]) ? limpiar($_GET["hasta"]) : date('Y-m-d');
+	$filtroCategoria = !empty($_GET["tipofiltro"]) ? strtoupper(limpiar($_GET["tipofiltro"])) : 'TODAS';
+
+	$registros = $service->obtenerPerdidas($codsucursal, $desde, $hasta, $filtroCategoria);
+	$kpis = $service->calcularResumenKPIs($registros);
+	$sucInfo = $service->obtenerSucursalInfo($codsucursal);
+?>
+
+	<!-- 4 Tarjetas Ejecutivas Claras para la Dueña -->
+	<div class="row mb-4">
+		<div class="col-md-3 col-sm-6 mb-2">
+			<div class="card bg-white border-danger shadow-sm h-100 mb-0" style="border-left: 5px solid #dc3545 !important;">
+				<div class="card-body p-3">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<h6 class="text-danger text-uppercase mb-1 font-11 font-weight-bold"><i class="fa fa-exclamation-circle"></i> Faltante en Caja</h6>
+							<h3 class="mb-0 text-danger font-weight-bold">Bs. <?php echo number_format($kpis['monto_faltantes_caja'], 2, '.', ','); ?></h3>
+							<small class="text-muted font-11 font-weight-bold">-<?php echo number_format($kpis['unid_faltantes_caja'], 0); ?> u. (A cobrar/investigar)</small>
+						</div>
+						<div class="p-2 bg-light rounded text-danger">
+							<i class="fa fa-cash-register fa-2x"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-3 col-sm-6 mb-2">
+			<div class="card bg-white border-primary shadow-sm h-100 mb-0" style="border-left: 5px solid #745af2 !important;">
+				<div class="card-body p-3">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<h6 class="text-primary text-uppercase mb-1 font-11 font-weight-bold"><i class="fa fa-user-circle"></i> Retiros de la Dueña</h6>
+							<h3 class="mb-0 text-primary font-weight-bold">Bs. <?php echo number_format($kpis['monto_retiros_duena'], 2, '.', ','); ?></h3>
+							<small class="text-muted font-11 font-weight-bold">-<?php echo number_format($kpis['unid_retiros_duena'], 0); ?> u. (Consumo propio / gym)</small>
+						</div>
+						<div class="p-2 bg-light rounded text-primary">
+							<i class="fa fa-shopping-basket fa-2x"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-3 col-sm-6 mb-2">
+			<div class="card bg-white border-warning shadow-sm h-100 mb-0" style="border-left: 5px solid #ffbc34 !important;">
+				<div class="card-body p-3">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<h6 class="text-warning text-uppercase mb-1 font-11 font-weight-bold"><i class="fa fa-trash"></i> Mermas / Botellas Rotas</h6>
+							<h3 class="mb-0 text-dark font-weight-bold">Bs. <?php echo number_format($kpis['monto_mermas'], 2, '.', ','); ?></h3>
+							<small class="text-muted font-11 font-weight-bold">-<?php echo number_format($kpis['unid_mermas'], 0); ?> u. (Dañado o vencido)</small>
+						</div>
+						<div class="p-2 bg-light rounded text-warning">
+							<i class="fa fa-beer fa-2x"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<div class="col-md-3 col-sm-6 mb-2">
+			<div class="card bg-white border-success shadow-sm h-100 mb-0" style="border-left: 5px solid #28a745 !important;">
+				<div class="card-body p-3">
+					<div class="d-flex justify-content-between align-items-center">
+						<div>
+							<h6 class="text-success text-uppercase mb-1 font-11 font-weight-bold"><i class="fa fa-check-circle"></i> Cuadre / Aclarados</h6>
+							<h3 class="mb-0 text-success font-weight-bold">Bs. <?php echo number_format($kpis['monto_aclarados'], 2, '.', ','); ?></h3>
+							<small class="text-muted font-11 font-weight-bold">-<?php echo number_format($kpis['unid_aclarados'], 0); ?> u. (Errores justificados)</small>
+						</div>
+						<div class="p-2 bg-light rounded text-success">
+							<i class="fa fa-clipboard-check fa-2x"></i>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<!-- Tabla Ejecutiva y Clara para la Dueña -->
+	<div class="table-responsive mt-3">
+		<table id="tabla_reporte_perdidas" class="table table-striped table-bordered text-center font-12 display" style="width:100%">
+			<thead class="bg-danger text-white font-weight-bold">
+				<tr>
+					<th style="width: 40px;">#</th>
+					<th style="width: 110px;">Fecha / Turno</th>
+					<th>Producto</th>
+					<th style="width: 70px;">Cant.</th>
+					<th style="width: 140px;">Situación</th>
+					<th>¿Por qué faltó? / Razón Real</th>
+					<th style="width: 140px;">Responsable</th>
+					<th style="width: 110px;">Valor (Bs.)</th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php
+				$n = 1;
+				foreach ($registros as $r) {
+				?>
+				<tr>
+					<td class="align-middle font-weight-bold"><?php echo $n++; ?></td>
+					<td class="align-middle font-11">
+						<span class="badge badge-light border text-dark">
+							<?php echo date("d/m/Y h:i A", strtotime($r['fecha'])); ?>
+						</span>
+					</td>
+					<td class="align-middle text-left font-weight-bold text-dark">
+						<?php echo htmlspecialchars($r['producto']); ?>
+						<small class="text-muted d-block">Ref: <?php echo htmlspecialchars($r['codigo_referencia']); ?></small>
+					</td>
+					<td class="align-middle text-danger font-weight-bold font-13" style="background-color: #fff3f3;">
+						-<?php echo number_format($r['cantidad_perdida'], 0); ?>
+					</td>
+					<td class="align-middle">
+						<span class="badge <?php echo $r['badge_clase']; ?> font-11 p-1">
+							<?php echo htmlspecialchars($r['categoria_nombre']); ?>
+						</span>
+					</td>
+					<td class="align-middle text-left font-11 font-weight-bold" style="max-width: 250px;">
+						<?php echo htmlspecialchars($r['razon_real']); ?>
+						<?php if ($r['origen_tabla'] === 'CONTEO' && $r['categoria_codigo'] === 'FALTANTES_CAJA') { ?>
+							<br>
+							<button type="button" class="btn btn-outline-danger btn-xs font-weight-bold mt-1 shadow-sm"
+								onclick="RastrearTurnosFaltante('<?php echo htmlspecialchars($r['codproducto']); ?>', '<?php echo $r['codsucursal']; ?>', '<?php echo $r['fecha']; ?>', '<?php echo htmlspecialchars(addslashes($r['producto'])); ?>', '<?php echo number_format($r['cantidad_perdida'], 0); ?>')">
+								<i class="fa fa-users"></i> Rastrear Turnos y Ventas
+							</button>
+						<?php } ?>
+					</td>
+					<td class="align-middle text-left font-11">
+						<i class="fa fa-user text-muted mr-1"></i> <?php echo htmlspecialchars($r['responsable']); ?>
+					</td>
+					<td class="align-middle text-right font-weight-bold font-13 text-danger">
+						Bs. <?php echo number_format($r['total_venta'], 2, '.', ','); ?>
+					</td>
+				</tr>
+				<?php } ?>
+			</tbody>
+			<tfoot class="bg-light font-weight-bold font-13">
+				<tr>
+					<th colspan="3" class="text-right">TOTAL GENERAL:</th>
+					<th class="text-center text-danger">-<?php echo number_format($kpis['total_unidades'], 0); ?></th>
+					<th colspan="3"></th>
+					<th class="text-right text-danger">Bs. <?php echo number_format($kpis['total_venta'], 2, '.', ','); ?></th>
+				</tr>
+			</tfoot>
+		</table>
+	</div>
+
+<?php
+	exit;
+}
+
+########################## RASTREAR TURNOS Y VENTAS DE PRODUCTO FALTANTE ##########################
+if (isset($_GET["RastrearTurnosFaltante"])) {
+	require_once("class/class.reporte_perdidas.php");
+	$service = new ReportePerdidasService();
+
+	$codproducto = !empty($_GET["codproducto"]) ? limpiar($_GET["codproducto"]) : '';
+	$codsucursal = !empty($_GET["codsucursal"]) ? (int)$_GET["codsucursal"] : 0;
+	$fechaConteo = !empty($_GET["fecha"]) ? limpiar($_GET["fecha"]) : date('Y-m-d H:i:s');
+	$nombreProducto = !empty($_GET["producto"]) ? limpiar($_GET["producto"]) : 'Producto';
+	$cantFaltante = !empty($_GET["cant"]) ? limpiar($_GET["cant"]) : '0';
+
+	$auditoria = $service->rastrearTurnosFaltante($codproducto, $codsucursal, $fechaConteo);
+	$prev = $auditoria['conteo_anterior'];
+	$turnos = $auditoria['turnos'];
+	$compras = $auditoria['compras_ventana'];
+?>
+	<div class="p-2">
+		<!-- Encabezado del Producto Investigado -->
+		<div class="alert alert-danger border-0 shadow-sm d-flex justify-content-between align-items-center flex-wrap mb-3" style="background-color: #ffeef0; color: #721c24;">
+			<div>
+				<h5 class="mb-1 font-weight-bold"><i class="fa fa-search"></i> Auditoría Forense: <?php echo htmlspecialchars($nombreProducto); ?></h5>
+				<span class="badge badge-danger font-12 p-1">Código: <?php echo htmlspecialchars($codproducto); ?></span>
+				<span class="badge badge-dark font-12 p-1 ml-1">Faltante Físico: -<?php echo $cantFaltante; ?> unidades</span>
+			</div>
+			<div class="text-right">
+				<small class="text-muted font-weight-bold d-block">Detectado en Conteo a Ciegas:</small>
+				<strong><?php echo date("d/m/Y h:i A", strtotime($fechaConteo)); ?></strong>
+			</div>
+		</div>
+
+		<!-- 3 Tarjetas de Contexto Temporal -->
+		<div class="row mb-3">
+			<div class="col-md-4 mb-2">
+				<div class="card bg-light border-0 shadow-sm h-100">
+					<div class="card-body p-3">
+						<small class="text-muted text-uppercase font-weight-bold font-11 d-block">1. Último Conteo Cuadrado</small>
+						<?php if ($prev) { ?>
+							<strong class="text-dark font-13"><?php echo date("d/m/Y h:i A", strtotime($prev['fechaconteo'])); ?></strong>
+							<div class="font-11 text-success mt-1">
+								<i class="fa fa-check-circle"></i> Físico: <strong><?php echo number_format($prev['cantidad_fisica'], 0); ?> u.</strong> (Dif: <?php echo number_format($prev['diferencia'], 2); ?>)
+							</div>
+						<?php } else { ?>
+							<span class="text-muted font-12">Sin conteo previo registrado en 24h</span>
+						<?php } ?>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-md-4 mb-2">
+				<div class="card bg-light border-0 shadow-sm h-100">
+					<div class="card-body p-3">
+						<small class="text-muted text-uppercase font-weight-bold font-11 d-block">2. Ventana de Tiempo en Custodia</small>
+						<strong class="text-primary font-14"><i class="fa fa-clock-o"></i> <?php echo $auditoria['horas_intervalo']; ?> horas transcurridas</strong>
+						<small class="text-muted d-block font-11">Entre el conteo cuadrado y el faltante</small>
+					</div>
+				</div>
+			</div>
+
+			<div class="col-md-4 mb-2">
+				<div class="card bg-light border-0 shadow-sm h-100">
+					<div class="card-body p-3">
+						<small class="text-muted text-uppercase font-weight-bold font-11 d-block">3. Ventas Registradas en Sistema</small>
+						<strong class="text-dark font-14"><i class="fa fa-shopping-cart"></i> <?php echo number_format($auditoria['total_vendido_turnos'], 0); ?> u. vendidas</strong>
+						<small class="text-muted d-block font-11">Suma total de tickets en ese lapso</small>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- Turnos y Cajeros que Estuvieron a Cargo -->
+		<h6 class="font-weight-bold text-dark mb-2"><i class="fa fa-users text-danger"></i> Cajeros y Turnos que Operaron Durante la Desaparición del Producto:</h6>
+		<div class="table-responsive">
+			<table class="table table-bordered table-sm font-12 text-center bg-white shadow-sm mb-3">
+				<thead class="bg-dark text-white font-weight-bold">
+					<tr>
+						<th># Arqueo</th>
+						<th>Caja / Turno</th>
+						<th>Cajero a Cargo</th>
+						<th>Horario de Custodia (Apertura - Cierre)</th>
+						<th>Ventas en su Ticket de Cierre</th>
+						<th>Total Venta</th>
+						<th>Estado Turno</th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php 
+					if (!empty($turnos)) {
+						foreach ($turnos as $t) {
+							$esVendedor = ($t['cant_vendida'] > 0);
+					?>
+					<tr style="<?php echo $esVendedor ? 'background-color: #fff9e6;' : ''; ?>">
+						<td class="align-middle font-weight-bold">#<?php echo $t['codarqueo']; ?></td>
+						<td class="align-middle font-weight-bold text-left"><?php echo htmlspecialchars($t['nomcaja']); ?></td>
+						<td class="align-middle font-weight-bold text-left text-danger">
+							<i class="fa fa-user-circle mr-1"></i> <?php echo htmlspecialchars($t['cajero']); ?>
+						</td>
+						<td class="align-middle font-11 text-muted">
+							<?php echo date("d/m H:i", strtotime($t['fechaapertura'])); ?> ➔ <?php echo ($t['fechacierre'] != 'Turno aún abierto' ? date("d/m H:i", strtotime($t['fechacierre'])) : '<span class="badge badge-warning">En curso</span>'); ?>
+						</td>
+						<td class="align-middle font-weight-bold <?php echo $esVendedor ? 'text-danger font-13' : 'text-muted'; ?>">
+							<?php echo number_format($t['cant_vendida'], 0); ?> u.
+						</td>
+						<td class="align-middle font-weight-bold">
+							Bs. <?php echo number_format($t['total_dinero'], 2, '.', ','); ?>
+						</td>
+						<td class="align-middle">
+							<?php if ($t['statusarqueo'] == 0) { ?>
+								<span class="badge badge-success p-1"><i class="fa fa-check"></i> Turno Cerrado</span>
+							<?php } else { ?>
+								<span class="badge badge-primary p-1"><i class="fa fa-spinner fa-spin"></i> Caja Abierta</span>
+							<?php } ?>
+						</td>
+					</tr>
+					<?php 
+						}
+					} else { 
+					?>
+					<tr>
+						<td colspan="7" class="p-3 text-muted">No se encontraron sesiones de caja activas en esta ventana.</td>
+					</tr>
+					<?php } ?>
+				</tbody>
+			</table>
+		</div>
+
+		<!-- Verificación de Compras en la Ventana -->
+		<div class="alert alert-light border shadow-sm p-2 mb-0 d-flex align-items-center">
+			<div class="mr-2">
+				<i class="fa fa-truck fa-2x text-primary"></i>
+			</div>
+			<div class="font-11">
+				<strong>Verificación de Recepción de Mercadería (Compras):</strong>
+				<?php if (!empty($compras)) { ?>
+					<span class="text-success font-weight-bold d-block">
+						Se registraron <?php echo count($compras); ?> compras en este lapso. Asegúrate de que los cajeros hayan contado la mercadería nueva recibida.
+					</span>
+				<?php } else { ?>
+					<span class="text-muted d-block">
+						No se registraron nuevas compras de este producto en el lapso auditado. Toda la diferencia física se produjo durante la custodia de los turnos de caja indicados arriba.
+					</span>
+				<?php } ?>
+			</div>
+		</div>
+	</div>
+<?php
+	exit;
+}
+########################## FIN MODULO DE REPORTE DE PERDIDAS Y FALTANTES ##########################
 ?>

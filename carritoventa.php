@@ -3,8 +3,69 @@
 isset($_SESSION) or session_start();
 if (!isset($_POST['MiCarrito'])) return;
 $ObjetoCarrito   = json_decode($_POST['MiCarrito']);
-if ($ObjetoCarrito->Codigo=="vaciar") {
+if ($ObjetoCarrito->Codigo == "vaciar") {
     unset($_SESSION["CarritoVenta"]);
+    echo json_encode([]);
+    exit;
+} elseif ($ObjetoCarrito->Codigo == "cargar_lote") {
+    $nuevos = [];
+    if (isset($ObjetoCarrito->Items) && is_array($ObjetoCarrito->Items)) {
+        require_once __DIR__ . '/class/classconexion.php';
+        $dbConn = new Db();
+        $refConn = new ReflectionClass('Db');
+        $pConn = $refConn->getProperty('dbh');
+        $pConn->setAccessible(true);
+        $dbhLote = $pConn->getValue($dbConn);
+        $sucursalActiva = isset($_SESSION['codsucursal']) ? (int)$_SESSION['codsucursal'] : 0;
+
+        foreach ($ObjetoCarrito->Items as $item) {
+            $itemId = $item->Id ?? 0;
+            $itemCod = trim($item->Codigo ?? '');
+            $tipoDet = $item->TipoDetalle ?? 1;
+
+            // Si el código viene vacío, resolverlo desde la base de datos
+            if (empty($itemCod) && $itemId > 0 && $dbhLote && $sucursalActiva > 0) {
+                if ($tipoDet == 2) {
+                    $stC = $dbhLote->prepare("SELECT codcombo FROM combos WHERE idcombo = ? AND codsucursal = ?");
+                    $stC->execute([$itemId, $sucursalActiva]);
+                    $itemCod = $stC->fetchColumn() ?: '';
+                } else {
+                    $stP = $dbhLote->prepare("SELECT codproducto FROM productos WHERE idproducto = ? AND codsucursal = ?");
+                    $stP->execute([$itemId, $sucursalActiva]);
+                    $itemCod = $stP->fetchColumn() ?: '';
+                }
+            }
+
+            $nuevos[] = array(
+                "id" => $itemId,
+                "txtCodigo" => $itemCod,
+                "producto" => $item->Producto ?? 'Producto',
+                "descripcion" => $item->Descripcion ?? '',
+                "imei" => $item->Imei ?? '',
+                "condicion" => $item->Condicion ?? '',
+                "codmarca" => $item->Codmarca ?? 0,
+                "marcas" => $item->Marcas ?? '',
+                "codmodelo" => $item->Codmodelo ?? 0,
+                "modelos" => $item->Modelos ?? '',
+                "codpresentacion" => $item->Codpresentacion ?? 0,
+                "presentacion" => $item->Presentacion ?? '',
+                "codcolor" => $item->Codcolor ?? 0,
+                "color" => $item->Color ?? '',
+                "precio" => $item->Precio ?? 0,
+                "precio2" => $item->Precio2 ?? 0,
+                "descproducto" => $item->Descproducto ?? 0,
+                "ivaproducto" => $item->Ivaproducto ?? '(E)',
+                "existencia" => $item->Existencia ?? 99,
+                "precioconiva" => $item->Precioconiva ?? $item->Precio2 ?? 0,
+                "tipodetalle" => $tipoDet,
+                "tipoproducto" => $item->TipoProducto ?? ($tipoDet == 2 ? 'COMBO' : 'PRODUCTO'),
+                "cantidad" => $item->Cantidad ?? 1
+            );
+        }
+    }
+    $_SESSION["CarritoVenta"] = $nuevos;
+    echo json_encode($_SESSION["CarritoVenta"]);
+    exit;
 } else {
     if (isset($_SESSION['CarritoVenta'])) {
         $carrito=$_SESSION['CarritoVenta'];

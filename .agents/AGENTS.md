@@ -15,3 +15,11 @@ Este repositorio cuenta con dos flujos principales especializados para su desarr
    - Implementa transacciones PDO (`beginTransaction`, `commit`, `rollBack`) y manejo `try/catch`.
    - Genera scripts de migración SQL en `migrations/` o `bd-sql/`.
    - Adapta el patrón visual Bootstrap 4 y la arquitectura nativa del proyecto.
+
+3. **`pos-auditoria-turnos`** (`.agents/skills/pos-auditoria-turnos/SKILL.md`):
+   - Especialista en auditoría forense masiva de turnos y cierres mensuales.
+   - Cruza fotos de tickets térmicos POS, planillas manuscritas de productos y mesas contra la base de datos (`arqueocaja`, `ventas`, `mediospagoxventas`).
+   - Verifica sumatorias manuales de cajeros para detectar errores aritméticos.
+   - Cruza el stock contra el conteo a ciegas del relevo (`conteo_inicial_diario`, `detalle_conteo_inicial`) para detectar cruces de marcas en combos y mermas físicas.
+   - Incluye script de extracción automática de períodos (`scripts/auditar_rango.php`).
+

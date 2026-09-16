@@ -1,0 +1,24 @@
+# Entorno y archivos temporales
+scratch/
+*.bak
+*.tmp
+*.log
+
+# Python cache & local vendor deps
+__pycache__/
+*.pyc
+*.pyd
+*/pydeps/
+**/pydeps/
+
+# Flutter & Android build artifacts
+joker_comandas_app/build/
+joker_comandas_app/.dart_tool/
+joker_comandas_app/.gradle/
+joker_comandas_app/android/.gradle/
+joker_comandas_app/android/local.properties
+joker_comandas_app/android/app/build/
+joker_comandas_app/ios/Pods/
+joker_comandas_app/ios/.symlinks/
+joker_comandas_app/ios/Flutter/Flutter.framework
+joker_comandas_app/ios/Flutter/Flutter.podspec

@@ -399,6 +399,7 @@ case 'administradorG':  ?>
                         </li>
 
                         <li class="sidebar-item"> <a class="sidebar-link waves-effect waves-dark" href="sucursales" aria-expanded="false"><i class="mdi mdi-clipboard-text"></i>Sucursales</a></li>
+                        <li class="sidebar-item"> <a class="sidebar-link waves-effect waves-dark" href="seed_sucursal" aria-expanded="false"><i class="mdi mdi-database-plus text-danger"></i>Seed Pruebas</a></li>
 
                         <li class="sidebar-item"> <a class="sidebar-link has-arrow waves-effect waves-dark" href="javascript:void(0)" aria-expanded="false"><i class="mdi mdi-collage"></i><span class="hide-menu">Productos</span></a>
                             <ul aria-expanded="false" class="collapse second-level">
@@ -546,6 +547,7 @@ case 'administradorG':  ?>
                         <li class="sidebar-item"><a href="conteosiniciales" class="sidebar-link"><i class="mdi mdi-lock-open-outline text-warning"></i><span class="hide-menu font-weight-bold"> Conteos Iniciales (Desbloqueo)</span></a></li>
                         <li class="sidebar-item"><a href="forbaja" class="sidebar-link"><i class="mdi mdi-minus-box text-danger"></i><span class="hide-menu font-weight-bold text-danger"> Retiro / Baja Mercadería</span></a></li>
                         <li class="sidebar-item"><a href="bajas" class="sidebar-link"><i class="mdi mdi-clipboard-alert"></i><span class="hide-menu"> Historial Bajas / Retiros</span></a></li>
+                        <li class="sidebar-item"><a href="perdidasxfechas" class="sidebar-link"><i class="mdi mdi-chart-bell-curve-cumulative text-danger"></i><span class="hide-menu font-weight-bold text-danger"> Reporte de Pérdidas</span></a></li>
                     </ul>
                 </li>
                 <!-- ============================================================== -->

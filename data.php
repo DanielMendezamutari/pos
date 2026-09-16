@@ -158,4 +158,21 @@ if (is_array($u)) {
 echo json_encode($data);
 
 endif;
+
+################ CONTROL DE INVENTARIO Y RELEVOS EN DASHBOARD ########################
+if (isset($_GET['DashboardControlInventario'])):
+
+require_once("class/class.dashboard_control.php");
+$ctrl = new DashboardControlService();
+$kpis = $ctrl->obtenerKpisInventarioHoy();
+$semaforo = $ctrl->obtenerSemaforoCajasAbiertas();
+$ultimos = $ctrl->obtenerUltimosConteos(6);
+
+echo json_encode(array(
+    "kpis" => $kpis,
+    "semaforo" => $semaforo,
+    "ultimos" => $ultimos
+));
+
+endif;
 ?>

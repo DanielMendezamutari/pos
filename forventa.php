@@ -402,15 +402,27 @@ exit;
     <div class="col-lg-12">
         <div class="card">
             <?php
-            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"]);
+            $codarqueo_activo = (!empty($arqueo) && isset($arqueo[0]['codarqueo'])) ? (int)$arqueo[0]['codarqueo'] : 0;
+            $nomcaja_raw = (!empty($arqueo) && isset($arqueo[0]['nomcaja'])) ? $arqueo[0]['nomcaja'] : '';
+            $es_caja_operativa = (!empty($nomcaja_raw) && stripos($nomcaja_raw, 'ADM') === false);
+            $nomcaja_activo = $es_caja_operativa ? $nomcaja_raw : '';
+            $codcaja_activo = (!empty($arqueo) && isset($arqueo[0]['codcaja'])) ? (int)$arqueo[0]['codcaja'] : 0;
+
+            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"], null, $codarqueo_activo);
             ?>
             <div class="card-header bg-danger d-flex justify-content-between align-items-center flex-wrap">
                 <h4 class="card-title text-white mb-0"><i class="fa fa-save"></i> Gestión de Ventas</h4>
                 <div id="contenedor_boton_conteo" class="mt-1 mt-md-0">
                 <?php if(!$verif_conteo){ ?>
-                    <button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm pulse-conteo" onclick="AbrirModalConteoInicial()"><i class="fa fa-clipboard"></i> 📦 REGISTRAR INVENTARIO INICIAL (2:00 PM)</button>
+                    <button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm pulse-conteo" 
+                        onclick="AbrirModalConteoInicial('', '', '<?php echo encrypt($codarqueo_activo); ?>', '<?php echo $codcaja_activo; ?>', '<?php echo htmlspecialchars(addslashes($nomcaja_activo)); ?>')">
+                        <i class="fa fa-clipboard"></i> 📦 INVENTARIO INICIAL <?php echo !empty($nomcaja_activo) ? '(TURNO: ' . htmlspecialchars($nomcaja_activo) . ')' : '(SELECCIONAR TURNO)'; ?>
+                    </button>
                 <?php } else { ?>
-                    <button type="button" class="btn btn-success font-weight-bold shadow-sm mr-1" onclick="AbrirModalConteoInicial(<?php echo $verif_conteo['idconteo']; ?>)"><i class="fa fa-check-circle"></i> ✅ INVENTARIO INICIAL REGISTRADO (<?php echo date("h:i A", strtotime($verif_conteo['fechaconteo'])); ?>)</button>
+                    <button type="button" class="btn btn-success font-weight-bold shadow-sm mr-1" 
+                        onclick="AbrirModalConteoInicial(<?php echo $verif_conteo['idconteo']; ?>, '', '<?php echo encrypt($codarqueo_activo); ?>', '<?php echo $codcaja_activo; ?>', '<?php echo htmlspecialchars(addslashes($nomcaja_activo)); ?>')">
+                        <i class="fa fa-check-circle"></i> ✅ INVENTARIO INICIAL (<?php echo !empty($verif_conteo['turno']) ? htmlspecialchars($verif_conteo['turno']) . ' - ' : ''; ?><?php echo date("h:i A", strtotime($verif_conteo['fechaconteo'])); ?>)
+                    </button>
                     <a href="reportepdf?idconteo=<?php echo encrypt($verif_conteo['idconteo']); ?>&tipo=<?php echo encrypt("CONTEOINICIAL"); ?>" target="_blank" class="btn btn-light font-weight-bold" title="Descargar Comprobante PDF para WhatsApp"><i class="fa fa-file-pdf-o text-danger"></i> PDF WhatsApp</a>
                 <?php } ?>
                 </div>

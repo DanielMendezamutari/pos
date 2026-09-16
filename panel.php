@@ -24,6 +24,12 @@ $stockbajo = $stockbajogen->ProductosStockBajoGeneral();
 $creditosgen = new Login();
 $creditos = $creditosgen->CreditosPendientesGeneral();
 
+require_once("class/class.dashboard_control.php");
+$ctrlService = new DashboardControlService();
+$kpisInventario = $ctrlService->obtenerKpisInventarioHoy();
+$semaforoCajas = $ctrlService->obtenerSemaforoCajasAbiertas();
+$ultimosConteos = $ctrlService->obtenerUltimosConteos(6);
+
 $imp = new Login();
 $imp = $imp->ImpuestosPorId();
 $impuesto = ($imp == "" ? "Impuesto" : $imp[0]['nomimpuesto']);
@@ -113,6 +119,38 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
     </div>
     <!-- /.modal -->
     <!--############################## MODAL PARA VER DETALLE DE VENTA ######################################-->      
+
+    <!--############################## MODAL PARA VER DETALLE DE CONTEO INICIAL ######################################-->
+    <div id="myModalConteoInicial" class="modal fade" role="dialog" aria-labelledby="myModalLabelConteo" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h4 class="modal-title font-weight-bold" id="myModalLabelConteo"><i class="fa fa-clipboard"></i> Detalle de Inventario Inicial / Relevo</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true"><img src="assets/images/close.png"/></button>
+                </div>
+                <div class="modal-body" id="contenido_modal_conteo">
+                    <!-- Carga por AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--############################## MODAL PARA VER DETALLE DE CONTEO INICIAL ######################################-->
+
+    <!--############################## MODAL FALTANTES PENDIENTES DE DÍAS ANTERIORES ######################################-->
+    <div id="myModalFaltantesAnteriores" class="modal fade" role="dialog" aria-labelledby="myModalLabelFaltantesAnt" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h4 class="modal-title font-weight-bold" id="myModalLabelFaltantesAnt"><i class="fa fa-history"></i> Faltantes Pendientes de Días Anteriores (Histórico por Cuadrar)</h4>
+                    <button type="button" class="close text-white" data-dismiss="modal" aria-hidden="true"><img src="assets/images/close.png"/></button>
+                </div>
+                <div class="modal-body p-0" id="contenido_modal_faltantes_anteriores">
+                    <!-- Carga por AJAX -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--############################## MODAL FALTANTES PENDIENTES DE DÍAS ANTERIORES ######################################-->
 
         <!-- INICIO DE MENU -->
         <?php include('menu.php'); ?>
@@ -212,6 +250,109 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
     </div>
     <!-- End Row -->
 
+    <!-- Row KPIs de Control Antirrobo y Relevos de Turno -->
+    <div class="row" id="kpi-inventario-control">
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top <?php echo ($kpisInventario['unidades_faltantes_pendientes'] > 0 ? 'border-danger' : 'border-success'); ?>">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase <?php echo ($kpisInventario['unidades_faltantes_pendientes'] > 0 ? 'text-danger font-weight-bold' : 'text-success font-weight-bold'); ?>">
+                        <i class="fa fa-shield"></i> Faltantes de Hoy (<?php echo date('d/m/Y'); ?>)
+                    </h5>
+                    <div class="d-flex align-items-center mb-2 mt-2">
+                        <h2 class="mb-0 display-5"><i class="fa <?php echo ($kpisInventario['unidades_faltantes_pendientes'] > 0 ? 'fa-exclamation-circle text-danger' : 'fa-check-circle text-success'); ?>"></i></h2>
+                        <div class="ml-auto text-right">
+                            <h2 class="mb-0 display-6">
+                                <span class="font-normal <?php echo ($kpisInventario['unidades_faltantes_pendientes'] > 0 ? 'text-danger font-weight-bold' : 'text-success font-weight-bold'); ?>" id="kpi-inv-faltantes-uds">
+                                    <?php echo ($kpisInventario['unidades_faltantes_pendientes'] > 0 ? '-' . number_format($kpisInventario['unidades_faltantes_pendientes'], 0) : '0'); ?>
+                                </span> <small style="font-size: 15px;">uds</small>
+                            </h2>
+                            <small class="<?php echo ($kpisInventario['unidades_faltantes_pendientes'] > 0 ? 'text-danger font-weight-bold' : 'text-success font-weight-bold'); ?>" id="kpi-inv-faltantes-monto">
+                                <?php if ($kpisInventario['unidades_faltantes_pendientes'] > 0) { ?>
+                                    Est. -Bs. <?php echo number_format($kpisInventario['costo_faltante_pendiente'], 2, '.', ','); ?> pendiente
+                                <?php } else { ?>
+                                    <?php echo ($kpisInventario['unidades_cuadradas_total'] > 0 ? '✓ ' . number_format($kpisInventario['unidades_cuadradas_total'], 0) . ' uds Cuadradas/Ajustadas' : '100% Cuadrado'); ?>
+                                <?php } ?>
+                            </small>
+                            <?php if ($kpisInventario['unidades_faltantes_pendientes'] > 0 && $kpisInventario['unidades_cuadradas_total'] > 0) { ?>
+                                <br><small class="text-info font-weight-bold"><i class="fa fa-check"></i> <?php echo number_format($kpisInventario['unidades_cuadradas_total'], 0); ?> uds ya cuadradas</small>
+                            <?php } ?>
+                        </div>
+                    </div>
+                    <div class="mt-2 border-top pt-2 text-right">
+                        <button type="button" class="btn btn-xs btn-outline-danger font-weight-bold" id="btn_faltantes_anteriores" onclick="AbrirModalFaltantesAnteriores()" title="Ver faltantes de días anteriores para revisar y cuadrar">
+                            <i class="fa fa-history"></i> Faltantes Días Anteriores (<?php echo number_format($kpisInventario['dias_anteriores_faltantes_uds'], 0); ?> uds)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top <?php echo ($kpisInventario['cajas_sin_conteo'] > 0 ? 'border-warning' : 'border-info'); ?>">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase <?php echo ($kpisInventario['cajas_sin_conteo'] > 0 ? 'text-warning font-weight-bold' : 'text-info'); ?>">
+                        <i class="fa fa-clock-o"></i> Relevos de Turno
+                    </h5>
+                    <div class="d-flex align-items-center mb-2 mt-3">
+                        <h2 class="mb-0 display-5"><i class="fa fa-users <?php echo ($kpisInventario['cajas_sin_conteo'] > 0 ? 'text-warning' : 'text-info'); ?>"></i></h2>
+                        <div class="ml-auto text-right">
+                            <h2 class="mb-0 display-6"><span class="font-normal" id="kpi-inv-total-conteos"><?php echo $kpisInventario['total_conteos_hoy']; ?></span> <small style="font-size: 15px;">conteos</small></h2>
+                            <small class="<?php echo ($kpisInventario['cajas_sin_conteo'] > 0 ? 'badge badge-warning text-dark font-weight-bold' : 'text-muted'); ?>" id="kpi-inv-cajas-alerta">
+                                <?php if ($kpisInventario['cajas_sin_conteo'] > 0) { ?>
+                                    ⚠️ <?php echo $kpisInventario['cajas_sin_conteo']; ?> caja(s) sin contar
+                                <?php } else { ?>
+                                    Cajas al día
+                                <?php } ?>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top <?php echo ($kpisInventario['conteos_con_pendientes'] > 0 ? 'border-warning' : 'border-primary'); ?>">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase text-primary">
+                        <i class="fa fa-balance-scale"></i> Turnos Cuadrados
+                    </h5>
+                    <div class="d-flex align-items-center mb-2 mt-3">
+                        <h2 class="mb-0 display-5"><i class="fa fa-thumbs-up text-primary"></i></h2>
+                        <div class="ml-auto text-right">
+                            <h2 class="mb-0 display-6"><span class="font-normal" id="kpi-inv-cuadrados"><?php echo $kpisInventario['conteos_cuadrados_totales']; ?></span> <small style="font-size: 15px;">/ <?php echo $kpisInventario['total_conteos_hoy']; ?></small></h2>
+                            <small class="text-muted" id="kpi-inv-diferencias">
+                                <?php if ($kpisInventario['conteos_con_pendientes'] > 0) { ?>
+                                    <span class="text-danger font-weight-bold"><?php echo $kpisInventario['conteos_con_pendientes']; ?> con faltante activo</span>
+                                <?php } else { ?>
+                                    <span class="text-success font-weight-bold"><i class="fa fa-check"></i> Todos resueltos</span>
+                                <?php } ?>
+                                <?php if ($kpisInventario['conteos_resueltos'] > 0) { ?>
+                                    <br><small class="text-info font-weight-bold">(<?php echo $kpisInventario['conteos_resueltos']; ?> cuadrados por ajuste/compra)</small>
+                                <?php } ?>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3">
+            <div class="card border-top border-dark">
+                <div class="card-body">
+                    <h5 class="card-title text-uppercase text-dark">
+                        <i class="fa fa-shield"></i> Control de Pérdidas
+                    </h5>
+                    <div class="d-flex align-items-center mb-2 mt-3">
+                        <h2 class="mb-0 display-5"><i class="fa fa-search text-dark"></i></h2>
+                        <div class="ml-auto text-right">
+                            <a href="conteosiniciales" class="btn btn-xs btn-outline-dark mb-1 font-weight-bold"><i class="fa fa-clipboard"></i> Historial Conteos</a>
+                            <br>
+                            <a href="perdidasxfechas" class="btn btn-xs btn-outline-danger font-weight-bold"><i class="fa fa-file-text-o"></i> Auditoría Pérdidas</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Row -->
+
     <!-- Row Gráfico + Tabla Ventas Hoy por Sucursal -->
     <div class="row">
         <div class="col-md-7 col-lg-8">
@@ -280,12 +421,14 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
     </div>
     <!-- End Row -->
 
-    <!-- Row Cajas Abiertas + Stock Bajo -->
+    <!-- Row Cajas Operativas (Semáforo de Relevo) + Novedades de Inventario Inicial -->
     <div class="row">
-        <div class="col-md-6 col-lg-6">
-            <div class="card">
-                <div class="card-header bg-danger">
-                    <h4 class="card-title text-white"><i class="fa fa-desktop"></i> Cajas Abiertas</h4>
+        <!-- Semáforo de Cajas Abiertas y Relevos -->
+        <div class="col-md-12 col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-danger d-flex align-items-center justify-content-between">
+                    <h4 class="card-title text-white mb-0"><i class="fa fa-desktop"></i> Monitoreo de Cajas y Relevos de Turno</h4>
+                    <span class="badge badge-light font-weight-bold">Semáforo en Vivo</span>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
@@ -293,22 +436,52 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
                             <thead class="bg-light">
                                 <tr>
                                     <th class="text-center">Sucursal</th>
-                                    <th class="text-center">Caja</th>
+                                    <th class="text-center">Caja / Turno</th>
                                     <th class="text-center">Cajero</th>
-                                    <th class="text-center">Monto Inicial</th>
                                     <th class="text-center">Apertura</th>
+                                    <th class="text-center">Estado Relevo</th>
+                                    <th class="text-center">Acción</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <?php if($cajas==""){ ?>
-                                <tr><td colspan="5" class="text-center">NO HAY CAJAS ABIERTAS</td></tr>
-                                <?php } else { for($i=0;$i<sizeof($cajas);$i++){ ?>
+                                <?php if(empty($semaforoCajas)){ ?>
+                                <tr><td colspan="6" class="text-center py-3 text-muted">NO HAY CAJAS OPERATIVAS ABIERTAS</td></tr>
+                                <?php } else { foreach($semaforoCajas as $sc){ ?>
                                 <tr>
-                                    <td><?php echo $cajas[$i]['nomsucursal']; ?></td>
-                                    <td class="text-center"><?php echo $cajas[$i]['nomcaja']; ?></td>
-                                    <td><?php echo $cajas[$i]['cajero']; ?></td>
-                                    <td class="text-right"><?php echo number_format($cajas[$i]['montoinicial'], 2, '.', ','); ?></td>
-                                    <td class="text-center"><?php echo date("d-m-Y H:i", strtotime($cajas[$i]['fechaapertura'])); ?></td>
+                                    <td class="align-middle font-weight-bold"><?php echo $sc['nomsucursal']; ?></td>
+                                    <td class="text-center align-middle">
+                                        <span class="font-medium"><?php echo $sc['nomcaja']; ?></span>
+                                        <?php if (!empty($sc['turno'])) { ?>
+                                            <br><small class="text-muted">(<?php echo $sc['turno']; ?>)</small>
+                                        <?php } ?>
+                                    </td>
+                                    <td class="align-middle"><?php echo $sc['cajero']; ?></td>
+                                    <td class="text-center align-middle">
+                                        <small><?php echo date("H:i", strtotime($sc['fechaapertura'])); ?></small>
+                                        <br><small class="text-muted"><?php echo $sc['minutos_abierta']; ?> min</small>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <span class="badge <?php echo $sc['badge_clase']; ?> p-1 font-weight-bold">
+                                            <?php if ($sc['estado_semaforo'] == 'VERDE') { ?>
+                                                <i class="fa fa-check"></i> CUADRADO
+                                            <?php } elseif ($sc['estado_semaforo'] == 'AZUL') { ?>
+                                                <i class="fa fa-check-circle"></i> CUADRADO / AJUSTADO
+                                            <?php } elseif ($sc['estado_semaforo'] == 'ROJO') { ?>
+                                                <i class="fa fa-exclamation-triangle"></i> FALTANTE (-<?php echo number_format($sc['unidades_faltantes'], 0); ?>)
+                                            <?php } else { ?>
+                                                <i class="fa fa-clock-o"></i> SIN CONTEO
+                                            <?php } ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <?php if (!empty($sc['idconteo'])) { ?>
+                                            <button type="button" class="btn btn-xs btn-outline-info" title="Ver detalle del conteo inicial" onclick="AbrirModalConteoInicial('<?php echo $sc['idconteo']; ?>', '<?php echo $sc['codsucursal']; ?>', '<?php echo $sc['codarqueo']; ?>', '<?php echo $sc['codcaja']; ?>', '<?php echo $sc['turno']; ?>')">
+                                                <i class="fa fa-eye"></i> Conteo
+                                            </button>
+                                        <?php } else { ?>
+                                            <span class="text-warning font-weight-bold" title="Cajero aún no registra inventario inicial">⚠️ Pendiente</span>
+                                        <?php } ?>
+                                    </td>
                                 </tr>
                                 <?php } } ?>
                             </tbody>
@@ -317,7 +490,61 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
                 </div>
             </div>
         </div>
-        <div class="col-md-6 col-lg-6">
+
+        <!-- Novedades de Inventario Inicial por Turno -->
+        <div class="col-md-12 col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark d-flex align-items-center justify-content-between">
+                    <h4 class="card-title text-white mb-0"><i class="fa fa-history"></i> Novedades en Relevos</h4>
+                    <a href="conteosiniciales" class="badge badge-warning text-dark font-weight-bold">Ver Todos</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0">
+                            <thead class="bg-light">
+                                <tr>
+                                    <th>Turno / Sucursal</th>
+                                    <th>Cajero</th>
+                                    <th class="text-center">Resultado</th>
+                                    <th class="text-center">Ver</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(empty($ultimosConteos)){ ?>
+                                <tr><td colspan="4" class="text-center py-3 text-muted">NO HAY CONTEOS RECIENTES</td></tr>
+                                <?php } else { foreach($ultimosConteos as $uc){ ?>
+                                <tr>
+                                    <td class="align-middle">
+                                        <span class="font-weight-bold"><?php echo !empty($uc['turno']) ? $uc['turno'] : $uc['nomcaja']; ?></span>
+                                        <br><small class="text-muted"><?php echo $uc['nomsucursal']; ?> (<?php echo date("d/m H:i", strtotime($uc['fechaconteo'])); ?>)</small>
+                                    </td>
+                                    <td class="align-middle">
+                                        <small class="font-weight-bold"><?php echo $uc['usuario_conteo']; ?></small>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <span class="badge <?php echo $uc['badge_clase']; ?> font-weight-bold">
+                                            <i class="fa <?php echo $uc['icono']; ?>"></i> <?php echo $uc['texto_resultado']; ?>
+                                        </span>
+                                    </td>
+                                    <td class="text-center align-middle">
+                                        <button type="button" class="btn btn-xs btn-outline-dark" onclick="AbrirModalConteoInicial('<?php echo $uc['idconteo']; ?>', '<?php echo $uc['codsucursal']; ?>')">
+                                            <i class="fa fa-search"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <?php } } ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End Row -->
+
+    <!-- Row Productos con Stock Bajo -->
+    <div class="row">
+        <div class="col-md-12 col-lg-12">
             <div class="card">
                 <div class="card-header bg-danger">
                     <h4 class="card-title text-white"><i class="fa fa-cubes"></i> Productos con Stock Bajo</h4>
@@ -329,8 +556,8 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
                                 <tr>
                                     <th class="text-center">Producto</th>
                                     <th class="text-center">Sucursal</th>
-                                    <th class="text-center">Exist.</th>
-                                    <th class="text-center">Mín.</th>
+                                    <th class="text-center">Existencia</th>
+                                    <th class="text-center">Stock Mínimo</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1070,6 +1297,8 @@ $valor = ($imp == "" ? "0.00" : $imp[0]['valorimpuesto']);
     <!-- script jquery -->
     <script type="text/javascript" src="assets/script/titulos.js"></script>
     <script type="text/javascript" src="assets/script/script2.js"></script>
+    <script src="assets/js/sweetalert-dev.js"></script>
+    <script type="text/javascript" src="assets/script/jsconteo_inicial.js"></script>
     <!-- script jquery -->
 
     <!-- jQuery -->

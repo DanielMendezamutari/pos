@@ -123,9 +123,12 @@ if(isset($_POST["proceso"]) and $_POST["proceso"]=="save") {
     <input type="hidden" name="tipousuario"  id="tipousuario"  value="<?php echo ($_SESSION["acceso"]=="administradorG" ? 1 : 2); ?>">
     <input type="hidden" name="modulo"       id="modulo"       value="1">
     <input type="hidden" name="proceso"      id="proceso"      <?php if(isset($reg[0]['idproducto'])) echo 'value="update"'; else echo 'value="save"'; ?>>
+    <input type="hidden" name="tipoproducto" id="tipoproducto" value="PRODUCTO">
+    <input type="hidden" name="preciohora"   id="preciohora"   value="0.00">
+    <input type="hidden" name="esaccesoriobillar" id="esaccesoriobillar" value="NO">
     <input type="hidden" name="imei"         id="imei"         value="">
     <input type="hidden" name="condicion"    id="condicion"    value="">
-    <input type="hidden" name="codmarca"     id="codmarca"     value="<?php echo encrypt(0); ?>">
+    <input type="hidden" name="codmarca"     id="codmarca"     value="<?php echo (isset($reg[0]['codmarca']) && $reg[0]['codmarca'] > 0 ? encrypt($reg[0]['codmarca']) : encrypt(0)); ?>">
     <input type="hidden" name="codmodelo"    id="codmodelo"    value="<?php echo encrypt(0); ?>">
     <input type="hidden" name="codcolor"     id="codcolor"     value="<?php echo encrypt(0); ?>">
     <input type="hidden" name="nroparte"     id="nroparte"     value="">
