@@ -537,7 +537,7 @@ exit;
             $nomcaja_activo = $es_caja_operativa ? $nomcaja_raw : '';
             $codcaja_activo = (!empty($arqueo) && isset($arqueo[0]['codcaja'])) ? (int)$arqueo[0]['codcaja'] : 0;
 
-            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"], null, $codarqueo_activo);
+            $verif_conteo = $tra->VerificarConteoInicialHoy($_SESSION["codsucursal"], null, $codarqueo_activo, $nomcaja_activo);
             ?>
             <div class="card-header bg-danger d-flex justify-content-between align-items-center flex-wrap">
                 <h4 class="card-title text-white mb-0"><i class="fa fa-tasks"></i> POS Terminal</h4>

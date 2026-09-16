@@ -39047,7 +39047,7 @@ public function BuscarAuditoriaPorId($idauditoria)
 
 ######################## FUNCIONES DE CONTEO INICIAL PARA CAJEROS ###########################
 
-public function VerificarConteoInicialHoy($codsucursal, $fecha = null, $codarqueo = null)
+public function VerificarConteoInicialHoy($codsucursal, $fecha = null, $codarqueo = null, $turno = null)
 {
 	self::SetNames();
 	if (empty($fecha)) {
@@ -39055,8 +39055,9 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null, $codarque
 	}
 
 	try {
-		// Si se envía un arqueo específico (sesión de caja activa del cajero), verificar si ESE turno ya tiene conteo
+		// 1. Si se envía un arqueo específico (sesión de caja activa del cajero):
 		if (!empty($codarqueo) && (int)$codarqueo > 0) {
+			// A) Buscar si ya está vinculado directamente por codarqueo
 			$sqlArq = "SELECT 
 				conteo_inicial_diario.*,
 				usuarios.nombres AS nomusuario
@@ -39070,9 +39071,77 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null, $codarque
 			if ($resArq) {
 				return $resArq;
 			}
+
+			// B) Si no se encontró por codarqueo directo, averiguar caja y turno asociados a este arqueo
+			$nomCajaTurno = !empty($turno) ? $turno : "";
+			$codcaja = 0;
+			if (empty($nomCajaTurno)) {
+				$sqlInfoArq = "SELECT arqueocaja.codcaja, cajas.nomcaja 
+					FROM arqueocaja 
+					INNER JOIN cajas ON arqueocaja.codcaja = cajas.codcaja 
+					WHERE arqueocaja.codarqueo = ? LIMIT 1";
+				$stmtInfo = $this->dbh->prepare($sqlInfoArq);
+				$stmtInfo->execute(array((int)$codarqueo));
+				$infoArq = $stmtInfo->fetch(PDO::FETCH_ASSOC);
+				if ($infoArq) {
+					$nomCajaTurno = $infoArq['nomcaja'];
+					$codcaja = (int)$infoArq['codcaja'];
+				}
+			}
+
+			// C) Si conocemos el turno o caja, buscar si hoy ya se realizó un conteo en esta sucursal para ese turno
+			if (!empty($nomCajaTurno) || $codcaja > 0) {
+				$sqlTurno = "SELECT 
+					conteo_inicial_diario.*,
+					usuarios.nombres AS nomusuario
+					FROM conteo_inicial_diario
+					LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+					WHERE conteo_inicial_diario.codsucursal = ? 
+					AND DATE(conteo_inicial_diario.fechaconteo) = ?
+					AND (
+						(? != '' AND conteo_inicial_diario.turno = ?) 
+						OR (? > 0 AND conteo_inicial_diario.codcaja = ?)
+					)
+					ORDER BY conteo_inicial_diario.idconteo DESC LIMIT 1";
+				$stmtTurno = $this->dbh->prepare($sqlTurno);
+				$stmtTurno->execute(array($codsucursal, $fecha, $nomCajaTurno, $nomCajaTurno, $codcaja, $codcaja));
+				$resTurno = $stmtTurno->fetch(PDO::FETCH_ASSOC);
+				if ($resTurno) {
+					// Si el conteo existente no tenía arqueo vinculado, vincularlo automáticamente
+					if (empty($resTurno['codarqueo']) || (int)$resTurno['codarqueo'] === 0) {
+						$sqlUpd = "UPDATE conteo_inicial_diario SET codarqueo = ?, codcaja = ? WHERE idconteo = ?";
+						$stmtUpd = $this->dbh->prepare($sqlUpd);
+						$stmtUpd->execute(array((int)$codarqueo, ($codcaja > 0 ? $codcaja : $resTurno['codcaja']), $resTurno['idconteo']));
+						$resTurno['codarqueo'] = (int)$codarqueo;
+						if ($codcaja > 0) $resTurno['codcaja'] = $codcaja;
+					}
+					return $resTurno;
+				}
+			}
+
 			return false;
 		}
 
+		// 2. Si no viene codarqueo pero viene turno:
+		if (!empty($turno)) {
+			$sql = "SELECT 
+				conteo_inicial_diario.*,
+				usuarios.nombres AS nomusuario
+				FROM conteo_inicial_diario
+				LEFT JOIN usuarios ON conteo_inicial_diario.codusuario = usuarios.codigo
+				WHERE conteo_inicial_diario.codsucursal = ? 
+				AND DATE(conteo_inicial_diario.fechaconteo) = ?
+				AND conteo_inicial_diario.turno = ?
+				ORDER BY conteo_inicial_diario.idconteo DESC LIMIT 1";
+			$stmt = $this->dbh->prepare($sql);
+			$stmt->execute(array($codsucursal, $fecha, $turno));
+			$res = $stmt->fetch(PDO::FETCH_ASSOC);
+			if ($res) {
+				return $res;
+			}
+		}
+
+		// 3. Consulta general por sucursal y fecha
 		$sql = "SELECT 
 			conteo_inicial_diario.*,
 			usuarios.nombres AS nomusuario
@@ -39091,9 +39160,9 @@ public function VerificarConteoInicialHoy($codsucursal, $fecha = null, $codarque
 	}
 }
 
-public function ConsultarConteoInicialHoy($codsucursal, $fecha = null, $codarqueo = null)
+public function ConsultarConteoInicialHoy($codsucursal, $fecha = null, $codarqueo = null, $turno = null)
 {
-	return $this->VerificarConteoInicialHoy($codsucursal, $fecha, $codarqueo);
+	return $this->VerificarConteoInicialHoy($codsucursal, $fecha, $codarqueo, $turno);
 }
 
 public function ConsultarCajasPorSucursal($codsucursal)
@@ -39138,40 +39207,50 @@ public function RegistrarConteoInicialCajero()
 	$codcaja = !empty($_POST["codcaja"]) ? (int)$_POST["codcaja"] : 0;
 	$turno = !empty($_POST["turno"]) ? limpiar($_POST["turno"]) : "TURNO TARDE";
 
-	// Validar si ya existe un inventario inicial registrado para este arqueo específico
+	// Validar si ya existe un inventario inicial registrado:
+	// 1) Para este mismo arqueo específico
+	// 2) O para esta misma sucursal, fecha de hoy y mismo turno / caja
+	$conteoExistente = null;
+
 	if ($codarqueo > 0) {
-		$sqlCheck = "SELECT idconteo, fechaconteo, turno FROM conteo_inicial_diario 
+		$sqlCheck = "SELECT idconteo, fechaconteo, turno, codarqueo FROM conteo_inicial_diario 
 			WHERE codarqueo = ? 
 			ORDER BY idconteo DESC LIMIT 1";
 		$stmtCheck = $this->dbh->prepare($sqlCheck);
 		$stmtCheck->execute(array($codarqueo));
 		$conteoExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-		if ($conteoExistente) {
-			echo json_encode(array(
-				"status" => 1,
-				"idconteo" => encrypt($conteoExistente['idconteo']),
-				"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
-				"msg" => "El inventario inicial de este turno (" . ($conteoExistente['turno'] ?: 'Turno') . ") ya se encuentra registrado (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
-			));
-			exit;
-		}
-	} else {
-		// Si no tiene arqueo (ej: admin general), validar por sucursal, fecha y turno seleccionado
-		$sqlCheck = "SELECT idconteo, fechaconteo, turno FROM conteo_inicial_diario 
-			WHERE codsucursal = ? AND DATE(fechaconteo) = CURDATE() AND turno = ?
+	}
+
+	if (!$conteoExistente && (!empty($turno) || $codcaja > 0)) {
+		$sqlCheckTurno = "SELECT idconteo, fechaconteo, turno, codarqueo FROM conteo_inicial_diario 
+			WHERE codsucursal = ? 
+			AND DATE(fechaconteo) = CURDATE() 
+			AND (
+				(? != '' AND turno = ?) 
+				OR (? > 0 AND codcaja = ?)
+			)
 			ORDER BY idconteo DESC LIMIT 1";
-		$stmtCheck = $this->dbh->prepare($sqlCheck);
-		$stmtCheck->execute(array($codsucursal, $turno));
-		$conteoExistente = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-		if ($conteoExistente) {
-			echo json_encode(array(
-				"status" => 1,
-				"idconteo" => encrypt($conteoExistente['idconteo']),
-				"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
-				"msg" => "El inventario inicial para " . $turno . " de hoy ya se encuentra registrado (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
-			));
-			exit;
+		$stmtCheckTurno = $this->dbh->prepare($sqlCheckTurno);
+		$stmtCheckTurno->execute(array($codsucursal, $turno, $turno, $codcaja, $codcaja));
+		$conteoExistente = $stmtCheckTurno->fetch(PDO::FETCH_ASSOC);
+
+		// Si ya existía un conteo previo hoy para este turno sin arqueo y ahora tenemos arqueo, lo vinculamos
+		if ($conteoExistente && $codarqueo > 0 && (empty($conteoExistente['codarqueo']) || (int)$conteoExistente['codarqueo'] === 0)) {
+			$sqlUpd = "UPDATE conteo_inicial_diario SET codarqueo = ?, codcaja = ? WHERE idconteo = ?";
+			$stmtUpd = $this->dbh->prepare($sqlUpd);
+			$stmtUpd->execute(array($codarqueo, ($codcaja > 0 ? $codcaja : null), $conteoExistente['idconteo']));
+			$conteoExistente['codarqueo'] = $codarqueo;
 		}
+	}
+
+	if ($conteoExistente) {
+		echo json_encode(array(
+			"status" => 1,
+			"idconteo" => encrypt($conteoExistente['idconteo']),
+			"horaconteo" => date("h:i A", strtotime($conteoExistente['fechaconteo'])),
+			"msg" => "El inventario inicial de este turno (" . ($conteoExistente['turno'] ?: $turno) . ") ya se encuentra registrado (Folio #" . str_pad($conteoExistente['idconteo'], 5, "0", STR_PAD_LEFT) . " a las " . date("h:i A", strtotime($conteoExistente['fechaconteo'])) . ")."
+		));
+		exit;
 	}
 
 	try {

@@ -12581,7 +12581,7 @@ if (isset($_GET['CargaModalConteoInicial'])) {
 
 	// Si no vino idconteo pero tenemos codarqueo o codsucursal, verificamos si ya contó este turno
 	if ($idconteo == 0 && ($codarqueo > 0 || $codsucursal > 0)) {
-		$conteoHoy = $login->VerificarConteoInicialHoy($codsucursal, null, $codarqueo);
+		$conteoHoy = $login->VerificarConteoInicialHoy($codsucursal, null, $codarqueo, $turno);
 		if ($conteoHoy && !empty($conteoHoy['idconteo'])) {
 			$idconteo = (int)$conteoHoy['idconteo'];
 		}
