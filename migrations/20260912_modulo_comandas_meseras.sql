@@ -15,12 +15,12 @@ CREATE TABLE IF NOT EXISTS `mesasbillar` (
   KEY `idx_mesas_sucursal` (`codsucursal`, `estado`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
--- Agregar columna orden si no existe
-DELIMITER //
 -- Modificar tipo de nromesa a varchar(50)
 ALTER TABLE `mesasbillar` MODIFY COLUMN `nromesa` VARCHAR(50) NOT NULL;
-//
-DELIMITER ;
+
+-- Agregar columna orden si no existe
+ALTER TABLE `mesasbillar` ADD COLUMN IF NOT EXISTS `orden` INT(11) NOT NULL DEFAULT 0;
+
 
 -- Insertar mesas iniciales para las 4 sucursales si está vacía
 INSERT INTO `mesasbillar` (`nromesa`, `codsucursal`, `estado`)
