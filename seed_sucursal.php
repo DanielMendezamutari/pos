@@ -37,8 +37,24 @@ if (isset($_POST["accion"])) {
 }
 
 $sucursales = $seedService->obtenerSucursalesDisponibles();
+$codsucursalDefecto = (count($sucursales) > 0) ? $sucursales[0]['codsucursal'] : 6;
+foreach ($sucursales as $s) {
+    if ($s['codsucursal'] == 6 || stripos($s['nomsucursal'], 'PRUEBA') !== false) {
+        $codsucursalDefecto = $s['codsucursal'];
+        break;
+    }
+}
+$resumenInicial = $seedService->obtenerResumenSucursal($codsucursalDefecto);
+$initUsers = isset($resumenInicial['usuarios']) ? count($resumenInicial['usuarios']) : 0;
+$initCajas = isset($resumenInicial['cajas']) ? count($resumenInicial['cajas']) : 0;
+$initArqueos = isset($resumenInicial['arqueosAbiertos']) ? count($resumenInicial['arqueosAbiertos']) : 0;
+$initMesas = isset($resumenInicial['mesas']) ? count($resumenInicial['mesas']) : 0;
+$initStock = isset($resumenInicial['productos_stock']) ? $resumenInicial['productos_stock'] : 0;
+$initTotalProd = isset($resumenInicial['productos_total']) ? $resumenInicial['productos_total'] : 0;
+$initClientes = isset($resumenInicial['clientes_total']) ? $resumenInicial['clientes_total'] : 0;
 ?>
 <!DOCTYPE html>
+
 <html dir="ltr" lang="es">
 <head>
     <meta charset="utf-8">
@@ -54,6 +70,7 @@ $sucursales = $seedService->obtenerSucursalesDisponibles();
     <link href="assets/css/style.css" rel="stylesheet">
     <link href="assets/css/default.css" id="theme" rel="stylesheet">
     <link rel="stylesheet" type="text/css" href="assets/css/alert.css">
+    <script src="assets/script/jquery.min.js"></script>
 
     <style>
         .card-counter {
@@ -135,7 +152,7 @@ $sucursales = $seedService->obtenerSucursalesDisponibles();
                 </div>
             </div>
 
-            <div class="container-fluid">
+            <div class="page-content container-fluid">
 
                 <!-- Alert descriptivo -->
                 <div class="alert alert-info border-0 shadow-sm">
@@ -183,45 +200,46 @@ $sucursales = $seedService->obtenerSucursalesDisponibles();
                     <div class="col-md-2 col-sm-6">
                         <div class="card-counter" style="border-left-color: #3498db;">
                             <span class="count-title"><i class="fa fa-users"></i> Usuarios</span>
-                            <div class="count-numbers" id="numUsuarios">--</div>
-                            <span class="count-desc" id="descUsuarios">Cargando...</span>
+                            <div class="count-numbers" id="numUsuarios"><?php echo $initUsers; ?></div>
+                            <span class="count-desc" id="descUsuarios"><?php echo $initUsers > 0 ? $initUsers . ' registrados' : 'Ninguno registrado'; ?></span>
                         </div>
                     </div>
                     <div class="col-md-2 col-sm-6">
                         <div class="card-counter" style="border-left-color: #e67e22;">
                             <span class="count-title"><i class="fa fa-inbox"></i> Cajas</span>
-                            <div class="count-numbers" id="numCajas">--</div>
-                            <span class="count-desc" id="descCajas">Cargando...</span>
+                            <div class="count-numbers" id="numCajas"><?php echo $initCajas; ?></div>
+                            <span class="count-desc" id="descCajas"><?php echo $initCajas > 0 ? $initCajas . ' cajas creadas' : 'Sin cajas'; ?></span>
                         </div>
                     </div>
                     <div class="col-md-2 col-sm-6">
                         <div class="card-counter" style="border-left-color: #2ecc71;">
                             <span class="count-title"><i class="fa fa-unlock-alt"></i> Caja Abierta</span>
-                            <div class="count-numbers" id="numArqueos">--</div>
-                            <span class="count-desc" id="descArqueos">Cargando...</span>
+                            <div class="count-numbers" id="numArqueos"><?php echo $initArqueos > 0 ? '<span class="text-success"><i class="fa fa-check"></i> ' . $initArqueos . '</span>' : '<span class="text-danger"><i class="fa fa-times"></i> 0</span>'; ?></div>
+                            <span class="count-desc" id="descArqueos"><?php echo $initArqueos > 0 ? '¡Caja abierta lista!' : 'Cajas cerradas'; ?></span>
                         </div>
                     </div>
                     <div class="col-md-2 col-sm-6">
                         <div class="card-counter" style="border-left-color: #9b59b6;">
                             <span class="count-title"><i class="fa fa-circle-o"></i> Mesas Billar</span>
-                            <div class="count-numbers" id="numMesas">--</div>
-                            <span class="count-desc" id="descMesas">Cargando...</span>
+                            <div class="count-numbers" id="numMesas"><?php echo $initMesas; ?></div>
+                            <span class="count-desc" id="descMesas"><?php echo $initMesas > 0 ? $initMesas . ' mesas activas' : 'Sin mesas'; ?></span>
                         </div>
                     </div>
                     <div class="col-md-2 col-sm-6">
                         <div class="card-counter" style="border-left-color: #1abc9c;">
                             <span class="count-title"><i class="fa fa-cubes"></i> Prod. Stock</span>
-                            <div class="count-numbers" id="numProductos">--</div>
-                            <span class="count-desc" id="descProductos">Cargando...</span>
+                            <div class="count-numbers" id="numProductos"><?php echo $initStock . ' / ' . $initTotalProd; ?></div>
+                            <span class="count-desc" id="descProductos"><?php echo $initStock > 0 ? 'Con existencia' : 'Todos en 0'; ?></span>
                         </div>
                     </div>
                     <div class="col-md-2 col-sm-6">
                         <div class="card-counter" style="border-left-color: #f39c12;">
                             <span class="count-title"><i class="fa fa-address-book"></i> Clientes</span>
-                            <div class="count-numbers" id="numClientes">--</div>
-                            <span class="count-desc" id="descClientes">Cargando...</span>
+                            <div class="count-numbers" id="numClientes"><?php echo $initClientes; ?></div>
+                            <span class="count-desc" id="descClientes"><?php echo $initClientes > 0 ? $initClientes . ' registrados' : 'Sin clientes'; ?></span>
                         </div>
                     </div>
+
                 </div>
 
                 <!-- Detalle de lo que se Genera & Credenciales de Acceso -->
@@ -369,8 +387,12 @@ $sucursales = $seedService->obtenerSucursalesDisponibles();
     <script src="assets/js/bootstrap.js"></script>
     <script src="assets/js/app.min.js"></script>
     <script src="assets/js/app.init.horizontal-fullwidth.js"></script>
+    <script src="assets/js/perfect-scrollbar.js"></script>
+    <script src="assets/js/sidebarmenu.js"></script>
+    <script src="assets/js/custom.js"></script>
     <script src="assets/plugins/bower_components/toast-master/js/jquery.toast.js"></script>
     <script src="assets/js/sweetalert.min.js"></script>
     <script src="assets/script/jsseed_sucursal.js"></script>
+
 </body>
 </html>
