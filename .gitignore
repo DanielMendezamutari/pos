@@ -28,3 +28,4 @@ informes/
 *.pdf
 scripts/
 .agents/
+class/classconexion.php
