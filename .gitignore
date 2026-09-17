@@ -22,3 +22,9 @@ joker_comandas_app/ios/Pods/
 joker_comandas_app/ios/.symlinks/
 joker_comandas_app/ios/Flutter/Flutter.framework
 joker_comandas_app/ios/Flutter/Flutter.podspec
+
+# Informes ejecutivos, auditorías y skills privados (solo uso local)
+informes/
+*.pdf
+scripts/
+.agents/
