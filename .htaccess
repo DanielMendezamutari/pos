@@ -8,6 +8,9 @@ RewriteOptions inherit
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
      
+    # Redirigir panel.php/meseras o panel/meseras hacia meseras/
+    RewriteRule ^panel(\.php)?/meseras/?$ /meseras/ [R=301,L]
+
     # Remover trailing slashes.
     # ejemplo  miweb.com/algo/ redirije a miweb.com/algo
     RewriteCond %{REQUEST_FILENAME} !-d
