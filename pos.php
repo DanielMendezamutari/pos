@@ -551,8 +551,11 @@ exit;
                     <button type="button" class="btn btn-dark font-weight-bold shadow-sm mr-1" onclick="abrirModalGestionMeseras()" title="Administrar Meseras de Turno y sus PINs">
                         <i class="fa fa-users"></i> MESERAS
                     </button>
-                    <a href="comandas.apk" download class="btn btn-dark font-weight-bold shadow-sm mr-2 text-warning" title="Descargar APK de Comandas para teléfonos Android">
+                    <a href="comandas.apk" download class="btn btn-dark font-weight-bold shadow-sm mr-1 text-warning" title="Descargar APK de Comandas para teléfonos Android">
                         <i class="fa fa-android"></i> APK
+                    </a>
+                    <a href="meseras/" target="_blank" class="btn btn-dark font-weight-bold shadow-sm mr-2 text-info" title="Abrir Comandas Web para iPhone / Safari / Navegador">
+                        <i class="fa fa-apple"></i> iPHONE / WEB
                     </a>
                 <?php if(!$verif_conteo){ ?>
                     <button type="button" class="btn btn-warning text-dark font-weight-bold shadow-sm pulse-conteo" 
@@ -1214,11 +1217,16 @@ exit;
                         </table>
                     </div>
                 </div>
-                <div class="modal-footer d-flex justify-content-between">
-                    <a href="comandas.apk" download class="btn btn-warning font-weight-bold">
-                        <i class="fa fa-android"></i> Descargar APK Celulares
-                    </a>
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+                <div class="modal-footer d-flex justify-content-between flex-wrap">
+                    <div>
+                        <a href="comandas.apk" download class="btn btn-warning font-weight-bold mr-1">
+                            <i class="fa fa-android"></i> Descargar APK Celulares
+                        </a>
+                        <a href="meseras/" target="_blank" class="btn btn-info font-weight-bold">
+                            <i class="fa fa-apple"></i> Comandas Web (iPhone / Safari)
+                        </a>
+                    </div>
+                    <button type="button" class="btn btn-secondary mt-1 mt-md-0" data-dismiss="modal">Cerrar</button>
                 </div>
             </div>
         </div>

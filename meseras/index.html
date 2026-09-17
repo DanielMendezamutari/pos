@@ -14,7 +14,14 @@
     This is a placeholder for base href that will be replaced by the value of
     the `--base-href` argument provided to `flutter build`.
   -->
-  <base href="/pos/meseras/">
+  <script>
+    var p = window.location.pathname;
+    if (!p.endsWith('/')) p += '/';
+    document.write('<base href="' + p + '">');
+  </script>
+  <noscript>
+    <base href="./">
+  </noscript>
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
