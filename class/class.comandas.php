@@ -418,6 +418,17 @@ class ComandaService {
     }
 
     /**
+     * Restaura una comanda a estado PENDIENTE (deshacer cobro o anulación)
+     */
+    public function reabrirComanda($idcomanda) {
+        $stmt = $this->dbh->prepare("UPDATE comandas_meseras 
+                                     SET estado = 'PENDIENTE', codventa = NULL, fechacobro = NULL 
+                                     WHERE idcomanda = ?");
+        $stmt->execute([(int)$idcomanda]);
+        return ['success' => true, 'afectadas' => $stmt->rowCount(), 'mensaje' => 'Comanda restaurada a pendientes exitosamente.'];
+    }
+
+    /**
      * Lista comandas ya cobradas en el turno actual para consulta de la cajera
      */
     public function listarComandasCobradas($codsucursal) {

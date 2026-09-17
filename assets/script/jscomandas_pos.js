@@ -30,17 +30,45 @@ $(document).ready(function() {
         audioNotificacion = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
     } catch(e) {}
 
+    // Keep-alive silencioso de sesión cada 4 minutos para evitar que la sesión de la cajera expire por inactividad
+    iniciarKeepAliveSesion();
+
     // Polling de comandas pendientes cada 5 segundos
     setInterval(consultarComandasPendientes, 5000);
     consultarComandasPendientes();
 
-    // Hook para marcar comandas como cobradas cuando el POS guarde la venta con éxito
+    // Hook blindado para marcar comandas como cobradas ÚNICAMENTE cuando el POS guarde la venta con éxito
     $(document).ajaxSuccess(function(event, xhr, settings) {
         if (settings.url && settings.url.indexOf('pos.php') !== -1 && idComandasActivasCobro && idComandasActivasCobro.length > 0) {
             var resp = (xhr.responseText || '').trim();
-            var num = parseInt(resp, 10);
-            var esError = (!isNaN(num) && num >= 1 && num <= 15 && resp.length <= 2);
-            if (!esError) {
+
+            // Detectar si la respuesta es de SESIÓN EXPIRADA o NO AUTORIZADO
+            var sesionExpirada = (resp.indexOf('EXPIRADO') !== -1 || 
+                                  resp.indexOf('INICIAR SESION') !== -1 || 
+                                  resp.indexOf('DEBERA DE INICIAR') !== -1 ||
+                                  resp.indexOf('logout') !== -1 ||
+                                  resp.indexOf('NO TIENES PERMISO') !== -1);
+
+            if (sesionExpirada) {
+                // BLINDAJE: NUNCA marcar comanda como cobrada si la sesión expiró
+                idComandasActivasCobro = [];
+                swal({
+                    title: "¡Sesión Expirada!",
+                    text: "Tu sesión en el sistema ha caducado por tiempo. La comanda NO se cobró y permanece segura en PENDIENTES. Por favor inicia sesión nuevamente en el POS.",
+                    type: "warning",
+                    confirmButtonText: "Entendido",
+                    closeOnConfirm: true
+                });
+                consultarComandasPendientes();
+                return;
+            }
+
+            // BLINDAJE ESTRICTO: Solo marcar como cobrada si la venta fue confirmada explícitamente por el backend
+            var esVentaExitosa = (resp.indexOf('REGISTRADA EXITOSAMENTE') !== -1 || 
+                                  resp.indexOf('reportepdf') !== -1 || 
+                                  resp.indexOf('fa-check-square-o') !== -1);
+
+            if (esVentaExitosa) {
                 var comandasParaCobrar = idComandasActivasCobro.slice();
                 idComandasActivasCobro = [];
                 $.ajax({
@@ -58,6 +86,11 @@ $(document).ready(function() {
                         }
                     }
                 });
+            } else {
+                // Si hubo un error del 1 al 15 o un fallo de validación, liberar las comandas retenidas
+                // para que sigan disponibles en pendientes y no queden bloqueadas
+                idComandasActivasCobro = [];
+                consultarComandasPendientes();
             }
         }
     });
@@ -391,6 +424,9 @@ function renderizarComandasCobradas(cobradas) {
                     '    </div>' +
                     '    <div>' +
                     '      <span class="font-20 font-weight-bold text-success mr-2">Bs. ' + parseFloat(c.total).toFixed(2) + '</span>' +
+                    '      <button type="button" class="btn btn-outline-warning btn-sm font-weight-bold ml-1" onclick="reabrirComandaCobrada(' + c.idcomanda + ')" title="Devolver comanda a pendientes si no sumó o fue un cobro accidental">' +
+                    '        <i class="fa fa-undo"></i> Devolver a Pendientes' +
+                    '      </button>' +
                     '    </div>' +
                     '  </div>' +
                     '  <div class="table-responsive">' +
@@ -438,6 +474,72 @@ function anularComanda(idcomanda) {
                     consultarComandasPendientes();
                 }
             });
+        }
+    });
+}
+
+/**
+ * Restaura una comanda cobrada/cancelada devolviéndola al estado PENDIENTE
+ */
+function reabrirComandaCobrada(idcomanda) {
+    swal({
+        title: "¿Devolver comanda a Pendientes?",
+        text: "¿Deseas reabrir esta comanda para que vuelva a la lista de pendientes y pueda cobrarse nuevamente en caja?",
+        type: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#f39c12",
+        confirmButtonText: "Sí, devolver a pendientes",
+        cancelButtonText: "Cancelar",
+        closeOnConfirm: false
+    }, function(isConfirm) {
+        if (isConfirm) {
+            $.ajax({
+                url: 'api/comandas/reabrir.php',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ idcomanda: idcomanda }),
+                success: function(res) {
+                    if (res && res.success) {
+                        swal("¡Restaurada!", "La comanda ha vuelto a la lista de pendientes.", "success");
+                        consultarComandasPendientes();
+                        cargarComandasCobradas();
+                        // Activar pestaña de pendientes
+                        $('#pills-pendientes-tab').tab('show');
+                    } else {
+                        swal("Error", (res && res.mensaje) ? res.mensaje : "No se pudo restaurar la comanda.", "error");
+                    }
+                },
+                error: function() {
+                    swal("Error", "Error de comunicación al restaurar la comanda.", "error");
+                }
+            });
+        }
+    });
+}
+
+/**
+ * Inicia el keep-alive silencioso de la sesión para evitar expiración por inactividad
+ */
+function iniciarKeepAliveSesion() {
+    pingSesionCajera();
+    setInterval(pingSesionCajera, 4 * 60 * 1000); // Cada 4 minutos
+}
+
+/**
+ * Realiza un ping a session_ping.php para refrescar $_SESSION['time']
+ */
+function pingSesionCajera() {
+    $.ajax({
+        url: 'session_ping.php',
+        type: 'GET',
+        dataType: 'json',
+        success: function(res) {
+            if (res && res.activo === false) {
+                console.warn('[POS] Sesión no activa detectada por session_ping.');
+            }
+        },
+        error: function() {
+            // Silencioso ante pérdidas temporales de conexión
         }
     });
 }

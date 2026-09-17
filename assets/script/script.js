@@ -8157,7 +8157,22 @@ $('document').ready(function()
           type: 'warning',
           timeout: 5000, });
           $("#submit_guardar").html('<button type="submit" name="btn-submit" id="btn-submit" class="btn btn-danger"><span class="fa fa-print"></span> Facturar e Imprimir (F8)</button>');
-																		
+					});
+				} 
+				else if (typeof data === 'string' && (data.indexOf('EXPIRADO') !== -1 || data.indexOf('INICIAR SESION') !== -1 || data.indexOf('DEBERA DE INICIAR') !== -1 || data.indexOf('NO TIENES PERMISO') !== -1 || data.indexOf('logout') !== -1)) {
+					$("#save").fadeIn(1000, function(){
+						$("#submit_guardar").html('<button type="submit" name="btn-submit" id="btn-submit" class="btn btn-danger"><span class="fa fa-print"></span> Facturar e Imprimir (F8)</button>');
+						swal({
+							title: "¡Sesión Expirada!",
+							text: "Su sesión de cajera ha caducado por inactividad. La venta NO ha sido registrada. Debe iniciar sesión nuevamente para poder facturar.",
+							type: "warning",
+							showCancelButton: false,
+							confirmButtonColor: "#DD6B55",
+							confirmButtonText: "Iniciar Sesión",
+							closeOnConfirm: true
+						}, function() {
+							window.location.href = "logout";
+						});
 					});
 				}
 			     else{
