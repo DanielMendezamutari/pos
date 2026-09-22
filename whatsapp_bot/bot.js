@@ -25,6 +25,12 @@ const CARPETA_SALIDA = path.resolve(__dirname, config.carpeta_salida);
 const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
 const QR_HTML_PATH = path.join(__dirname, 'qr.html');
 
+if (process.argv.includes('--reset')) {
+    console.log('🧹 Limpiando sesión previa para empezar desde cero...');
+    if (fs.existsSync(AUTH_DIR)) fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+    if (fs.existsSync(QR_HTML_PATH)) fs.unlinkSync(QR_HTML_PATH);
+}
+
 if (!fs.existsSync(CARPETA_SALIDA)) {
     fs.mkdirSync(CARPETA_SALIDA, { recursive: true });
 }
@@ -172,12 +178,20 @@ async function iniciarBot() {
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
         auth: state,
-        syncFullHistory: true,
-        generateHighQualityLinkPreview: true
+        browser: ['Ubuntu', 'Chrome', '20.0.04'],
+        syncFullHistory: false,
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: undefined,
+        keepAliveIntervalMs: 30000,
+        generateHighQualityLinkPreview: false
     });
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect, qr } = update;
+
+        if (connection) {
+            console.log(`📡 Estado de conexión: ${connection}`);
+        }
 
         if (qr) {
             console.log('\n======================================================');

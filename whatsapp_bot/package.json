@@ -5,7 +5,8 @@
   "main": "bot.js",
   "type": "module",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "reset": "node bot.js --reset"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "6.7.8",
