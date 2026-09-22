@@ -1,10 +1,13 @@
-import makeWASocket, {
-    useMultiFileAuthState,
-    DisconnectReason,
-    downloadMediaMessage,
-    fetchLatestBaileysVersion
-} from '@whiskeysockets/baileys';
+import * as baileysModule from '@whiskeysockets/baileys';
 import pino from 'pino';
+
+const baileys = baileysModule.default || baileysModule;
+const makeWASocket = baileysModule.makeWASocket || (baileys.default ? baileys.default.makeWASocket : null) || baileys.makeWASocket || baileysModule.default || baileys;
+const useMultiFileAuthState = baileysModule.useMultiFileAuthState || (baileys.default ? baileys.default.useMultiFileAuthState : null) || baileys.useMultiFileAuthState;
+const DisconnectReason = baileysModule.DisconnectReason || (baileys.default ? baileys.default.DisconnectReason : null) || baileys.DisconnectReason;
+const downloadMediaMessage = baileysModule.downloadMediaMessage || (baileys.default ? baileys.default.downloadMediaMessage : null) || baileys.downloadMediaMessage;
+const fetchLatestBaileysVersion = baileysModule.fetchLatestBaileysVersion || (baileys.default ? baileys.default.fetchLatestBaileysVersion : null) || baileys.fetchLatestBaileysVersion;
+
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
