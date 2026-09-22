@@ -1,0 +1,312 @@
+import makeWASocket, {
+    useMultiFileAuthState,
+    DisconnectReason,
+    downloadMediaMessage,
+    fetchLatestBaileysVersion
+} from '@whiskeysockets/baileys';
+import pino from 'pino';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import qrcodeTerminal from 'qrcode-terminal';
+import QRCode from 'qrcode';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Cargar configuración
+const configPath = path.join(__dirname, 'config.json');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+const CARPETA_SALIDA = path.resolve(__dirname, config.carpeta_salida);
+const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
+const QR_HTML_PATH = path.join(__dirname, 'qr.html');
+
+if (!fs.existsSync(CARPETA_SALIDA)) {
+    fs.mkdirSync(CARPETA_SALIDA, { recursive: true });
+}
+
+console.log('====================================================');
+console.log('🤖 INICIANDO BOT DE AUDITORIA WHATSAPP - JOKER POS');
+console.log('📁 Carpeta destino de fotos:', CARPETA_SALIDA);
+console.log('====================================================');
+
+// Mapa dinámico de JIDs a sucursal
+let grupoMap = new Map(); // jid -> { nombre, sucursal, codsucursal }
+
+function limpiarTexto(str) {
+    if (!str) return '';
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
+function identificarGrupo(chatName) {
+    if (!chatName) return null;
+    const cleanChat = limpiarTexto(chatName);
+
+    for (const g of config.grupos) {
+        if (limpiarTexto(g.nombre) === cleanChat) return g;
+        for (const alias of g.aliases) {
+            if (cleanChat.includes(limpiarTexto(alias))) {
+                return g;
+            }
+        }
+    }
+    return null;
+}
+
+function clasificarFoto(caption) {
+    if (!caption) return 'FOTO_GENERAL';
+    const text = limpiarTexto(caption);
+
+    if (text.includes('planilla') || text.includes('mesa') || text.includes('producto') || text.includes('comanda')) {
+        return 'PLANILLA_CIERRE';
+    }
+    if (text.includes('arqueo') || text.includes('cierre') || text.includes('sobre') || text.includes('efectivo') || text.includes('caja chica')) {
+        return 'PAPELITO_ARQUEO';
+    }
+    if (text.includes('ingreso') || text.includes('compra') || text.includes('factura') || text.includes('nota') || text.includes('llego') || text.includes('pedido') || text.includes('cerveza')) {
+        return 'INGRESO_MERCADERIA';
+    }
+    if (text.includes('gasto') || text.includes('recibo') || text.includes('taxi') || text.includes('limon') || text.includes('hielo')) {
+        return 'GASTO_MENOR';
+    }
+    return 'FOTO_GENERAL';
+}
+
+async function procesarMensajeImagen(sock, msg, infoGrupo) {
+    try {
+        let m = msg.message;
+        if (m?.viewOnceMessage?.message) {
+            m = m.viewOnceMessage.message;
+        } else if (m?.viewOnceMessageV2?.message) {
+            m = m.viewOnceMessageV2.message;
+        }
+
+        const isImage = !!m?.imageMessage;
+        const isDocImage = m?.documentMessage?.mimetype?.startsWith('image/');
+
+        if (!isImage && !isDocImage) return;
+
+        const imgMsg = isImage ? m.imageMessage : m.documentMessage;
+        const caption = imgMsg.caption || '';
+        const timestamp = (msg.messageTimestamp ? Number(msg.messageTimestamp) * 1000 : Date.now());
+        const dateObj = new Date(timestamp);
+
+        const fechaStr = dateObj.toISOString().slice(0, 10); // YYYY-MM-DD
+        const horaStr = dateObj.toTimeString().slice(0, 8).replace(/:/g, '-'); // HH-mm-ss
+        const remitente = msg.pushName ? msg.pushName.replace(/[^a-zA-Z0-9_-]/g, '_') : 'cajero';
+        const tipoClasif = clasificarFoto(caption);
+
+        // Directorio: auditoria_fotos/YYYY-MM-DD/SUCURSAL/
+        const dirDiaSucursal = path.join(CARPETA_SALIDA, fechaStr, infoGrupo.sucursal);
+        if (!fs.existsSync(dirDiaSucursal)) {
+            fs.mkdirSync(dirDiaSucursal, { recursive: true });
+        }
+
+        const msgId = msg.key.id || Date.now().toString();
+        const extension = isImage ? '.jpg' : path.extname(imgMsg.fileName || '.jpg') || '.jpg';
+        const nombreArchivo = `${horaStr}_${tipoClasif}_${remitente}_${msgId.slice(-6)}${extension}`;
+        const rutaFinal = path.join(dirDiaSucursal, nombreArchivo);
+
+        if (fs.existsSync(rutaFinal)) {
+            return; // Ya fue descargada
+        }
+
+        console.log(`📥 Descargando imagen de [${infoGrupo.sucursal}] de ${remitente} (${fechaStr} ${horaStr})...`);
+        const buffer = await downloadMediaMessage(
+            msg,
+            'buffer',
+            {},
+            {
+                logger: pino({ level: 'silent' }),
+                reuploadRequest: sock.updateMediaMessage
+            }
+        );
+
+        fs.writeFileSync(rutaFinal, buffer);
+        console.log(`✅ Guardada exitosamente: ${nombreArchivo} [${tipoClasif}]`);
+
+        // Registrar metadatos
+        const metaPath = path.join(dirDiaSucursal, 'registro_fotos.json');
+        let lista = [];
+        if (fs.existsSync(metaPath)) {
+            try {
+                lista = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
+            } catch (e) {
+                lista = [];
+            }
+        }
+
+        lista.push({
+            id: msgId,
+            archivo: nombreArchivo,
+            fecha: fechaStr,
+            hora: horaStr,
+            timestamp: timestamp,
+            remitente: msg.pushName || 'Desconocido',
+            remitente_num: msg.key.participant || msg.key.remoteJid,
+            caption: caption,
+            clasificacion: tipoClasif,
+            sucursal: infoGrupo.sucursal,
+            codsucursal: infoGrupo.codsucursal,
+            grupo_nombre: infoGrupo.nombre
+        });
+
+        fs.writeFileSync(metaPath, JSON.stringify(lista, null, 2), 'utf8');
+
+    } catch (err) {
+        console.error('❌ Error al procesar imagen:', err.message);
+    }
+}
+
+async function iniciarBot() {
+    const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+    console.log(`Usando versión Baileys: v${version.join('.')}, más reciente: ${isLatest}`);
+
+    const sock = makeWASocket({
+        version,
+        logger: pino({ level: 'silent' }),
+        printQRInTerminal: false,
+        auth: state,
+        syncFullHistory: true,
+        generateHighQualityLinkPreview: true
+    });
+
+    sock.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
+
+        if (qr) {
+            console.log('\n======================================================');
+            console.log('📲 CÓDIGO QR GENERADO. ESCANÉALO CON TU WHATSAPP:');
+            console.log('======================================================\n');
+            qrcodeTerminal.generate(qr, { small: true });
+
+            // Generar HTML visual para abrirlo en el navegador si lo prefiere
+            try {
+                const qrDataURL = await QRCode.toDataURL(qr, { width: 350 });
+                const html = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Escanear QR WhatsApp - Joker POS</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #fff; text-align: center; padding: 40px; }
+        .card { background: #16213e; display: inline-block; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        img { border-radius: 12px; background: white; padding: 12px; }
+        h2 { color: #00ffcc; margin-top: 0; }
+        ol { text-align: left; max-width: 320px; margin: 20px auto; color: #ccc; line-height: 1.6; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h2>🤖 Joker POS - Auditoría WhatsApp</h2>
+        <p>Abre WhatsApp en tu teléfono y escanea este código:</p>
+        <img src="${qrDataURL}" alt="Código QR WhatsApp" />
+        <ol>
+            <li>Abre WhatsApp en tu teléfono</li>
+            <li>Toca en <strong>Menú (tres puntos)</strong> o <strong>Configuración</strong></li>
+            <li>Selecciona <strong>Dispositivos vinculados</strong></li>
+            <li>Toca en <strong>Vincular un dispositivo</strong> y apunta tu cámara aquí</li>
+        </ol>
+        <p style="color: #888; font-size: 13px;">El código se actualiza automáticamente.</p>
+    </div>
+</body>
+</html>`;
+                fs.writeFileSync(QR_HTML_PATH, html, 'utf8');
+                console.log(`🌐 También puedes abrir el QR en tu navegador aquí:`);
+                console.log(`   file:///${QR_HTML_PATH.replace(/\\/g, '/')}\n`);
+            } catch (err) {
+                console.error('Error generando QR HTML:', err.message);
+            }
+        }
+
+        if (connection === 'close') {
+            const shouldReconnect = (lastDisconnect?.error)?.output?.statusCode !== DisconnectReason.loggedOut;
+            console.log('Conexión cerrada por:', lastDisconnect?.error?.message, 'Reconectando:', shouldReconnect);
+            if (shouldReconnect) {
+                setTimeout(iniciarBot, 3000);
+            } else {
+                console.log('Sesión cerrada permanentemente. Borra la carpeta auth_info_baileys para volver a escanear.');
+            }
+        } else if (connection === 'open') {
+            console.log('\n🎉 ¡CONEXIÓN EXITOSA CON WHATSAPP!');
+            console.log('El bot está activo y escuchando los grupos de auditoría.\n');
+
+            // Borrar el archivo HTML de QR ya que se vinculó
+            if (fs.existsSync(QR_HTML_PATH)) {
+                fs.unlinkSync(QR_HTML_PATH);
+            }
+
+            // Descubrir y mapear grupos
+            try {
+                const chats = await sock.groupFetchAllParticipating();
+                console.log('📋 GRUPOS ENCONTRADOS EN TU CUENTA:');
+                console.log('----------------------------------------------------');
+                for (const jid in chats) {
+                    const c = chats[jid];
+                    const match = identificarGrupo(c.subject);
+                    if (match) {
+                        grupoMap.set(jid, {
+                            jid,
+                            nombre: c.subject,
+                            sucursal: match.sucursal,
+                            codsucursal: match.codsucursal
+                        });
+                        console.log(`✅ [VINCULADO] "${c.subject}" ➡️ SUCURSAL: ${match.sucursal} (ID: ${match.codsucursal})`);
+                    } else {
+                        // console.log(`   [Otro] "${c.subject}"`);
+                    }
+                }
+                console.log('----------------------------------------------------');
+                console.log(`Total grupos de auditoría monitoreados: ${grupoMap.size} de 5`);
+            } catch (e) {
+                console.log('Aviso al listar grupos:', e.message);
+            }
+        }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    // Evento de recepción de mensajes nuevos
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+        for (const msg of messages) {
+            if (!msg.message) continue;
+            const jid = msg.key.remoteJid;
+
+            // Verificar si el chat está mapeado a un grupo de auditoría
+            let infoGrupo = grupoMap.get(jid);
+            if (!infoGrupo) {
+                // Intentar buscar el nombre del grupo si no estaba en el mapa inicial
+                continue;
+            }
+
+            // Procesar si contiene foto
+            await procesarMensajeImagen(sock, msg, infoGrupo);
+        }
+    });
+
+    // Evento de recepción de historial sincronizado (fotos pasadas)
+    sock.ev.on('messaging-history.set', async ({ chats, messages }) => {
+        console.log(`📥 Sincronizando historial inicial de WhatsApp (${messages.length} mensajes recibidos)...`);
+        let fotosHistoricas = 0;
+        for (const msg of messages) {
+            if (!msg.message) continue;
+            const jid = msg.key.remoteJid;
+            const infoGrupo = grupoMap.get(jid);
+            if (infoGrupo) {
+                const m = msg.message;
+                const isImage = !!m?.imageMessage || !!m?.documentMessage?.mimetype?.startsWith('image/') || !!m?.viewOnceMessage?.message?.imageMessage;
+                if (isImage) {
+                    await procesarMensajeImagen(sock, msg, infoGrupo);
+                    fotosHistoricas++;
+                }
+            }
+        }
+        if (fotosHistoricas > 0) {
+            console.log(`✨ Se procesaron ${fotosHistoricas} fotos del historial reciente.`);
+        }
+    });
+}
+
+iniciarBot().catch(err => console.error('Error fatal al iniciar bot:', err));

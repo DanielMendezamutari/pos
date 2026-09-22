@@ -1,0 +1,16 @@
+{
+  "name": "joker-pos-whatsapp-bot",
+  "version": "1.0.0",
+  "description": "Bot de descarga automática y clasificación de fotos de auditoría para Joker POS",
+  "main": "bot.js",
+  "type": "module",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^6.7.9",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0",
+    "qrcode": "^1.5.4"
+  }
+}

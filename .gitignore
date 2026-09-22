@@ -29,3 +29,11 @@ informes/
 scripts/
 .agents/
 class/classconexion.php
+
+# WhatsApp Bot y Archivos de Auditoria
+auditoria_fotos/
+whatsapp_bot/auth_info_baileys/
+whatsapp_bot/node_modules/
+whatsapp_bot/qr.html
+
+

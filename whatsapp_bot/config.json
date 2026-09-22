@@ -1,0 +1,36 @@
+{
+  "grupos": [
+    {
+      "nombre": "Cajeros Joker🎱",
+      "aliases": ["Cajeros Joker", "Cajeros Joker🎱", "Joker Central"],
+      "sucursal": "CENTRAL",
+      "codsucursal": 2
+    },
+    {
+      "nombre": "Arqueo pocitos",
+      "aliases": ["Arqueo pocitos", "pocitos"],
+      "sucursal": "CENTRAL",
+      "codsucursal": 2
+    },
+    {
+      "nombre": "Arqueo Joker express",
+      "aliases": ["Arqueo Joker express", "Joker express", "express"],
+      "sucursal": "EXPRESS",
+      "codsucursal": 4
+    },
+    {
+      "nombre": "Reportes Joker ULTRA",
+      "aliases": ["Reportes Joker ULTRA", "Joker ULTRA", "ULTRA"],
+      "sucursal": "ULTRA",
+      "codsucursal": 3
+    },
+    {
+      "nombre": "Stock MEGA JOKER",
+      "aliases": ["Stock MEGA JOKER", "MEGA JOKER", "MEGA"],
+      "sucursal": "MEGA",
+      "codsucursal": 1
+    }
+  ],
+  "carpeta_salida": "../auditoria_fotos",
+  "dias_historico_barrido": 14
+}
