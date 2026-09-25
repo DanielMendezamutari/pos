@@ -49,7 +49,6 @@ if ($accion === 'status') {
         'qr_disponible' => $tieneQr,
         'url_qr' => 'https://joker.ribersoft.com/whatsapp_bot/qr.html',
         'directorio_bot' => $botDir,
-        'node_info' => trim(@shell_exec('export PATH=$PATH:/usr/local/bin:/usr/bin:~/.nvm/versions/node/$(ls ~/.nvm/versions/node 2>/dev/null | tail -n 1)/bin; which node; find /home/vnplktsg -maxdepth 4 -name "node" -type f 2>/dev/null') ?? ''),
         'fotos_dir_existe' => is_dir($baseDir),
         'ultimas_lineas_log' => $ultimasLineas
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);

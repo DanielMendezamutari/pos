@@ -19,7 +19,7 @@ if [ -n "$PID" ]; then
 else
     # Auto-detección del binario de Node.js en cPanel / CloudLinux
     NODE_BIN=""
-    for p in $(which node 2>/dev/null) /opt/cpanel/ea-nodejs18/bin/node /opt/cpanel/ea-nodejs20/bin/node /opt/cpanel/ea-nodejs16/bin/node /usr/local/bin/node /usr/bin/node /home/vnplktsg/nodevenv/*/bin/node; do
+    for p in /home/vnplktsg/.nvm/versions/node/*/bin/node ~/.nvm/versions/node/*/bin/node $(which node 2>/dev/null) /opt/cpanel/ea-nodejs18/bin/node /opt/cpanel/ea-nodejs20/bin/node /opt/cpanel/ea-nodejs16/bin/node /usr/local/bin/node /usr/bin/node /home/vnplktsg/nodevenv/*/bin/node; do
         if [ -x "$p" ]; then
             NODE_BIN="$p"
             break
