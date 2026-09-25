@@ -324,10 +324,23 @@ async function iniciarBot() {
 
             // Verificar si el chat está mapeado a un grupo de auditoría
             let infoGrupo = grupoMap.get(jid);
-            if (!infoGrupo) {
-                // Intentar buscar el nombre del grupo si no estaba en el mapa inicial
-                continue;
+            if (!infoGrupo && jid.endsWith('@g.us')) {
+                try {
+                    const groupMeta = await sock.groupMetadata(jid);
+                    const match = identificarGrupo(groupMeta.subject);
+                    if (match) {
+                        infoGrupo = {
+                            jid,
+                            nombre: groupMeta.subject,
+                            sucursal: match.sucursal,
+                            codsucursal: match.codsucursal
+                        };
+                        grupoMap.set(jid, infoGrupo);
+                        console.log(`✨ [AUTO-MAPEO] "${groupMeta.subject}" -> ${match.sucursal}`);
+                    }
+                } catch (e) {}
             }
+            if (!infoGrupo) continue;
 
             // Procesar si contiene foto
             await procesarMensajeImagen(sock, msg, infoGrupo);

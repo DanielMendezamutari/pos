@@ -55,6 +55,27 @@ if ($accion === 'status') {
     exit;
 }
 
+if ($accion === 'fotos_recientes') {
+    header('Content-Type: application/json; charset=utf-8');
+    $archivos = [];
+    if (is_dir($baseDir)) {
+        $iter = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($baseDir));
+        foreach ($iter as $file) {
+            if ($file->isFile() && preg_match('/\.(jpg|jpeg|png|webp)$/i', $file->getFilename())) {
+                $archivos[] = [
+                    'ruta' => str_replace('\\', '/', str_replace($baseDir . DIRECTORY_SEPARATOR, '', $file->getPathname())),
+                    'nombre' => $file->getFilename(),
+                    'tamano' => $file->getSize(),
+                    'modificado' => date('Y-m-d H:i:s', $file->getMTime())
+                ];
+            }
+        }
+        usort($archivos, fn($a, $b) => strcmp($b['modificado'], $a['modificado']));
+    }
+    echo json_encode(['total' => count($archivos), 'archivos' => array_slice($archivos, 0, 30)], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($accion === 'actualizar_git') {
     header('Content-Type: application/json; charset=utf-8');
     $repoDir = dirname(__DIR__);
