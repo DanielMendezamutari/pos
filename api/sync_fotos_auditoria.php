@@ -42,6 +42,10 @@ if ($accion === 'status') {
         if ($lineas) $ultimasLineas = array_map('trim', array_slice($lineas, -15));
     }
 
+    $colaDir = $botDir . '/cola_envios';
+    $archivosCola = is_dir($colaDir) ? glob($colaDir . '/*.json') : [];
+    $archivosProc = is_dir($colaDir) ? glob($colaDir . '/*.processing') : [];
+
     echo json_encode([
         'bot_corriendo' => !empty($pid),
         'pid' => $pid ?: null,
@@ -50,6 +54,8 @@ if ($accion === 'status') {
         'url_qr' => 'https://joker.ribersoft.com/whatsapp_bot/qr.html',
         'directorio_bot' => $botDir,
         'fotos_dir_existe' => is_dir($baseDir),
+        'pendientes_cola' => count($archivosCola),
+        'en_proceso_cola' => count($archivosProc),
         'ultimas_lineas_log' => $ultimasLineas
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
