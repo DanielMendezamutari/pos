@@ -9,8 +9,8 @@
 BOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$BOT_DIR" || exit 1
 
-# Verificar si node bot.js está corriendo
-PID=$(pgrep -f "node bot.js" | head -n 1)
+# Verificar si bot.js está corriendo
+PID=$(pgrep -f "bot.js" | head -n 1)
 
 if [ -n "$PID" ]; then
     # El bot ya está corriendo normalmente

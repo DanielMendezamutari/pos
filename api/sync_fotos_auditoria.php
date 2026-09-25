@@ -32,7 +32,7 @@ if ($accion === 'status') {
     $logPath = $botDir . '/bot_salida.log';
     $watchdogLog = $botDir . '/bot_watchdog.log';
 
-    $pid = trim(@shell_exec('pgrep -f "node bot.js" | head -n 1') ?? '');
+    $pid = trim(@shell_exec('pgrep -f "bot.js" | head -n 1') ?? '');
     $tieneSesion = is_dir($authDir) && count(glob($authDir . '/*')) > 2;
     $tieneQr = file_exists($qrPath);
 
