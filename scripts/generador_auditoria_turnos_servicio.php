@@ -638,35 +638,71 @@ class AuditoriaService extends Db {
             ];
         }
 
-        // Buscar primero fotos de cuaderno o planilla
+        // Analizar las fotos de cierre disponibles (hasta 2 fotos para consolidar cuaderno de mesas + sobre de dinero/gastos)
         rsort($fotos);
-        $fotoAnalizar = $fotos[0];
-        foreach ($fotos as $f) {
-            $nomF = strtoupper(basename($f));
-            if (strpos($nomF, 'CUADERNO') !== false || strpos($nomF, 'PLANILLA') !== false || strpos($nomF, 'STOCK') !== false) {
-                $fotoAnalizar = $f;
-                break;
+        $fotosAnalizar = array_slice($fotos, 0, 2);
+
+        $extraccionConsolidada = [
+            'productos_anotados' => [],
+            'stock_fisico_contado' => [],
+            'gastos_o_vales' => [],
+            'total_declarado' => 0,
+            'total_efectivo_declarado' => 0,
+            'total_qr_declarado' => 0,
+            'tipo_documento' => 'LIBRETA_VENTAS',
+            'alertas_visuales' => []
+        ];
+
+        $algunaAnalizada = false;
+        foreach ($fotosAnalizar as $f) {
+            $ext = $auditor->analizarFoto($f);
+            if ($ext) {
+                $algunaAnalizada = true;
+                if (!empty($ext['productos_anotados'])) {
+                    $extraccionConsolidada['productos_anotados'] = array_merge($extraccionConsolidada['productos_anotados'], $ext['productos_anotados']);
+                }
+                if (!empty($ext['stock_fisico_contado'])) {
+                    $extraccionConsolidada['stock_fisico_contado'] = array_merge($extraccionConsolidada['stock_fisico_contado'], $ext['stock_fisico_contado']);
+                }
+                if (!empty($ext['gastos_o_vales'])) {
+                    $extraccionConsolidada['gastos_o_vales'] = array_merge($extraccionConsolidada['gastos_o_vales'], $ext['gastos_o_vales']);
+                }
+                if (!empty($ext['total_declarado']) && $ext['total_declarado'] > $extraccionConsolidada['total_declarado']) {
+                    $extraccionConsolidada['total_declarado'] = $ext['total_declarado'];
+                }
+                if (!empty($ext['total_efectivo_declarado']) && $ext['total_efectivo_declarado'] > $extraccionConsolidada['total_efectivo_declarado']) {
+                    $extraccionConsolidada['total_efectivo_declarado'] = $ext['total_efectivo_declarado'];
+                }
+                if (!empty($ext['total_qr_declarado']) && $ext['total_qr_declarado'] > $extraccionConsolidada['total_qr_declarado']) {
+                    $extraccionConsolidada['total_qr_declarado'] = $ext['total_qr_declarado'];
+                }
+                if (!empty($ext['alertas_visuales'])) {
+                    $extraccionConsolidada['alertas_visuales'] = array_merge($extraccionConsolidada['alertas_visuales'], $ext['alertas_visuales']);
+                }
             }
         }
 
-        $extraccion = $auditor->analizarFoto($fotoAnalizar);
-        if (!$extraccion) {
+        if (!$algunaAnalizada) {
             return [
                 'tiene_analisis' => false,
-                'mensaje' => 'No se pudo decodificar la imagen con Gemini Vision.'
+                'mensaje' => 'No se pudo decodificar las fotos con Gemini Vision.'
             ];
         }
 
-        $cruceCuaderno = $auditor->cruzarCuadernoVsPos($codarqueo, $extraccion);
-        $cruceInventario = $auditor->cruzarInventarioVsSistema($codsucursal, $extraccion);
+        $cruceCuaderno = $auditor->cruzarCuadernoVsPos($codarqueo, $extraccionConsolidada);
+        $cruceInventario = $auditor->cruzarInventarioVsSistema($codsucursal, $extraccionConsolidada);
+
+        $pagos = $codarqueo ? $this->obtenerPagosPorMedio($codarqueo) : ['total' => 0, 'efectivo' => 0, 'qr' => 0];
+        $evaluacionManual = $auditor->evaluarCuadreManualVsPos($codarqueo, $extraccionConsolidada, $pagos['total'], $pagos['efectivo'], $pagos['qr']);
 
         return [
             'tiene_analisis' => true,
-            'foto' => basename($fotoAnalizar),
-            'tipo_documento' => $extraccion['tipo_documento'] ?? 'OTRO',
+            'foto' => basename($fotosAnalizar[0]),
+            'tipo_documento' => $extraccionConsolidada['tipo_documento'],
             'cruce_cuaderno' => $cruceCuaderno,
             'cruce_inventario' => $cruceInventario,
-            'alertas_visuales' => $extraccion['alertas_visuales'] ?? []
+            'evaluacion_manual' => $evaluacionManual,
+            'alertas_visuales' => $extraccionConsolidada['alertas_visuales']
         ];
     }
 }

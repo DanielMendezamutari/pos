@@ -62,10 +62,12 @@ IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdow
       "cantidad_fisica": 0.0
     }
   ],
+  "total_declarado": 0.0,
   "total_efectivo_declarado": 0.0,
+  "total_qr_declarado": 0.0,
   "gastos_o_vales": [
     {
-      "concepto": "descripción",
+      "concepto": "descripción del gasto (ej: pago personal, hielo, taxi, etc.)",
       "monto": 0.0
     }
   ],
@@ -269,6 +271,106 @@ PROMPT;
             'coincidencias' => $coincidencias,
             'discrepancias' => $discrepancias,
             'cuadrado' => empty($discrepancias)
+        ];
+    }
+
+    /**
+     * Evalúa si la hoja de cuadre manual cuadra con el POS y detecta gastos/egresos
+     */
+    public function evaluarCuadreManualVsPos($codarqueo, $extraccionIA, $totalRecaudadoPos, $efectivoPos = 0, $qrPos = 0) {
+        if (empty($extraccionIA)) {
+            return [
+                'tiene_cuadre' => false,
+                'resumen_corto' => '⏳ Sin foto de cuadre recibida',
+                'linea_gastos' => ''
+            ];
+        }
+
+        // 1. Extraer gastos y salidas anotadas por el cajero en la hoja manual
+        $gastos = $extraccionIA['gastos_o_vales'] ?? $extraccionIA['gastos_o_salidas'] ?? [];
+        $totalGastosHoja = 0.0;
+        $conceptosGastos = [];
+        foreach ($gastos as $g) {
+            $m = floatval($g['monto'] ?? 0);
+            if ($m > 0) {
+                $totalGastosHoja += $m;
+                $conc = trim($g['concepto'] ?? 'Gasto vario');
+                $conceptosGastos[] = "{$conc} Bs. " . number_format($m, 0);
+            }
+        }
+
+        // 2. Verificar si en el sistema POS se registraron esos egresos
+        $totalGastosPos = 0.0;
+        if ($codarqueo) {
+            $sqlMov = "SELECT SUM(montomovimiento) as tot_mov FROM movimientoscajas WHERE codarqueo = :codarqueo AND tipomovimiento = 'EGRESO'";
+            $stmtMov = $this->dbh->prepare($sqlMov);
+            $stmtMov->execute([':codarqueo' => $codarqueo]);
+            $rMov = $stmtMov->fetch(PDO::FETCH_ASSOC);
+            $totalGastosPos = floatval($rMov['tot_mov'] ?? 0);
+
+            if ($totalGastosPos == 0) {
+                $sqlArq = "SELECT egresos FROM arqueocaja WHERE codarqueo = :codarqueo";
+                $stmtArq = $this->dbh->prepare($sqlArq);
+                $stmtArq->execute([':codarqueo' => $codarqueo]);
+                $rArq = $stmtArq->fetch(PDO::FETCH_ASSOC);
+                $totalGastosPos = floatval($rArq['egresos'] ?? 0);
+            }
+        }
+
+        // 3. Evaluar cruce de dinero declarado en la hoja
+        $totalDeclarado = floatval($extraccionIA['total_declarado'] ?? 0);
+        if ($totalDeclarado == 0) {
+            $totalDeclarado = floatval($extraccionIA['total_efectivo_declarado'] ?? 0) + floatval($extraccionIA['total_qr_declarado'] ?? 0);
+        }
+
+        $cuadraDinero = true;
+        $difDinero = 0.0;
+        if ($totalDeclarado > 0) {
+            $difDinero = round($totalDeclarado - $totalRecaudadoPos, 2);
+            $cuadraDinero = (abs($difDinero) <= 5.0); // Tolerancia mínima de 5 Bs
+        }
+
+        // 4. Evaluar cruce de productos si están anotados
+        $cruceProds = $this->cruzarCuadernoVsPos($codarqueo, $extraccionIA);
+        $cuadranProductos = $cruceProds['cuadrado'] ?? true;
+
+        // 5. Redacción del estado de Cuadre Manual
+        $cuadraTodo = $cuadraDinero && $cuadranProductos;
+        $estadoCuadre = "";
+        if ($cuadraTodo) {
+            $estadoCuadre = "Cuadra con el sistema ✅";
+        } else {
+            if (!$cuadraDinero && abs($difDinero) > 0) {
+                $estadoCuadre = "⚠️ Diferencia de Bs. " . number_format(abs($difDinero), 2) . " vs POS";
+            } elseif (!$cuadranProductos) {
+                $cantDisc = count($cruceProds['discrepancias'] ?? []);
+                $estadoCuadre = "⚠️ {$cantDisc} productos con diferencia vs POS";
+            } else {
+                $estadoCuadre = "⚠️ Revisar diferencias con el sistema";
+            }
+        }
+
+        // 6. Redacción clara y corta de Gastos en Hoja
+        $lineaGastos = "";
+        if ($totalGastosHoja > 0) {
+            $descG = implode(', ', array_slice($conceptosGastos, 0, 3));
+            if ($totalGastosPos > 0 && abs($totalGastosHoja - $totalGastosPos) <= 5) {
+                $lineaGastos = "Bs. " . number_format($totalGastosHoja, 2) . " ({$descG}) - Registrado en POS ✅";
+            } else {
+                $lineaGastos = "⚠️ Bs. " . number_format($totalGastosHoja, 2) . " ({$descG}) - NO registrado en POS";
+            }
+        } else {
+            $lineaGastos = "Sin gastos anotados";
+        }
+
+        return [
+            'tiene_cuadre' => true,
+            'cuadra_todo' => $cuadraTodo,
+            'estado_cuadre' => $estadoCuadre,
+            'hubo_gastos' => ($totalGastosHoja > 0),
+            'linea_gastos' => $lineaGastos,
+            'total_gastos_hoja' => $totalGastosHoja,
+            'cruce_cuaderno' => $cruceProds
         ];
     }
 }

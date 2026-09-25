@@ -83,28 +83,34 @@ foreach ($sucursales as $suc) {
         $resumenTexto .= "📦 *Productos Vendidos:*\n" . implode("\n", $lineasProds) . "\n";
     }
 
-    // Auditoría Visual con Gemini Vision sobre fotos recibidas de cuaderno/inventario
+    // Auditoría Visual: Cruce de fotos de cuadre manual y gastos
     try {
         $resVision = $service->auditarFotosSucursalConIA($suc, $arq['codarqueo'] ?? 0, $fechaIso);
         if (!empty($resVision['tiene_analisis'])) {
-            $tipoDoc = $resVision['tipo_documento'];
-            if (!empty($resVision['cruce_cuaderno']['coincidencias'])) {
-                $cntC = count($resVision['cruce_cuaderno']['coincidencias']);
-                $totalLibreta = !empty($resVision['datos_extraidos']['total_calculado']) ? " (Anotado: Bs. " . number_format($resVision['datos_extraidos']['total_calculado'], 2) . ")" : "";
-                $resumenTexto .= "👁️ *Libreta del Cajero:* {$cntC} productos coinciden con el POS{$totalLibreta}.\n";
-            }
-            if (!empty($resVision['cruce_cuaderno']['discrepancias'])) {
-                foreach (array_slice($resVision['cruce_cuaderno']['discrepancias'], 0, 2) as $dCuad) {
-                    $resumenTexto .= "   ⚠️ *Observación en libreta:* {$dCuad}\n";
+            $evMan = $resVision['evaluacion_manual'] ?? [];
+            if (!empty($evMan['tiene_cuadre'])) {
+                $resumenTexto .= "📝 *Cuadre Manual:* {$evMan['estado_cuadre']}\n";
+                if (!empty($evMan['hubo_gastos'])) {
+                    $resumenTexto .= "💸 *Gastos en hoja:* {$evMan['linea_gastos']}\n";
+                } else {
+                    $resumenTexto .= "💸 *Gastos en hoja:* Sin gastos anotados\n";
                 }
+            } else {
+                $resumenTexto .= "📝 *Cuadre Manual:* Cuadra con el sistema ✅\n";
+                $resumenTexto .= "💸 *Gastos en hoja:* Sin gastos anotados\n";
             }
+
             if (!empty($resVision['cruce_inventario']['discrepancias'])) {
-                foreach (array_slice($resVision['cruce_inventario']['discrepancias'], 0, 2) as $dInv) {
-                    $resumenTexto .= "   📦 *Observación en foto de stock:* {$dInv}\n";
+                foreach (array_slice($resVision['cruce_inventario']['discrepancias'], 0, 1) as $dInv) {
+                    $resumenTexto .= "📦 *Diferencia en foto de stock:* {$dInv}\n";
                 }
             }
+        } else {
+            $resumenTexto .= "📝 *Cuadre Manual:* ⏳ Sin foto de cuadre recibida aún\n";
         }
-    } catch (Exception $eVision) {}
+    } catch (Exception $eVision) {
+        $resumenTexto .= "📝 *Cuadre Manual:* ⏳ Pendiente de verificación\n";
+    }
 
     // Alertas de auditoría operativa
     if (!empty($anomalias)) {
