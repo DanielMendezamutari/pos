@@ -17,9 +17,21 @@ if [ -n "$PID" ]; then
     # echo "Bot activo (PID: $PID)"
     exit 0
 else
+    # Auto-detección del binario de Node.js en cPanel / CloudLinux
+    NODE_BIN=""
+    for p in $(which node 2>/dev/null) /opt/cpanel/ea-nodejs18/bin/node /opt/cpanel/ea-nodejs20/bin/node /opt/cpanel/ea-nodejs16/bin/node /usr/local/bin/node /usr/bin/node /home/vnplktsg/nodevenv/*/bin/node; do
+        if [ -x "$p" ]; then
+            NODE_BIN="$p"
+            break
+        fi
+    done
+    if [ -z "$NODE_BIN" ]; then
+        NODE_BIN="node"
+    fi
+
     # El bot está caído: Levantarlo en segundo plano
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🤖 El bot estaba apagado. Reiniciando en segundo plano..." >> bot_watchdog.log
-    nohup node --experimental-global-webcrypto bot.js >> bot_salida.log 2>&1 &
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🤖 El bot estaba apagado. Reiniciando con $NODE_BIN..." >> bot_watchdog.log
+    nohup "$NODE_BIN" --experimental-global-webcrypto bot.js >> bot_salida.log 2>&1 &
     NUEVO_PID=$!
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Bot reiniciado con éxito (PID: $NUEVO_PID)" >> bot_watchdog.log
 fi
