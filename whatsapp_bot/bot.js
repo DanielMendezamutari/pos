@@ -464,19 +464,41 @@ async function iniciarBot() {
         }
     }
 
-    // Bucle vigilante de la cola de envíos (cada 2 segundos)
+    // Bucle vigilante de la cola de envíos (cada 2 segundos) con protección anti-duplicados (Mutex)
+    let procesandoCola = false;
     setInterval(async () => {
+        if (procesandoCola) return;
         try {
             if (!fs.existsSync(COLA_DIR)) return;
-            const files = fs.readdirSync(COLA_DIR).filter(f => f.endsWith('.json'));
+            const files = fs.readdirSync(COLA_DIR).filter(f => f.endsWith('.json')).sort();
+            if (files.length === 0) return;
+
+            procesandoCola = true;
             for (const f of files) {
                 const p = path.join(COLA_DIR, f);
-                const ok = await procesarArchivoEnvio(p);
-                if (ok || Date.now() - fs.statSync(p).mtimeMs > 60000) {
-                    try { fs.unlinkSync(p); } catch (e) {}
+                if (!fs.existsSync(p)) continue;
+
+                // Renombrar a .processing inmediatamente para evitar que otro ciclo lo tome
+                const processingPath = p.replace(/\.json$/, '.processing');
+                try {
+                    fs.renameSync(p, processingPath);
+                } catch (e) {
+                    continue;
                 }
+
+                await procesarArchivoEnvio(processingPath);
+                try { 
+                    if (fs.existsSync(processingPath)) fs.unlinkSync(processingPath); 
+                } catch (e) {}
+
+                // Espera de 1.5 segundos entre envíos para garantizar orden y estabilidad en WhatsApp
+                await new Promise(res => setTimeout(res, 1500));
             }
-        } catch (e) {}
+        } catch (e) {
+            console.error('⚠️ Error en cola de envíos:', e.message);
+        } finally {
+            procesandoCola = false;
+        }
     }, 2000);
 }
 

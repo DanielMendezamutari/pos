@@ -38,15 +38,32 @@ foreach ($sucursales as $suc) {
 
     $arq = $service->obtenerUltimoArqueo($cod);
     $pagos = $arq ? $service->obtenerPagosPorMedio($arq['codarqueo']) : ['efectivo' => 0, 'qr' => 0, 'total' => 0];
+    $detProds = $service->obtenerDetalleProductosArqueo($arq['codarqueo'] ?? 0);
+    $anomalias = $service->detectarAnomaliasTurno($arq, $detProds);
 
     $dif = $arq ? floatval($arq['diferencia']) : 0;
     $efectivo = $pagos['efectivo'];
     $qr = $pagos['qr'];
-    $icono = ($dif == 0) ? "🟢" : (($dif > 0) ? "🟡" : "🔴");
+    $icono = (count($anomalias) == 0 && $dif == 0) ? "🟢" : ((count($anomalias) > 0 && $dif == 0) ? "🟡" : "🔴");
 
     $resumenTexto .= "\n{$icono} *{$nombre}:*\n";
     $resumenTexto .= "  • Recaudación: Bs. " . number_format($efectivo + $qr, 2) . " (EF: " . number_format($efectivo, 2) . " | QR: " . number_format($qr, 2) . ")\n";
     $resumenTexto .= "  • Diferencia de Caja: " . ($dif == 0 ? "Cuadrado exacto ✅" : "Bs. " . number_format($dif, 2)) . "\n";
+    $resumenTexto .= "  • 📦 *Productos Vendidos:* {$detProds['total_unidades']} u. (Bs. " . number_format($detProds['total_bs'], 2) . ")\n";
+
+    $partesCat = [];
+    foreach ($detProds['resumen_categorias'] as $cat => $val) {
+        $partesCat[] = "{$cat}: " . number_format($val['unidades'], 0) . " u.";
+    }
+    if (!empty($partesCat)) {
+        $resumenTexto .= "    _" . implode(" | ", array_slice($partesCat, 0, 3)) . "_\n";
+    }
+
+    if (!empty($anomalias)) {
+        foreach ($anomalias as $anom) {
+            $resumenTexto .= "    ⚠️ *Alerta Forense:* {$anom}\n";
+        }
+    }
 
     // 1. Generar PDF de Cuadre Noche
     $pdfCuadrePath = $dirSalida . "/{$slug}_cuadre_noche.pdf";
@@ -61,7 +78,7 @@ foreach ($sucursales as $suc) {
     // Preparar para cola de envíos
     $enviosQueue[] = [
         'pdfPath' => $pdfCuadrePath,
-        'caption' => "📄 {$nombre} - Cuadre Económico Turno Noche ({$fechaHoy})"
+        'caption' => "📄 {$nombre} - Cuadre Económico y Stock Turno Noche ({$fechaHoy})"
     ];
     $enviosQueue[] = [
         'pdfPath' => $pdfStockPath,
@@ -70,7 +87,7 @@ foreach ($sucursales as $suc) {
 }
 
 $resumenTexto .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-$resumenTexto .= "📎 _A continuación se adjuntan los 8 reportes oficiales en PDF (2 por cada casa: Cuadre Financiero Noche + Planilla de Stock para inicio del Turno Tarde)._";
+$resumenTexto .= "📎 _A continuación se adjuntan los 8 reportes oficiales en PDF (Cuadre Económico + Auditoría de Productos + Planilla de Stock para inicio del Turno Tarde)._";
 
 // 1. Encolar el Mensaje Resumen Ejecutivo
 $datosMensaje = [
