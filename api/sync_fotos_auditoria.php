@@ -55,6 +55,35 @@ if ($accion === 'status') {
     exit;
 }
 
+if ($accion === 'encolar_envio') {
+    header('Content-Type: application/json; charset=utf-8');
+    $colaDir = dirname(__DIR__) . '/whatsapp_bot/cola_envios';
+    if (!is_dir($colaDir)) @mkdir($colaDir, 0777, true);
+
+    $texto = $_POST['texto'] ?? $_GET['texto'] ?? '';
+    $pdfPath = $_POST['pdfPath'] ?? $_GET['pdfPath'] ?? '';
+    $caption = $_POST['caption'] ?? $_GET['caption'] ?? '';
+    $jid = $_POST['jid'] ?? $_GET['jid'] ?? '';
+
+    $datos = [
+        'texto' => $texto,
+        'pdfPath' => $pdfPath,
+        'caption' => $caption,
+        'jid' => $jid,
+        'creado' => date('Y-m-d H:i:s')
+    ];
+
+    $archivoId = 'envio_' . time() . '_' . rand(100, 999) . '.json';
+    file_put_contents($colaDir . '/' . $archivoId, json_encode($datos, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+    echo json_encode([
+        'status' => 'encolado',
+        'archivo' => $archivoId,
+        'mensaje' => 'Envío encolado con éxito para WhatsApp'
+    ]);
+    exit;
+}
+
 // Validar formato de fecha (YYYY-MM-DD) para descargar
 if ($accion === 'descargar' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
     http_response_code(400);

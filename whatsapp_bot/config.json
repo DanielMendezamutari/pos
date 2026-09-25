@@ -32,5 +32,7 @@
     }
   ],
   "carpeta_salida": "../auditoria_fotos",
-  "dias_historico_barrido": 14
+  "dias_historico_barrido": 14,
+  "grupo_reportes": "Reportes Auditoría Joker",
+  "admin_phone": "59167369293"
 }

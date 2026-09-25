@@ -355,6 +355,86 @@ async function iniciarBot() {
             console.log(`✨ Se procesaron ${fotosHistoricas} fotos del historial reciente.`);
         }
     });
+
+    // =========================================================================
+    // COLA DE ENVÍO DE REPORTES Y PDFs A WHATSAPP
+    // =========================================================================
+    const COLA_DIR = path.join(__dirname, 'cola_envios');
+    if (!fs.existsSync(COLA_DIR)) fs.mkdirSync(COLA_DIR, { recursive: true });
+
+    async function buscarGrupoReportes() {
+        try {
+            const chats = await sock.groupFetchAllParticipating();
+            for (const jid in chats) {
+                const s = chats[jid].subject || '';
+                const cleanS = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+                if (cleanS.includes('reportes auditoria') || cleanS.includes('reportes auditoría') || cleanS.includes('auditoria joker')) {
+                    return jid;
+                }
+            }
+        } catch (e) {
+            console.error('Error buscando grupo de reportes:', e.message);
+        }
+        return null;
+    }
+
+    async function procesarArchivoEnvio(filePath) {
+        try {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            let targetJid = data.jid;
+            
+            if (!targetJid) {
+                targetJid = await buscarGrupoReportes();
+            }
+            if (!targetJid && config.admin_phone) {
+                targetJid = `${config.admin_phone}@s.whatsapp.net`;
+            }
+
+            if (!targetJid) {
+                console.error('❌ No se encontró grupo ni número destino para enviar reporte');
+                return false;
+            }
+
+            // 1. Enviar texto si existe
+            if (data.texto) {
+                await sock.sendMessage(targetJid, { text: data.texto });
+                console.log(`📤 Reporte de texto enviado a ${targetJid}`);
+            }
+
+            // 2. Enviar PDF adjunto si existe
+            if (data.pdfPath && fs.existsSync(data.pdfPath)) {
+                const buffer = fs.readFileSync(data.pdfPath);
+                const fileName = path.basename(data.pdfPath);
+                await sock.sendMessage(targetJid, {
+                    document: buffer,
+                    mimetype: 'application/pdf',
+                    fileName: fileName,
+                    caption: data.caption || '📎 ' + fileName
+                });
+                console.log(`📄 Documento PDF enviado con éxito: ${fileName}`);
+            }
+
+            return true;
+        } catch (err) {
+            console.error('❌ Error enviando reporte:', err.message);
+            return false;
+        }
+    }
+
+    // Bucle vigilante de la cola de envíos (cada 2 segundos)
+    setInterval(async () => {
+        try {
+            if (!fs.existsSync(COLA_DIR)) return;
+            const files = fs.readdirSync(COLA_DIR).filter(f => f.endsWith('.json'));
+            for (const f of files) {
+                const p = path.join(COLA_DIR, f);
+                const ok = await procesarArchivoEnvio(p);
+                if (ok || Date.now() - fs.statSync(p).mtimeMs > 60000) {
+                    try { fs.unlinkSync(p); } catch (e) {}
+                }
+            }
+        } catch (e) {}
+    }, 2000);
 }
 
 process.on('uncaughtException', (err) => {
