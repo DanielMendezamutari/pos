@@ -81,7 +81,7 @@ if ($accion === 'actualizar_git') {
     $repoDir = dirname(__DIR__);
     $salida = [];
     $ret = 0;
-    exec("cd " . escapeshellarg($repoDir) . " && git pull origin main 2>&1", $salida, $ret);
+    exec("cd " . escapeshellarg($repoDir) . " && git checkout -- whatsapp_bot/verificar_y_levantar.sh && git pull origin main 2>&1", $salida, $ret);
     
     $reiniciarBot = $_REQUEST['reiniciar_bot'] ?? '1';
     if ($reiniciarBot === '1') {
