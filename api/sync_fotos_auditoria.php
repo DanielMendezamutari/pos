@@ -55,6 +55,32 @@ if ($accion === 'status') {
     exit;
 }
 
+if ($accion === 'actualizar_git') {
+    header('Content-Type: application/json; charset=utf-8');
+    $repoDir = dirname(__DIR__);
+    $salida = [];
+    $ret = 0;
+    exec("cd " . escapeshellarg($repoDir) . " && git pull origin main 2>&1", $salida, $ret);
+    
+    $reiniciarBot = $_REQUEST['reiniciar_bot'] ?? '1';
+    if ($reiniciarBot === '1') {
+        @exec("pkill -9 -f 'bot.js' 2>&1");
+        $sh = $repoDir . '/whatsapp_bot/verificar_y_levantar.sh';
+        if (file_exists($sh)) {
+            @chmod($sh, 0755);
+            @exec("bash " . escapeshellarg($sh) . " >/dev/null 2>&1 &");
+        }
+    }
+
+    echo json_encode([
+        'status' => ($ret === 0 ? 'success' : 'error'),
+        'git_salida' => $salida,
+        'codigo_retorno' => $ret,
+        'bot_reiniciado' => ($reiniciarBot === '1')
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($accion === 'encolar_envio') {
     header('Content-Type: application/json; charset=utf-8');
     $colaDir = dirname(__DIR__) . '/whatsapp_bot/cola_envios';
@@ -64,6 +90,27 @@ if ($accion === 'encolar_envio') {
     $pdfPath = $_POST['pdfPath'] ?? $_GET['pdfPath'] ?? '';
     $caption = $_POST['caption'] ?? $_GET['caption'] ?? '';
     $jid = $_POST['jid'] ?? $_GET['jid'] ?? '';
+
+    // Manejar subida de archivo PDF vía multipart/form-data
+    if (isset($_FILES['pdf']) && $_FILES['pdf']['error'] === UPLOAD_ERR_OK) {
+        $adjuntosDir = $colaDir . '/adjuntos';
+        if (!is_dir($adjuntosDir)) @mkdir($adjuntosDir, 0777, true);
+        $nombreDestino = time() . '_' . preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $_FILES['pdf']['name']);
+        $destinoFinal = $adjuntosDir . '/' . $nombreDestino;
+        if (move_uploaded_file($_FILES['pdf']['tmp_name'], $destinoFinal)) {
+            $pdfPath = $destinoFinal;
+        }
+    } elseif (!empty($_POST['base64_pdf'])) {
+        $adjuntosDir = $colaDir . '/adjuntos';
+        if (!is_dir($adjuntosDir)) @mkdir($adjuntosDir, 0777, true);
+        $nombreDoc = $_POST['pdf_nombre'] ?? ('informe_' . date('Ymd_His') . '.pdf');
+        $destinoFinal = $adjuntosDir . '/' . time() . '_' . $nombreDoc;
+        $pdfData = base64_decode($_POST['base64_pdf']);
+        if ($pdfData !== false) {
+            file_put_contents($destinoFinal, $pdfData);
+            $pdfPath = $destinoFinal;
+        }
+    }
 
     $datos = [
         'texto' => $texto,
@@ -79,6 +126,7 @@ if ($accion === 'encolar_envio') {
     echo json_encode([
         'status' => 'encolado',
         'archivo' => $archivoId,
+        'tiene_pdf' => !empty($pdfPath),
         'mensaje' => 'Envío encolado con éxito para WhatsApp'
     ]);
     exit;
