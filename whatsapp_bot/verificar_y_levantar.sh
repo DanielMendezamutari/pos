@@ -19,7 +19,7 @@ if [ -n "$PID" ]; then
 else
     # El bot está caído: Levantarlo en segundo plano
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] 🤖 El bot estaba apagado. Reiniciando en segundo plano..." >> bot_watchdog.log
-    nohup node bot.js >> bot_salida.log 2>&1 &
+    nohup node --experimental-global-webcrypto bot.js >> bot_salida.log 2>&1 &
     NUEVO_PID=$!
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] ✅ Bot reiniciado con éxito (PID: $NUEVO_PID)" >> bot_watchdog.log
 fi

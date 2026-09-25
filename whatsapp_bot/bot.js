@@ -1,3 +1,4 @@
+import './polyfill.js';
 import * as baileysModule from '@whiskeysockets/baileys';
 import pino from 'pino';
 
