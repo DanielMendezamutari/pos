@@ -9777,6 +9777,11 @@ function FacturaCompra()
     
     $tra = new Login();
     $reg = $tra->ComprasPorId();
+    if (empty($reg)) {
+        $this->SetFont('Courier', 'B', 12);
+        $this->Cell(0, 10, 'NO SE ENCONTRO LA INFORMACION DE LA COMPRA', 0, 1, 'C');
+        return;
+    }
     $simbolo = ($reg[0]['simbolo'] == "" ? "" : $reg[0]['simbolo']);
     $TipoLetra = "Courier";
 
@@ -9998,7 +10003,8 @@ function FacturaCompra()
 
     /* AQUI AGREGO LOS VALORES A MOSTRAR EN COLUMNAS */
     $a=1;
-    for($i=0;$i<sizeof($detalle);$i++){ 
+    $total_detalles = (!empty($detalle) && (is_array($detalle) || is_countable($detalle))) ? count($detalle) : 0;
+    for($i=0;$i<$total_detalles;$i++){ 
     $cantidad += $detalle[$i]['cantcompra'];
     $valortotal = $detalle[$i]["preciocompra"]*$detalle[$i]["cantcompra"];
     $SubTotal += $detalle[$i]['valorneto'];

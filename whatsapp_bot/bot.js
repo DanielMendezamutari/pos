@@ -11,6 +11,7 @@ const fetchLatestBaileysVersion = baileysModule.fetchLatestBaileysVersion || (ba
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { exec } from 'child_process';
 import qrcodeTerminal from 'qrcode-terminal';
 import QRCode from 'qrcode';
 
@@ -199,25 +200,28 @@ async function iniciarBot() {
             console.log('======================================================\n');
             qrcodeTerminal.generate(qr, { small: true });
 
-            // Generar HTML visual para abrirlo en el navegador si lo prefiere
+            // Generar HTML visual para abrirlo en el navegador
             try {
                 const qrDataURL = await QRCode.toDataURL(qr, { width: 350 });
                 const html = `<!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="refresh" content="7">
     <title>Escanear QR WhatsApp - Joker POS</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #1a1a2e; color: #fff; text-align: center; padding: 40px; }
-        .card { background: #16213e; display: inline-block; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #fff; text-align: center; padding: 40px; }
+        .card { background: #1e293b; display: inline-block; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); border: 1px solid #334155; }
         img { border-radius: 12px; background: white; padding: 12px; }
-        h2 { color: #00ffcc; margin-top: 0; }
-        ol { text-align: left; max-width: 320px; margin: 20px auto; color: #ccc; line-height: 1.6; }
+        h2 { color: #38bdf8; margin-top: 0; }
+        ol { text-align: left; max-width: 320px; margin: 20px auto; color: #cbd5e1; line-height: 1.6; }
+        .badge { background: #0284c7; padding: 4px 10px; border-radius: 20px; font-size: 12px; }
     </style>
 </head>
 <body>
     <div class="card">
-        <h2>🤖 Joker POS - Auditoría WhatsApp</h2>
+        <span class="badge">Auditoría Joker POS</span>
+        <h2>🤖 Conectar WhatsApp de Auditoría</h2>
         <p>Abre WhatsApp en tu teléfono y escanea este código:</p>
         <img src="${qrDataURL}" alt="Código QR WhatsApp" />
         <ol>
@@ -226,13 +230,19 @@ async function iniciarBot() {
             <li>Selecciona <strong>Dispositivos vinculados</strong></li>
             <li>Toca en <strong>Vincular un dispositivo</strong> y apunta tu cámara aquí</li>
         </ol>
-        <p style="color: #888; font-size: 13px;">El código se actualiza automáticamente.</p>
+        <p style="color: #94a3b8; font-size: 13px;">🔄 La página se actualiza automáticamente cada 7s si cambia el QR.</p>
     </div>
 </body>
 </html>`;
                 fs.writeFileSync(QR_HTML_PATH, html, 'utf8');
                 console.log(`🌐 También puedes abrir el QR en tu navegador aquí:`);
                 console.log(`   file:///${QR_HTML_PATH.replace(/\\/g, '/')}\n`);
+
+                // Abrir en el navegador si es la primera vez
+                if (!global.browserOpened) {
+                    global.browserOpened = true;
+                    exec(`cmd /c start "" "${QR_HTML_PATH}"`);
+                }
             } catch (err) {
                 console.error('Error generando QR HTML:', err.message);
             }
@@ -250,10 +260,30 @@ async function iniciarBot() {
             console.log('\n🎉 ¡CONEXIÓN EXITOSA CON WHATSAPP!');
             console.log('El bot está activo y escuchando los grupos de auditoría.\n');
 
-            // Borrar el archivo HTML de QR ya que se vinculó
-            if (fs.existsSync(QR_HTML_PATH)) {
-                fs.unlinkSync(QR_HTML_PATH);
-            }
+            // Actualizar el HTML a estado conectado
+            try {
+                const connectedHtml = `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>WhatsApp Conectado - Joker POS</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #064e3b; color: #fff; text-align: center; padding: 50px; }
+        .card { background: #065f46; display: inline-block; padding: 40px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.4); border: 1px solid #10b981; }
+        h1 { color: #34d399; margin-top: 0; }
+        p { color: #d1fae5; font-size: 16px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>✅ ¡WhatsApp Vinculado con Éxito!</h1>
+        <p>El bot de auditoría está conectado y monitoreando en segundo plano los 5 grupos de billar.</p>
+        <p>Las fotos de planillas, sobres y arqueos se descargarán automáticamente a <code>pos/auditoria_fotos/</code>.</p>
+    </div>
+</body>
+</html>`;
+                fs.writeFileSync(QR_HTML_PATH, connectedHtml, 'utf8');
+            } catch (e) {}
 
             // Descubrir y mapear grupos
             try {
@@ -325,5 +355,13 @@ async function iniciarBot() {
         }
     });
 }
+
+process.on('uncaughtException', (err) => {
+    console.error('⚠️ Excepción no capturada en bot:', err.message);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️ Promesa no capturada en bot:', reason);
+});
 
 iniciarBot().catch(err => console.error('Error fatal al iniciar bot:', err));

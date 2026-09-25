@@ -16238,6 +16238,7 @@ public function VerDetallesAbonosCompras()
 public function ComprasPorId()
 {
 	self::SetNames();
+	$this->p = array();
 	$sql = " SELECT 
 	compras.idcompra, 
 	compras.codcompra,
@@ -16325,24 +16326,29 @@ public function ComprasPorId()
       (SELECT
       codcambio, descripcioncambio, montocambio, codmoneda       
       FROM tiposcambio
-      ORDER BY codcambio DESC LIMIT 1) valor_cambio ON valor_cambio.codmoneda = sucursales.codmoneda2 
-	WHERE compras.codcompra = ? AND compras.codsucursal = ?";
-	$stmt = $this->dbh->prepare($sql);
-	$stmt->execute(array(decrypt($_GET["codcompra"]),decrypt($_GET["codsucursal"])));
-	$num = $stmt->rowCount();
-	if($num==0)
-	{
-		echo "";
+      ORDER BY codcambio DESC LIMIT 1) valor_cambio ON valor_cambio.codmoneda = sucursales.codmoneda2"; 
+	$codcompra = isset($_GET["codcompra"]) ? decrypt($_GET["codcompra"]) : (isset($_POST["codcompra"]) ? decrypt($_POST["codcompra"]) : "");
+	$codsucursal = isset($_GET["codsucursal"]) ? decrypt($_GET["codsucursal"]) : (isset($_POST["codsucursal"]) ? decrypt($_POST["codsucursal"]) : "");
+
+	if (!empty($codsucursal)) {
+		$stmt = $this->dbh->prepare($sql . " WHERE compras.codcompra = ? AND compras.codsucursal = ? GROUP BY compras.idcompra");
+		$stmt->execute(array($codcompra, $codsucursal));
+		if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+			if (!empty($row["idcompra"])) {
+				$this->p[] = $row;
+				return $this->p;
+			}
+		}
 	}
-	else
-	{
-		if($row = $stmt->fetch(PDO::FETCH_ASSOC))
-		{
+
+	$stmt = $this->dbh->prepare($sql . " WHERE compras.codcompra = ? GROUP BY compras.idcompra");
+	$stmt->execute(array($codcompra));
+	if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+		if (!empty($row["idcompra"])) {
 			$this->p[] = $row;
 		}
-		return $this->p;
-		$this->dbh=null;
 	}
+	return $this->p;
 }
 ############################ FUNCION ID COMPRAS #################################
 	
@@ -16350,6 +16356,10 @@ public function ComprasPorId()
 public function VerDetallesCompras()
 {
 	self::SetNames();
+	$this->p = array();
+	$codcompra = isset($_GET["codcompra"]) ? decrypt($_GET["codcompra"]) : (isset($_POST["codcompra"]) ? decrypt($_POST["codcompra"]) : "");
+	$codsucursal = isset($_GET["codsucursal"]) ? decrypt($_GET["codsucursal"]) : (isset($_POST["codsucursal"]) ? decrypt($_POST["codsucursal"]) : "");
+
 	$sql = "SELECT
 	detallecompras.coddetallecompra,
 	detallecompras.codcompra,
@@ -16393,18 +16403,26 @@ public function VerDetallesCompras()
 	LEFT JOIN modelos ON detallecompras.codmodelo = modelos.codmodelo
 	LEFT JOIN presentaciones ON detallecompras.codpresentacion = presentaciones.codpresentacion
 	LEFT JOIN colores ON detallecompras.codcolor = colores.codcolor  
-	WHERE detallecompras.codcompra = ? 
-	AND detallecompras.codsucursal = ?";
+	WHERE detallecompras.codcompra = ?";
+
+	if (!empty($codsucursal)) {
+		$stmt = $this->dbh->prepare($sql . " AND detallecompras.codsucursal = ?");
+		$stmt->execute(array($codcompra, $codsucursal));
+		while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+			$this->p[] = $row;
+		}
+		if (!empty($this->p)) {
+			return $this->p;
+		}
+	}
+
+	// Fallback por codcompra
 	$stmt = $this->dbh->prepare($sql);
-	$stmt->execute(array(decrypt($_GET["codcompra"]),decrypt($_GET["codsucursal"])));
-	$num = $stmt->rowCount();
-	
-	while($row = $stmt->fetch(PDO::FETCH_ASSOC))
-	{
-		$this->p[]=$row;
+	$stmt->execute(array($codcompra));
+	while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+		$this->p[] = $row;
 	}
 	return $this->p;
-	$this->dbh=null;
 }
 ############################ FUNCION VER DETALLES COMPRAS ##############################
 

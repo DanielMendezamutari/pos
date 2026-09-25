@@ -24,8 +24,39 @@ if ($token !== AUDITORIA_SYNC_SECRET) {
 $accion = $_GET['accion'] ?? 'descargar';
 $fecha = $_GET['fecha'] ?? date('Y-m-d');
 
-// Validar formato de fecha (YYYY-MM-DD)
-if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
+if ($accion === 'status') {
+    header('Content-Type: application/json; charset=utf-8');
+    $botDir = dirname(__DIR__) . '/whatsapp_bot';
+    $authDir = $botDir . '/auth_info_baileys';
+    $qrPath = $botDir . '/qr.html';
+    $logPath = $botDir . '/bot_salida.log';
+    $watchdogLog = $botDir . '/bot_watchdog.log';
+
+    $pid = trim(@shell_exec('pgrep -f "node bot.js" | head -n 1') ?? '');
+    $tieneSesion = is_dir($authDir) && count(glob($authDir . '/*')) > 2;
+    $tieneQr = file_exists($qrPath);
+
+    $ultimasLineas = [];
+    if (file_exists($logPath)) {
+        $lineas = @file($logPath);
+        if ($lineas) $ultimasLineas = array_map('trim', array_slice($lineas, -15));
+    }
+
+    echo json_encode([
+        'bot_corriendo' => !empty($pid),
+        'pid' => $pid ?: null,
+        'sesion_vinculada' => $tieneSesion,
+        'qr_disponible' => $tieneQr,
+        'url_qr' => 'https://joker.ribersoft.com/whatsapp_bot/qr.html',
+        'directorio_bot' => $botDir,
+        'fotos_dir_existe' => is_dir($baseDir),
+        'ultimas_lineas_log' => $ultimasLineas
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+// Validar formato de fecha (YYYY-MM-DD) para descargar
+if ($accion === 'descargar' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) {
     http_response_code(400);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['error' => 'Formato de fecha inválido. Use YYYY-MM-DD.'], JSON_UNESCAPED_UNICODE);
