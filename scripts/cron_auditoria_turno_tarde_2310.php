@@ -25,8 +25,7 @@ echo "========================================================\n\n";
 $resumenTexto = "🃏 *REPORTE CONSOLIDADO JOKER - CIERRE TARDE* 🃏\n";
 $resumenTexto .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 $resumenTexto .= "📅 *Fecha:* {$fechaHoy} | *Cierre Tarde:* 23:00\n";
-$resumenTexto .= "🕒 *Emisión:* " . date('H:i') . " | *Relevo:* Turno Noche\n";
-$resumenTexto .= "👤 *Sistema:* Antigravity AI Forensic POS\n\n";
+$resumenTexto .= "🕒 *Emisión:* " . date('H:i') . " | *Relevo:* Turno Noche\n\n";
 $resumenTexto .= "📊 *ESTADO ECONÓMICO DE LAS 4 CASAS:*\n";
 
 $enviosQueue = [];

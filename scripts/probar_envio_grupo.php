@@ -10,11 +10,11 @@ if (!file_exists($pdfLocal)) {
     $pdfLocal = dirname(__DIR__) . '/informe_auditoria_sucursal_ultra.pdf';
 }
 
-$textoMensaje = "🃏 *REPORTE DE AUDITORÍA FORENSE - JOKER ULTRA* 🃏\n";
+$textoMensaje = "🃏 *REPORTE DE AUDITORÍA - JOKER ULTRA* 🃏\n";
 $textoMensaje .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
 $textoMensaje .= "📅 *Período:* 23 al 24 de Septiembre 2026\n";
 $textoMensaje .= "🕒 *Generado:* " . date('d/m/Y H:i') . "\n";
-$textoMensaje .= "👤 *Sistema:* Antigravity AI Forensic Monitor\n\n";
+$textoMensaje .= "👤 *Control:* Auditoría Interna Joker\n\n";
 
 $textoMensaje .= "💰 *1. CONCILIACIÓN DE CAJAS (CIERRE DIARIO):*\n";
 $textoMensaje .= "  • *Turno Tarde (Arqueo #307):*\n";

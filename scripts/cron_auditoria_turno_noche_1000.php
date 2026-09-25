@@ -22,14 +22,12 @@ echo "☀️ AUDITORÍA AUTOMÁTICA TURNO NOCHE -> APERTURA TARDE\n";
 echo "📅 Fecha: {$fechaHoy} | Hora: " . date('H:i') . "\n";
 echo "========================================================\n\n";
 
-$resumenTexto = "🃏 *REPORTE CONSOLIDADO JOKER - CIERRE NOCHE / MADRUGADA* 🃏\n";
+$resumenTexto = "🃏 *REPORTE DE AUDITORÍA - CIERRE TURNO NOCHE*\n";
+$resumenTexto .= "📅 *Fecha:* {$fechaHoy} | *Cierre:* 06:00 AM | *Relevo:* Turno Tarde\n";
 $resumenTexto .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-$resumenTexto .= "📅 *Fecha:* {$fechaHoy} | *Cierre Noche:* 06:00 AM\n";
-$resumenTexto .= "🕒 *Emisión:* 10:00 AM | *Relevo:* Turno Tarde\n";
-$resumenTexto .= "👤 *Sistema:* Antigravity AI Forensic POS\n\n";
-$resumenTexto .= "📊 *ESTADO ECONÓMICO Y CAJAS (NOCHE):*\n";
 
 $enviosQueue = [];
+$num = 1;
 
 foreach ($sucursales as $suc) {
     $cod = $suc['codsucursal'];
@@ -44,51 +42,80 @@ foreach ($sucursales as $suc) {
     $dif = $arq ? floatval($arq['diferencia']) : 0;
     $efectivo = $pagos['efectivo'];
     $qr = $pagos['qr'];
-    $icono = (count($anomalias) == 0 && $dif == 0) ? "🟢" : ((count($anomalias) > 0 && $dif == 0) ? "🟡" : "🔴");
+    $totalRecaudado = $efectivo + $qr;
 
-    $resumenTexto .= "\n{$icono} *{$nombre}:*\n";
-    $resumenTexto .= "  • Recaudación: Bs. " . number_format($efectivo + $qr, 2) . " (EF: " . number_format($efectivo, 2) . " | QR: " . number_format($qr, 2) . ")\n";
-    $resumenTexto .= "  • Diferencia de Caja: " . ($dif == 0 ? "Cuadrado exacto ✅" : "Bs. " . number_format($dif, 2)) . "\n";
-    $resumenTexto .= "  • 📦 *Productos Vendidos:* {$detProds['total_unidades']} u. (Bs. " . number_format($detProds['total_bs'], 2) . ")\n";
+    $estadoCaja = "";
+    if ($dif == 0) {
+        $estadoCaja = "Cuadrado exacto (Sin faltantes) ✅";
+    } elseif ($dif < 0) {
+        $estadoCaja = "FALTANTE DE Bs. " . number_format(abs($dif), 2) . " 🔴";
+    } else {
+        $estadoCaja = "SOBRANTE DE +Bs. " . number_format($dif, 2) . " 🟡";
+    }
 
-    $partesCat = [];
+    $resumenTexto .= "\n🏢 *{$num}. {$nombre}*\n";
+    $resumenTexto .= "💰 *Total Recaudado:* Bs. " . number_format($totalRecaudado, 2) . "\n";
+    $resumenTexto .= "   • Efectivo en caja: Bs. " . number_format($efectivo, 2) . "\n";
+    $resumenTexto .= "   • Cobros QR / Banco: Bs. " . number_format($qr, 2) . "\n";
+    $resumenTexto .= "💵 *Caja:* {$estadoCaja}\n";
+
+    if (!empty($detProds['total_billar_bs']) && $detProds['total_billar_bs'] > 0) {
+        $resumenTexto .= "🎱 *Mesas de Billar:* Bs. " . number_format($detProds['total_billar_bs'], 2) . "\n";
+    }
+
+    // Resumen claro de productos vendidos
+    $lineasProds = [];
     foreach ($detProds['resumen_categorias'] as $cat => $val) {
-        $partesCat[] = "{$cat}: " . number_format($val['unidades'], 0) . " u.";
-    }
-    if (!empty($partesCat)) {
-        $resumenTexto .= "    _" . implode(" | ", array_slice($partesCat, 0, 3)) . "_\n";
-    }
-
-    if (!empty($anomalias)) {
-        foreach ($anomalias as $anom) {
-            $resumenTexto .= "    ⚠️ *Alerta Forense:* {$anom}\n";
+        if ($cat === 'MESAS DE BILLAR') continue;
+        if ($cat === 'CERVEZAS Y COMBOS') {
+            $lineasProds[] = "   • Cervezas y Combos: " . number_format($val['unidades'], 0) . " botellas";
+        } elseif ($cat === 'SODAS Y AGUAS') {
+            $lineasProds[] = "   • Sodas y Aguas: " . number_format($val['unidades'], 0) . " botellas";
+        } elseif ($cat === 'GUANTES DE BILLAR') {
+            $lineasProds[] = "   • Guantes de billar: " . number_format($val['unidades'], 0) . " pares";
+        } elseif ($cat === 'SNACKS Y TABACO') {
+            $lineasProds[] = "   • Snacks y Cigarros: " . number_format($val['unidades'], 0) . " unidades";
+        } else {
+            $lineasProds[] = "   • " . ucfirst(strtolower($cat)) . ": " . number_format($val['unidades'], 0) . " unidades";
         }
     }
+    if (!empty($lineasProds)) {
+        $resumenTexto .= "📦 *Productos Vendidos:*\n" . implode("\n", $lineasProds) . "\n";
+    }
 
-    // 3. Auditoría Visual con Gemini Vision sobre fotos recibidas de cuaderno/inventario
+    // Auditoría Visual con Gemini Vision sobre fotos recibidas de cuaderno/inventario
     try {
         $resVision = $service->auditarFotosSucursalConIA($suc, $arq['codarqueo'] ?? 0, $fechaIso);
         if (!empty($resVision['tiene_analisis'])) {
             $tipoDoc = $resVision['tipo_documento'];
-            $resumenTexto .= "  • 👁️ *Auditoría IA de Fotos ({$tipoDoc}):*\n";
             if (!empty($resVision['cruce_cuaderno']['coincidencias'])) {
                 $cntC = count($resVision['cruce_cuaderno']['coincidencias']);
-                $resumenTexto .= "    ✅ *Cuaderno vs POS:* {$cntC} productos coinciden exactos.\n";
+                $totalLibreta = !empty($resVision['datos_extraidos']['total_calculado']) ? " (Anotado: Bs. " . number_format($resVision['datos_extraidos']['total_calculado'], 2) . ")" : "";
+                $resumenTexto .= "👁️ *Libreta del Cajero:* {$cntC} productos coinciden con el POS{$totalLibreta}.\n";
             }
             if (!empty($resVision['cruce_cuaderno']['discrepancias'])) {
                 foreach (array_slice($resVision['cruce_cuaderno']['discrepancias'], 0, 2) as $dCuad) {
-                    $resumenTexto .= "    ⚠️ *Diferencia Cuaderno:* {$dCuad}\n";
+                    $resumenTexto .= "   ⚠️ *Observación en libreta:* {$dCuad}\n";
                 }
             }
             if (!empty($resVision['cruce_inventario']['discrepancias'])) {
                 foreach (array_slice($resVision['cruce_inventario']['discrepancias'], 0, 2) as $dInv) {
-                    $resumenTexto .= "    📦 *Diferencia Inventario:* {$dInv}\n";
+                    $resumenTexto .= "   📦 *Observación en foto de stock:* {$dInv}\n";
                 }
             }
         }
-    } catch (Exception $eVision) {
-        // Continúa normalmente si alguna foto no se pudo procesar
+    } catch (Exception $eVision) {}
+
+    // Alertas de auditoría operativa
+    if (!empty($anomalias)) {
+        foreach ($anomalias as $anom) {
+            if (strpos($anom, 'Faltante de efectivo') !== false || strpos($anom, 'Sobrante de efectivo') !== false) continue;
+            $resumenTexto .= "⚠️ *Nota:* {$anom}\n";
+        }
     }
+
+    $resumenTexto .= "────────────────────────────\n";
+    $num++;
 
     // 1. Generar PDF de Cuadre Noche
     $pdfCuadrePath = $dirSalida . "/{$slug}_cuadre_noche.pdf";
@@ -103,7 +130,7 @@ foreach ($sucursales as $suc) {
     // Preparar para cola de envíos
     $enviosQueue[] = [
         'pdfPath' => $pdfCuadrePath,
-        'caption' => "📄 {$nombre} - Cuadre Económico y Stock Turno Noche ({$fechaHoy})"
+        'caption' => "📄 {$nombre} - Cuadre y Auditoría Turno Noche ({$fechaHoy})"
     ];
     $enviosQueue[] = [
         'pdfPath' => $pdfStockPath,
@@ -111,8 +138,7 @@ foreach ($sucursales as $suc) {
     ];
 }
 
-$resumenTexto .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-$resumenTexto .= "📎 _A continuación se adjuntan los 8 reportes oficiales en PDF (Cuadre Económico + Auditoría de Productos + Planilla de Stock para inicio del Turno Tarde)._";
+$resumenTexto .= "\n📎 _Se adjuntan los reportes oficiales en PDF (Cuadre Económico + Planilla de Stock) de cada sucursal._";
 
 // 1. Encolar el Mensaje Resumen Ejecutivo
 $datosMensaje = [

@@ -100,7 +100,7 @@ class PDF_Pericial_Con_Fotos extends FPDF {
         $this->SetXY(10, 14.5);
         $this->SetFont('Arial', 'I', 7);
         $this->SetTextColor(148, 163, 184);
-        $this->Cell(130, 4, utf8_decode("Auditor: Antigravity AI Forensic System | Validación Pericial en Tiempo Real"), 0, 1, 'L');
+        $this->Cell(130, 4, utf8_decode("Control Interno y Auditoría Joker POS | Validación de Turno"), 0, 1, 'L');
 
         $this->SetTextColor(255, 255, 255);
         $this->SetXY(140, 4);

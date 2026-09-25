@@ -32,7 +32,7 @@ class PDF_Cuadre_Caja extends FPDF {
         $this->SetXY(10, 14.5);
         $this->SetFont('Arial', 'I', 7);
         $this->SetTextColor(148, 163, 184);
-        $this->Cell(130, 4, utf8_decode("Auditor: Antigravity AI Forensic System | Validación Pericial"), 0, 1, 'L');
+        $this->Cell(130, 4, utf8_decode("Control Interno y Auditoría Joker POS | Validación de Turno"), 0, 1, 'L');
 
         $this->SetTextColor(255, 255, 255);
         $this->SetXY(140, 4);
@@ -197,6 +197,12 @@ class AuditoriaService extends Db {
 
     public function clasificarProducto($nombre) {
         $n = strtoupper($nombre);
+        if (strpos($n, 'MESA') !== false || strpos($n, 'BILLAR') !== false || strpos($n, 'HORA') !== false) {
+            return 'MESAS DE BILLAR';
+        }
+        if (strpos($n, 'GUANTE') !== false) {
+            return 'GUANTES DE BILLAR';
+        }
         if (strpos($n, 'COMBO') !== false || strpos($n, 'PACEÑA') !== false || strpos($n, 'PACENA') !== false ||
             strpos($n, 'AMSTEL') !== false || strpos($n, 'HUARI') !== false || strpos($n, 'CONTI') !== false ||
             strpos($n, 'DUCAL') !== false || strpos($n, 'CORONA') !== false || strpos($n, 'PROST') !== false ||
@@ -207,12 +213,10 @@ class AuditoriaService extends Db {
             strpos($n, 'POWER') !== false || strpos($n, 'MONSTER') !== false || strpos($n, 'ICE') !== false) {
             return 'SODAS Y AGUAS';
         }
-        if (strpos($n, 'MESA') !== false || strpos($n, 'BILLAR') !== false || strpos($n, 'HORA') !== false) {
-            return 'MESAS DE BILLAR';
-        }
         if (strpos($n, 'BELDENT') !== false || strpos($n, 'CHUPETE') !== false || strpos($n, 'GROSSO') !== false ||
             strpos($n, 'MANI') !== false || strpos($n, 'PAPA') !== false || strpos($n, 'CHIPILO') !== false ||
-            strpos($n, 'MOMENTO') !== false || strpos($n, 'CAMEL') !== false || strpos($n, 'ENCENDER') !== false) {
+            strpos($n, 'MOMENTO') !== false || strpos($n, 'CAMEL') !== false || strpos($n, 'ENCENDER') !== false ||
+            strpos($n, 'DOBLON') !== false || strpos($n, 'PUSH') !== false || strpos($n, 'GOLAZO') !== false) {
             return 'SNACKS Y TABACO';
         }
         return 'VARIOS';
@@ -278,11 +282,14 @@ class AuditoriaService extends Db {
             }
         }
 
+        $totalBillarBs = isset($resumenCat['MESAS DE BILLAR']) ? $resumenCat['MESAS DE BILLAR']['total_bs'] : 0;
+
         return [
             'items' => $items,
             'resumen_categorias' => $resumenCat,
             'total_unidades' => $totalUnidades,
             'total_bs' => $totalBs,
+            'total_billar_bs' => $totalBillarBs,
             'observaciones_ventas' => array_unique($observacionesVentas)
         ];
     }
@@ -297,21 +304,21 @@ class AuditoriaService extends Db {
             $tCierra = strtotime($arq['fechacierre']);
             $minutos = round(($tCierra - $tAbre) / 60);
             if ($minutos > 0 && $minutos <= 20 && floatval($arq['efectivocaja']) > 200) {
-                $alertas[] = "Caja exprés de solo {$minutos} min con venta de Bs. " . number_format($arq['efectivocaja'], 2) . ". Posible venta manual de ajuste forzado.";
+                $alertas[] = "Turno abierto y cerrado en solo {$minutos} minutos con venta de Bs. " . number_format($arq['efectivocaja'], 2) . ".";
             }
         }
 
         // 2. Glosas de manipulación o ajuste
         $textoRevisar = strtoupper(($arq['comentarios'] ?? '') . ' ' . implode(' ', $detalleProds['observaciones_ventas'] ?? []));
         if (preg_match('/(DEMAS|DEMÁS|AJUSTE|ERROR|SOBRANTE|FALTANTE|DESCUENTO STOCK)/i', $textoRevisar, $m)) {
-            $alertas[] = "Detectada glosa de manipulación o ajuste de inventario: '{$m[0]}'.";
+            $alertas[] = "Nota registrada en el turno: '{$m[0]}'.";
         }
 
         // 3. Diferencia de caja
-        $dif = floatval($arq['diferencia']);
-        if ($dif < 0) {
-            $alertas[] = "Faltante de efectivo en gaveta: -Bs. " . number_format(abs($dif), 2);
-        } elseif ($dif > 0) {
+        $dif = floatval($arq['diferencia'] ?? 0);
+        if ($dif < -5) {
+            $alertas[] = "Faltante de efectivo en gaveta: Bs. " . number_format(abs($dif), 2);
+        } elseif ($dif > 5) {
             $alertas[] = "Sobrante de efectivo en gaveta: +Bs. " . number_format($dif, 2);
         }
 
