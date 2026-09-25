@@ -102,6 +102,20 @@ if ($accion === 'actualizar_git') {
     exit;
 }
 
+if ($accion === 'ejecutar_cron_auditoria') {
+    header('Content-Type: application/json; charset=utf-8');
+    $script = dirname(__DIR__) . '/scripts/cron_auditoria_turno_noche_1000.php';
+    $salida = [];
+    $ret = 0;
+    exec("php " . escapeshellarg($script) . " 2>&1", $salida, $ret);
+    echo json_encode([
+        'status' => ($ret === 0 ? 'success' : 'error'),
+        'salida' => $salida,
+        'codigo' => $ret
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($accion === 'encolar_envio') {
     header('Content-Type: application/json; charset=utf-8');
     $colaDir = dirname(__DIR__) . '/whatsapp_bot/cola_envios';
