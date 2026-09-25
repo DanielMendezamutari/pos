@@ -29,6 +29,12 @@
       "aliases": ["Stock MEGA JOKER", "MEGA JOKER", "MEGA"],
       "sucursal": "MEGA",
       "codsucursal": 1
+    },
+    {
+      "nombre": "Reportes Auditoría Joker",
+      "aliases": ["Reportes Auditoría Joker", "Auditoría Joker", "Reportes Auditoria Joker"],
+      "sucursal": "CENTRAL",
+      "codsucursal": 2
     }
   ],
   "carpeta_salida": "../auditoria_fotos",

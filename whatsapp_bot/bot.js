@@ -343,9 +343,39 @@ async function iniciarBot() {
             if (!infoGrupo) continue;
 
             // Procesar si contiene foto
-            await procesarMensajeImagen(sock, msg, infoGrupo);
+            const isImage = !!msg.message?.imageMessage || !!msg.message?.documentMessage?.mimetype?.startsWith('image/') || !!msg.message?.viewOnceMessage?.message?.imageMessage;
+            if (isImage) {
+                await procesarMensajeImagen(sock, msg, infoGrupo);
+                programarAuditoriaAutomatica(infoGrupo.sucursal, infoGrupo.codsucursal);
+            }
         }
     });
+
+    // Temporizadores de cierre por sucursal (90 segundos de espera tras última foto)
+    const timersCierre = new Map();
+
+    function programarAuditoriaAutomatica(sucursal, codsucursal) {
+        if (timersCierre.has(sucursal)) {
+            clearTimeout(timersCierre.get(sucursal));
+        }
+        console.log(`⏱️ Foto recibida de [${sucursal}]. Esperando 90s para consolidar cierre...`);
+        const timer = setTimeout(async () => {
+            timersCierre.delete(sucursal);
+            console.log(`🚀 Disparando auditoría forense con fotos para [${sucursal}]...`);
+            try {
+                const scriptPhp = path.join(__dirname, '../scripts/auditar_sucursal_tiempo_real.php');
+                if (fs.existsSync(scriptPhp)) {
+                    exec(`php "${scriptPhp}" ${codsucursal}`, (err, stdout, stderr) => {
+                        if (err) console.error(`Error en auditoría en tiempo real (${sucursal}):`, err.message);
+                        else console.log(`✅ Auditoría completada (${sucursal}):\n`, stdout);
+                    });
+                }
+            } catch (e) {
+                console.error('Error al disparar auditoría:', e.message);
+            }
+        }, 90000);
+        timersCierre.set(sucursal, timer);
+    }
 
     // Evento de recepción de historial sincronizado (fotos pasadas)
     sock.ev.on('messaging-history.set', async ({ chats, messages }) => {
