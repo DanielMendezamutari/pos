@@ -102,6 +102,18 @@ if ($accion === 'actualizar_git') {
     exit;
 }
 
+if ($accion === 'guardar_gemini_key') {
+    header('Content-Type: application/json; charset=utf-8');
+    $k = $_POST['key'] ?? $_GET['key'] ?? '';
+    if (!empty($k)) {
+        file_put_contents(dirname(__DIR__) . '/gemini_key.txt', trim($k));
+        echo json_encode(['status' => 'guardado']);
+        exit;
+    }
+    echo json_encode(['error' => 'Falta key']);
+    exit;
+}
+
 if ($accion === 'ejecutar_cron_auditoria') {
     header('Content-Type: application/json; charset=utf-8');
     $script = dirname(__DIR__) . '/scripts/cron_auditoria_turno_noche_1000.php';

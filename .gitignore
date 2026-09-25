@@ -1,5 +1,6 @@
 # Entorno y archivos temporales
 scratch/
+gemini_key.txt
 *.bak
 *.tmp
 *.log

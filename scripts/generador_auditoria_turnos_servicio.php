@@ -601,4 +601,65 @@ class AuditoriaService extends Db {
         $pdf->Output('F', $outputPath);
         return file_exists($outputPath);
     }
+
+    /**
+     * Analiza las fotos subidas a la sucursal usando Gemini Vision y cruza cuaderno/inventario
+     */
+    public function auditarFotosSucursalConIA($sucursal, $codarqueo, $fechaIso = null) {
+        if (!$fechaIso) $fechaIso = date('Y-m-d');
+        require_once dirname(__DIR__) . '/class/GeminiVisionAuditor.php';
+        $auditor = new GeminiVisionAuditor();
+
+        $nombreSucursal = strtoupper($sucursal['nomsucursal'] ?? '');
+        $codsucursal = intval($sucursal['codsucursal'] ?? 0);
+        $carpetaSuc = 'CENTRAL';
+        if (strpos($nombreSucursal, 'MEGA') !== false) $carpetaSuc = 'MEGA';
+        elseif (strpos($nombreSucursal, 'ULTRA') !== false) $carpetaSuc = 'ULTRA';
+        elseif (strpos($nombreSucursal, 'EXPRESS') !== false) $carpetaSuc = 'EXPRESS';
+
+        $baseFotos = dirname(__DIR__) . '/auditoria_fotos';
+        $dirSuc = $baseFotos . '/' . $fechaIso . '/' . $carpetaSuc;
+        $fotos = [];
+        if (is_dir($dirSuc)) {
+            $fotos = glob($dirSuc . '/*.{jpg,jpeg,png,webp}', GLOB_BRACE) ?: [];
+        }
+
+        if (empty($fotos)) {
+            return [
+                'tiene_analisis' => false,
+                'mensaje' => 'Sin fotografías subidas para esta sucursal en la fecha.'
+            ];
+        }
+
+        // Buscar primero fotos de cuaderno o planilla
+        rsort($fotos);
+        $fotoAnalizar = $fotos[0];
+        foreach ($fotos as $f) {
+            $nomF = strtoupper(basename($f));
+            if (strpos($nomF, 'CUADERNO') !== false || strpos($nomF, 'PLANILLA') !== false || strpos($nomF, 'STOCK') !== false) {
+                $fotoAnalizar = $f;
+                break;
+            }
+        }
+
+        $extraccion = $auditor->analizarFoto($fotoAnalizar);
+        if (!$extraccion) {
+            return [
+                'tiene_analisis' => false,
+                'mensaje' => 'No se pudo decodificar la imagen con Gemini Vision.'
+            ];
+        }
+
+        $cruceCuaderno = $auditor->cruzarCuadernoVsPos($codarqueo, $extraccion);
+        $cruceInventario = $auditor->cruzarInventarioVsSistema($codsucursal, $extraccion);
+
+        return [
+            'tiene_analisis' => true,
+            'foto' => basename($fotoAnalizar),
+            'tipo_documento' => $extraccion['tipo_documento'] ?? 'OTRO',
+            'cruce_cuaderno' => $cruceCuaderno,
+            'cruce_inventario' => $cruceInventario,
+            'alertas_visuales' => $extraccion['alertas_visuales'] ?? []
+        ];
+    }
 }

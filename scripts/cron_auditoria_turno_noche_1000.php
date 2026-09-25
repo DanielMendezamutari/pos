@@ -65,6 +65,31 @@ foreach ($sucursales as $suc) {
         }
     }
 
+    // 3. Auditoría Visual con Gemini Vision sobre fotos recibidas de cuaderno/inventario
+    try {
+        $resVision = $service->auditarFotosSucursalConIA($suc, $arq['codarqueo'] ?? 0, $fechaIso);
+        if (!empty($resVision['tiene_analisis'])) {
+            $tipoDoc = $resVision['tipo_documento'];
+            $resumenTexto .= "  • 👁️ *Auditoría IA de Fotos ({$tipoDoc}):*\n";
+            if (!empty($resVision['cruce_cuaderno']['coincidencias'])) {
+                $cntC = count($resVision['cruce_cuaderno']['coincidencias']);
+                $resumenTexto .= "    ✅ *Cuaderno vs POS:* {$cntC} productos coinciden exactos.\n";
+            }
+            if (!empty($resVision['cruce_cuaderno']['discrepancias'])) {
+                foreach (array_slice($resVision['cruce_cuaderno']['discrepancias'], 0, 2) as $dCuad) {
+                    $resumenTexto .= "    ⚠️ *Diferencia Cuaderno:* {$dCuad}\n";
+                }
+            }
+            if (!empty($resVision['cruce_inventario']['discrepancias'])) {
+                foreach (array_slice($resVision['cruce_inventario']['discrepancias'], 0, 2) as $dInv) {
+                    $resumenTexto .= "    📦 *Diferencia Inventario:* {$dInv}\n";
+                }
+            }
+        }
+    } catch (Exception $eVision) {
+        // Continúa normalmente si alguna foto no se pudo procesar
+    }
+
     // 1. Generar PDF de Cuadre Noche
     $pdfCuadrePath = $dirSalida . "/{$slug}_cuadre_noche.pdf";
     $service->generarPdfCuadre($suc, 'Noche', $fechaHoy, $pdfCuadrePath);
