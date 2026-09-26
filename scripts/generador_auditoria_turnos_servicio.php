@@ -57,20 +57,24 @@ class PDF_Cuadre_Caja extends FPDF {
         $this->Cell(0, 8, utf8_decode("Ribersoft POS v3.0 - Auditoría Automática Joker - " . $this->sucursal . " - Página 1 de 1"), 0, 0, 'C');
     }
 
-    function TituloBloque($num, $title, $badge = "", $badgeColor = [16, 185, 129]) {
+    function TituloBloque($num, $title, $badge = "", $badgeColor = [22, 101, 52]) {
         $this->SetFillColor(241, 245, 249);
         $this->SetTextColor(15, 23, 42);
+        $this->SetDrawColor(203, 213, 225);
         $this->SetFont('Arial', 'B', 8);
-        $this->Cell(140, 5, utf8_decode("  " . $num . ". " . $title), 0, 0, 'L', true);
+        $this->Cell(135, 5, utf8_decode("  " . $num . ". " . $title), 0, 0, 'L', true);
         
         $this->SetFont('Arial', 'B', 7.5);
         if ($badge != "") {
             $this->SetTextColor($badgeColor[0], $badgeColor[1], $badgeColor[2]);
-            $this->Cell(50, 5, utf8_decode($badge . " "), 0, 1, 'R', true);
+            $this->Cell(55, 5, utf8_decode($badge . " "), 0, 1, 'R', true);
         } else {
-            $this->Cell(50, 5, "", 0, 1, 'R', true);
+            $this->Cell(55, 5, "", 0, 1, 'R', true);
         }
-        $this->Ln(1.5);
+        $this->Ln(1.2);
+        // Resetear siempre el color a oscuro para que ninguna celda siguiente herede el color del badge
+        $this->SetTextColor(30, 41, 59);
+        $this->SetDrawColor(203, 213, 225);
     }
 }
 
@@ -333,20 +337,127 @@ class AuditoriaService extends Db {
     }
 
     /**
-     * Genera el PDF 1: Cuadre Económico de Caja con Auditoría Forense de Productos
+     * Obtiene las discrepancias entre el conteo físico a ciegas y el sistema POS
+     */
+    public function obtenerDiscrepanciasStockYProductos($codsucursal, $codarqueo, $fechaIso = null) {
+        if (!$fechaIso) $fechaIso = date('Y-m-d');
+
+        // 1. Buscar en detalle_conteo_inicial vinculado al arqueo o sucursal reciente
+        $sql = "SELECT d.codproducto, d.producto, d.stock_sistema, d.cantidad_fisica, d.diferencia,
+                       COALESCE(p.preciocompra, 0.00) as preciocompra,
+                       COALESCE(p.precioxpublico, 0.00) as precioventa,
+                       cid.idconteo, cid.fechaconteo
+                FROM detalle_conteo_inicial d
+                INNER JOIN conteo_inicial_diario cid ON d.idconteo = cid.idconteo
+                LEFT JOIN productos p ON (d.idproducto = p.idproducto AND p.codsucursal = cid.codsucursal)
+                WHERE cid.codsucursal = :codsucursal
+                  AND (cid.codarqueo = :codarqueo OR DATE(cid.fechaconteo) = :fechaIso)
+                ORDER BY cid.idconteo DESC";
+
+        $stmt = $this->dbh->prepare($sql);
+        $stmt->execute([
+            ':codsucursal' => $codsucursal,
+            ':codarqueo' => $codarqueo,
+            ':fechaIso' => $fechaIso
+        ]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        // Si no encontró por fecha exacta o arqueo, tomar el último conteo de la sucursal
+        if (empty($rows)) {
+            $sqlUltimo = "SELECT d.codproducto, d.producto, d.stock_sistema, d.cantidad_fisica, d.diferencia,
+                                 COALESCE(p.preciocompra, 0.00) as preciocompra,
+                                 COALESCE(p.precioxpublico, 0.00) as precioventa,
+                                 cid.idconteo, cid.fechaconteo
+                          FROM detalle_conteo_inicial d
+                          INNER JOIN conteo_inicial_diario cid ON d.idconteo = cid.idconteo
+                          LEFT JOIN productos p ON (d.idproducto = p.idproducto AND p.codsucursal = cid.codsucursal)
+                          WHERE cid.codsucursal = :codsucursal
+                            AND cid.idconteo = (SELECT MAX(idconteo) FROM conteo_inicial_diario WHERE codsucursal = :codsucursal2)";
+            $stmtU = $this->dbh->prepare($sqlUltimo);
+            $stmtU->execute([':codsucursal' => $codsucursal, ':codsucursal2' => $codsucursal]);
+            $rows = $stmtU->fetchAll(PDO::FETCH_ASSOC);
+        }
+
+        if (empty($rows)) {
+            return [
+                'tiene_conteo' => false,
+                'idconteo' => null,
+                'fecha_conteo' => null,
+                'faltantes' => [],
+                'sobrantes' => [],
+                'total_discrepancias' => 0,
+                'costo_total_perdida' => 0,
+                'estado' => 'PENDIENTE_CONTEO'
+            ];
+        }
+
+        $idConteo = $rows[0]['idconteo'];
+        $fechaConteo = $rows[0]['fechaconteo'];
+        $faltantes = [];
+        $sobrantes = [];
+        $costoTotalPerdida = 0;
+
+        foreach ($rows as $r) {
+            $dif = floatval($r['diferencia']);
+            if (abs($dif) < 0.01) continue;
+
+            $costoUnit = floatval($r['preciocompra']);
+            if ($costoUnit <= 0) $costoUnit = floatval($r['precioventa']) * 0.7;
+
+            $item = [
+                'codproducto' => $r['codproducto'],
+                'producto' => $r['producto'],
+                'stock_sistema' => floatval($r['stock_sistema']),
+                'cantidad_fisica' => floatval($r['cantidad_fisica']),
+                'diferencia' => $dif,
+                'costo_unit' => $costoUnit,
+                'costo_total' => abs($dif) * $costoUnit
+            ];
+
+            if ($dif < 0) {
+                $costoTotalPerdida += abs($dif) * $costoUnit;
+                $faltantes[] = $item;
+            } else {
+                $sobrantes[] = $item;
+            }
+        }
+
+        $estado = 'CUADRADO_EXACTO';
+        if (!empty($faltantes) || !empty($sobrantes)) {
+            $estado = 'DISCREPANCIAS_DETECTADAS';
+            // Ordenar por mayor impacto económico (costo total de pérdida)
+            usort($faltantes, fn($a, $b) => $b['costo_total'] <=> $a['costo_total']);
+            usort($sobrantes, fn($a, $b) => $b['costo_total'] <=> $a['costo_total']);
+        }
+
+        return [
+            'tiene_conteo' => true,
+            'idconteo' => $idConteo,
+            'fecha_conteo' => $fechaConteo,
+            'faltantes' => $faltantes,
+            'sobrantes' => $sobrantes,
+            'total_discrepancias' => count($faltantes) + count($sobrantes),
+            'costo_total_perdida' => $costoTotalPerdida,
+            'estado' => $estado
+        ];
+    }
+
+    /**
+     * Genera el PDF Oficial de Cuadre de Caja y Control de Mermas de Productos (1 sola hoja, alto contraste)
      */
     public function generarPdfCuadre($sucursal, $turno, $fecha, $outputPath) {
         $arq = $this->obtenerUltimoArqueo($sucursal['codsucursal']);
         $pagos = $arq ? $this->obtenerPagosPorMedio($arq['codarqueo']) : ['efectivo' => 0, 'qr' => 0, 'otros' => 0, 'total' => 0];
         $detProds = $this->obtenerDetalleProductosArqueo($arq['codarqueo'] ?? 0);
         $anomalias = $this->detectarAnomaliasTurno($arq, $detProds);
+        $discrepancias = $this->obtenerDiscrepanciasStockYProductos($sucursal['codsucursal'], $arq['codarqueo'] ?? 0);
 
         $pdf = new PDF_Cuadre_Caja('P', 'mm', 'A4');
         $pdf->sucursal = $sucursal['nomsucursal'];
         $pdf->turno = $turno;
         $pdf->fecha = $fecha;
         $pdf->SetMargins(10, 8, 10);
-        $pdf->SetAutoPageBreak(true, 12);
+        $pdf->SetAutoPageBreak(false);
         $pdf->AddPage();
 
         $montoInicial = $arq ? floatval($arq['montoinicial']) : 0;
@@ -357,155 +468,242 @@ class AuditoriaService extends Db {
         $diferencia = $arq ? floatval($arq['diferencia']) : 0;
 
         $badge = ($diferencia == 0) ? "CUADRADO EXACTO [OK]" : (($diferencia > 0) ? "SOBRANTE (+Bs. " . number_format($diferencia, 2) . ")" : "FALTANTE (-Bs. " . number_format(abs($diferencia), 2) . ")");
-        $color = ($diferencia >= 0) ? [16, 185, 129] : [220, 38, 38];
+        $badgeColor = ($diferencia == 0) ? [22, 101, 52] : (($diferencia > 0) ? [161, 98, 7] : [185, 28, 28]);
 
-        // 1. Resumen de Recaudación
-        $pdf->TituloBloque("1", "CONCILIACIÓN ECONÓMICA Y MEDIOS DE PAGO", $badge, $color);
+        // 1. Resumen de Recaudación (Alto Contraste)
+        $pdf->TituloBloque("1", "CONCILIACIÓN ECONÓMICA Y MEDIOS DE PAGO", $badge, $badgeColor);
         
         $pdf->SetFont('Arial', 'B', 7.5);
-        $pdf->SetFillColor(226, 232, 240);
-        $pdf->Cell(45, 4.8, utf8_decode("Concepto"), 1, 0, 'L', true);
-        $pdf->Cell(25, 4.8, utf8_decode("Sistema (POS)"), 1, 0, 'R', true);
-        $pdf->Cell(25, 4.8, utf8_decode("Físico / Declarado"), 1, 0, 'R', true);
-        $pdf->Cell(25, 4.8, utf8_decode("Diferencia"), 1, 0, 'R', true);
-        $pdf->Cell(70, 4.8, utf8_decode("Diagnóstico / Estado"), 1, 1, 'L', true);
+        $pdf->SetFillColor(241, 245, 249);
+        $pdf->SetTextColor(15, 23, 42);
+        $pdf->SetDrawColor(203, 213, 225);
+        $pdf->Cell(45, 4.6, utf8_decode("Concepto"), 1, 0, 'L', true);
+        $pdf->Cell(25, 4.6, utf8_decode("Sistema (POS)"), 1, 0, 'R', true);
+        $pdf->Cell(25, 4.6, utf8_decode("Físico / Declarado"), 1, 0, 'R', true);
+        $pdf->Cell(25, 4.6, utf8_decode("Diferencia"), 1, 0, 'R', true);
+        $pdf->Cell(70, 4.6, utf8_decode("Diagnóstico / Estado"), 1, 1, 'L', true);
 
         $pdf->SetFont('Arial', '', 7.2);
-        $pdf->Cell(45, 4.2, utf8_decode("Fondo Inicial (Caja Chica)"), 1, 0, 'L');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($montoInicial, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($montoInicial, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. 0.00", 1, 0, 'R');
-        $pdf->Cell(70, 4.2, utf8_decode("Monto base verificado"), 1, 1, 'L');
+        $pdf->SetTextColor(30, 41, 59);
 
-        $pdf->Cell(45, 4.2, utf8_decode("Ventas en Efectivo"), 1, 0, 'L');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($ventasEfectivo, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($dineroDeclarado, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($diferencia, 2), 1, 0, 'R');
-        $pdf->Cell(70, 4.2, utf8_decode($badge), 1, 1, 'L');
+        // Fondo inicial
+        $pdf->Cell(45, 4.0, utf8_decode("Fondo Inicial (Caja Chica)"), 1, 0, 'L');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($montoInicial, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($montoInicial, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. 0.00", 1, 0, 'R');
+        $pdf->Cell(70, 4.0, utf8_decode("Monto base verificado"), 1, 1, 'L');
 
-        $pdf->Cell(45, 4.2, utf8_decode("Cobros por QR Bancario"), 1, 0, 'L');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($ventasQr, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($ventasQr, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. 0.00", 1, 0, 'R');
-        $pdf->Cell(70, 4.2, utf8_decode("Ingreso digital directo a cuenta"), 1, 1, 'L');
+        // Ventas Efectivo
+        $pdf->Cell(45, 4.0, utf8_decode("Ventas en Efectivo"), 1, 0, 'L');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($ventasEfectivo, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($dineroDeclarado, 2), 1, 0, 'R');
+        
+        if ($diferencia == 0) {
+            $pdf->SetTextColor(22, 101, 52);
+            $pdf->Cell(25, 4.0, "Bs. 0.00", 1, 0, 'R');
+            $pdf->Cell(70, 4.0, utf8_decode("Cuadrado exacto sin faltantes [OK]"), 1, 1, 'L');
+        } elseif ($diferencia < 0) {
+            $pdf->SetFillColor(254, 242, 242);
+            $pdf->SetTextColor(185, 28, 28);
+            $pdf->SetFont('Arial', 'B', 7.2);
+            $pdf->Cell(25, 4.0, "-Bs. " . number_format(abs($diferencia), 2), 1, 0, 'R', true);
+            $pdf->Cell(70, 4.0, utf8_decode("FALTANTE DE EFECTIVO EN CAJA"), 1, 1, 'L', true);
+            $pdf->SetFont('Arial', '', 7.2);
+        } else {
+            $pdf->SetFillColor(254, 252, 232);
+            $pdf->SetTextColor(161, 98, 7);
+            $pdf->SetFont('Arial', 'B', 7.2);
+            $pdf->Cell(25, 4.0, "+Bs. " . number_format($diferencia, 2), 1, 0, 'R', true);
+            $pdf->Cell(70, 4.0, utf8_decode("SOBRANTE DE EFECTIVO"), 1, 1, 'L', true);
+            $pdf->SetFont('Arial', '', 7.2);
+        }
+        $pdf->SetTextColor(30, 41, 59);
 
-        $pdf->Cell(45, 4.2, utf8_decode("Egresos y Gastos de Caja"), 1, 0, 'L');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($egresos, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. " . number_format($egresos, 2), 1, 0, 'R');
-        $pdf->Cell(25, 4.2, "Bs. 0.00", 1, 0, 'R');
-        $pdf->Cell(70, 4.2, utf8_decode("Gastos operativos rendidos"), 1, 1, 'L');
+        // QR Bancario
+        $pdf->Cell(45, 4.0, utf8_decode("Cobros por QR Bancario"), 1, 0, 'L');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($ventasQr, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($ventasQr, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. 0.00", 1, 0, 'R');
+        $pdf->Cell(70, 4.0, utf8_decode("Ingreso digital directo a cuenta"), 1, 1, 'L');
 
+        // Gastos / Egresos
+        $pdf->Cell(45, 4.0, utf8_decode("Egresos y Gastos de Caja"), 1, 0, 'L');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($egresos, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. " . number_format($egresos, 2), 1, 0, 'R');
+        $pdf->Cell(25, 4.0, "Bs. 0.00", 1, 0, 'R');
+        $pdf->Cell(70, 4.0, utf8_decode("Gastos operativos rendidos"), 1, 1, 'L');
+
+        // Total
         $totalCaja = $ventasEfectivo + $ventasQr;
         $pdf->SetFont('Arial', 'B', 7.5);
-        $pdf->SetFillColor(248, 250, 252);
-        $pdf->Cell(45, 4.6, utf8_decode("TOTAL VENTAS DEL TURNO"), 1, 0, 'L', true);
-        $pdf->Cell(25, 4.6, "Bs. " . number_format($totalCaja, 2), 1, 0, 'R', true);
-        $pdf->Cell(25, 4.6, "Bs. " . number_format($dineroDeclarado + $ventasQr, 2), 1, 0, 'R', true);
-        $pdf->Cell(25, 4.6, "Bs. " . number_format($diferencia, 2), 1, 0, 'R', true);
-        $pdf->Cell(70, 4.6, utf8_decode("Facturación consolidada"), 1, 1, 'L', true);
+        $pdf->SetFillColor(241, 245, 249);
+        $pdf->SetTextColor(15, 23, 42);
+        $pdf->Cell(45, 4.5, utf8_decode("TOTAL VENTAS DEL TURNO"), 1, 0, 'L', true);
+        $pdf->Cell(25, 4.5, "Bs. " . number_format($totalCaja, 2), 1, 0, 'R', true);
+        $pdf->Cell(25, 4.5, "Bs. " . number_format($dineroDeclarado + $ventasQr, 2), 1, 0, 'R', true);
+        $pdf->Cell(25, 4.5, "Bs. " . number_format($diferencia, 2), 1, 0, 'R', true);
+        $pdf->Cell(70, 4.5, utf8_decode("Facturación consolidada del turno"), 1, 1, 'L', true);
 
-        $pdf->Ln(2.5);
+        $pdf->Ln(2.0);
 
-        // 2. Información del Arqueo y Comentarios del Cajero
-        $pdf->TituloBloque("2", "DATOS DEL ARQUEO Y NOTAS DE CIERRE", "ARQUEO #" . ($arq['codarqueo'] ?? 'N/A'), [56, 189, 248]);
-        $pdf->SetFont('Arial', '', 7);
+        // 2. Información del Arqueo y Comentarios
+        $pdf->TituloBloque("2", "DATOS DEL ARQUEO Y NOTAS DE CIERRE", "ARQUEO #" . ($arq['codarqueo'] ?? 'N/A'), [2, 132, 199]);
+        $pdf->SetFont('Arial', '', 7.0);
+        $pdf->SetTextColor(30, 41, 59);
         $comentario = !empty($arq['comentarios']) ? $arq['comentarios'] : "Sin notas especiales registradas por el cajero al momento del cierre.";
-        $pdf->MultiCell(190, 3.8, utf8_decode("• Caja Asignada: " . ($arq['nomcaja'] ?? 'Caja Principal') . " | Apertura: " . ($arq['fechaapertura'] ?? 'N/A') . " | Cierre: " . ($arq['fechacierre'] ?? 'N/A') . "\n• Comentarios del Cajero: " . $comentario), 1, 'L');
+        $pdf->MultiCell(190, 3.6, utf8_decode("[-] Caja: " . ($arq['nomcaja'] ?? 'Caja Principal') . " | Apertura: " . ($arq['fechaapertura'] ?? 'N/A') . " | Cierre: " . ($arq['fechacierre'] ?? 'N/A') . "\n[-] Comentarios del Cajero: " . $comentario), 1, 'L');
 
-        $pdf->Ln(2.5);
+        $pdf->Ln(2.0);
 
-        // 3. AUDITORÍA DE PRODUCTOS VENDIDOS EN EL TURNO
-        $badgeProd = count($anomalias) == 0 ? "STOCK REGULAR [OK]" : "OBSERVADO (" . count($anomalias) . " ALERTAS)";
-        $colorBadgeProd = count($anomalias) == 0 ? [16, 185, 129] : [239, 68, 68];
-        $pdf->TituloBloque("3", "AUDITORÍA DE PRODUCTOS VENDIDOS (" . $detProds['total_unidades'] . " U. | BS. " . number_format($detProds['total_bs'], 2) . ")", $badgeProd, $colorBadgeProd);
-
-        // Alertas Forenses si existen
-        if (!empty($anomalias)) {
-            $pdf->SetFillColor(254, 242, 242);
-            $pdf->SetDrawColor(239, 68, 68);
-            $pdf->SetTextColor(185, 28, 28);
-            $pdf->SetFont('Arial', 'B', 7);
-            $textoAlertas = "[!] ALERTAS FORENSES DETECTADAS:\n" . implode("\n", array_map(function($a) { return "  • " . $a; }, $anomalias));
-            $pdf->MultiCell(190, 3.6, utf8_decode($textoAlertas), 1, 'L', true);
-            $pdf->SetDrawColor(0, 0, 0);
-            $pdf->SetTextColor(0, 0, 0);
-            $pdf->Ln(1.5);
+        // 3. PRODUCTOS A CUADRAR Y MERMAS DE STOCK (LO MÁS IMPORTANTE PARA EL USUARIO)
+        if ($discrepancias['estado'] === 'DISCREPANCIAS_DETECTADAS') {
+            $badgeProd = count($discrepancias['faltantes']) . " FALTANTES (" . count($discrepancias['sobrantes']) . " SOBRANTES)";
+            $colorBadgeProd = [185, 28, 28]; // Dark red
+        } elseif ($discrepancias['estado'] === 'CUADRADO_EXACTO') {
+            $badgeProd = "STOCK CUADRADO EXACTO [OK]";
+            $colorBadgeProd = [22, 101, 52]; // Dark green
+        } else {
+            $badgeProd = "PENDIENTE CONTEO FISICO";
+            $colorBadgeProd = [161, 98, 7]; // Amber
         }
 
-        // Resumen por Categorías
+        $pdf->TituloBloque("3", "CONTROL DE PRODUCTOS A CUADRAR Y MERMAS DE STOCK", $badgeProd, $colorBadgeProd);
+
+        if ($discrepancias['estado'] === 'DISCREPANCIAS_DETECTADAS') {
+            $pdf->SetFont('Arial', 'B', 7.0);
+            $pdf->SetFillColor(241, 245, 249);
+            $pdf->SetTextColor(15, 23, 42);
+            $pdf->Cell(22, 4.2, utf8_decode("Código"), 1, 0, 'C', true);
+            $pdf->Cell(68, 4.2, utf8_decode("Producto"), 1, 0, 'L', true);
+            $pdf->Cell(25, 4.2, utf8_decode("Sistema (POS)"), 1, 0, 'R', true);
+            $pdf->Cell(25, 4.2, utf8_decode("Físico Contado"), 1, 0, 'R', true);
+            $pdf->Cell(25, 4.2, utf8_decode("Diferencia"), 1, 0, 'R', true);
+            $pdf->Cell(25, 4.2, utf8_decode("Estado"), 1, 1, 'C', true);
+
+            $pdf->SetFont('Arial', '', 6.8);
+            foreach ($discrepancias['faltantes'] as $it) {
+                $pdf->SetTextColor(30, 41, 59);
+                $pdf->Cell(22, 3.8, utf8_decode(substr($it['codproducto'], 0, 10)), 1, 0, 'C');
+                $pdf->Cell(68, 3.8, utf8_decode(substr($it['producto'], 0, 36)), 1, 0, 'L');
+                $pdf->Cell(25, 3.8, number_format($it['stock_sistema'], 0) . " u.", 1, 0, 'R');
+                $pdf->Cell(25, 3.8, number_format($it['cantidad_fisica'], 0) . " u.", 1, 0, 'R');
+                
+                // Destacar faltante en rojo oscuro
+                $pdf->SetFont('Arial', 'B', 6.8);
+                $pdf->SetTextColor(185, 28, 28);
+                $pdf->SetFillColor(254, 242, 242);
+                $pdf->Cell(25, 3.8, number_format($it['diferencia'], 0) . " u.", 1, 0, 'R', true);
+                $pdf->Cell(25, 3.8, utf8_decode("FALTANTE"), 1, 1, 'C', true);
+                $pdf->SetFont('Arial', '', 6.8);
+                $pdf->SetTextColor(30, 41, 59);
+            }
+
+            foreach ($discrepancias['sobrantes'] as $it) {
+                $pdf->SetTextColor(30, 41, 59);
+                $pdf->Cell(22, 3.8, utf8_decode(substr($it['codproducto'], 0, 10)), 1, 0, 'C');
+                $pdf->Cell(68, 3.8, utf8_decode(substr($it['producto'], 0, 36)), 1, 0, 'L');
+                $pdf->Cell(25, 3.8, number_format($it['stock_sistema'], 0) . " u.", 1, 0, 'R');
+                $pdf->Cell(25, 3.8, number_format($it['cantidad_fisica'], 0) . " u.", 1, 0, 'R');
+                
+                // Sobrante en ámbar oscuro
+                $pdf->SetFont('Arial', 'B', 6.8);
+                $pdf->SetTextColor(161, 98, 7);
+                $pdf->SetFillColor(254, 252, 232);
+                $pdf->Cell(25, 3.8, "+" . number_format($it['diferencia'], 0) . " u.", 1, 0, 'R', true);
+                $pdf->Cell(25, 3.8, utf8_decode("SOBRANTE"), 1, 1, 'C', true);
+                $pdf->SetFont('Arial', '', 6.8);
+                $pdf->SetTextColor(30, 41, 59);
+            }
+        } elseif ($discrepancias['estado'] === 'CUADRADO_EXACTO') {
+            $pdf->SetFillColor(240, 253, 244);
+            $pdf->SetTextColor(22, 101, 52);
+            $pdf->SetFont('Arial', 'B', 7.2);
+            $pdf->Cell(190, 5.5, utf8_decode("  [OK] CONTEO FISICO EXACTO: Todos los productos contados coinciden con el inventario del POS."), 1, 1, 'L', true);
+            $pdf->SetTextColor(30, 41, 59);
+        } else {
+            $pdf->SetFillColor(254, 252, 232);
+            $pdf->SetTextColor(161, 98, 7);
+            $pdf->SetFont('Arial', '', 7.0);
+            $pdf->Cell(190, 5.5, utf8_decode("  [PENDIENTE] Sin planilla de conteo de relevo registrada en el sistema. Los cajeros deben registrar el conteo."), 1, 1, 'L', true);
+            $pdf->SetTextColor(30, 41, 59);
+        }
+
+        $pdf->Ln(2.0);
+
+        // 4. RESUMEN DE VENTAS Y ROTACIÓN DEL TURNO
+        $pdf->TituloBloque("4", "RESUMEN DE VENTAS Y ROTACIÓN (" . $detProds['total_unidades'] . " U. | BS. " . number_format($detProds['total_bs'], 2) . ")", "ROTACIÓN", [2, 132, 199]);
+        
         $pdf->SetFont('Arial', 'B', 6.8);
         $pdf->SetFillColor(241, 245, 249);
-        $resumenTexto = "  Consolidado por Rubro: ";
+        $pdf->SetTextColor(30, 41, 59);
+        $resumenTexto = "  Rubros: ";
         foreach ($detProds['resumen_categorias'] as $cat => $val) {
             $resumenTexto .= "{$cat}: " . number_format($val['unidades'], 0) . " u. (Bs. " . number_format($val['total_bs'], 2) . ")  |  ";
         }
-        $pdf->Cell(190, 4.2, utf8_decode(rtrim($resumenTexto, " | ")), 1, 1, 'L', true);
+        $pdf->Cell(190, 4.0, utf8_decode(rtrim($resumenTexto, " | ")), 1, 1, 'L', true);
         $pdf->Ln(1);
 
-        // Tabla de ítems vendidos (máximo 12 ítems principales)
+        // Tabla de ítems más vendidos (máximo 6 ítems para garantizar 1 sola página perfecta)
         $pdf->SetFont('Arial', 'B', 6.8);
         $pdf->SetFillColor(226, 232, 240);
-        $pdf->Cell(20, 4.2, utf8_decode("Código"), 1, 0, 'C', true);
-        $pdf->Cell(70, 4.2, utf8_decode("Producto"), 1, 0, 'L', true);
-        $pdf->Cell(45, 4.2, utf8_decode("Categoría"), 1, 0, 'L', true);
-        $pdf->Cell(20, 4.2, utf8_decode("Cantidad"), 1, 0, 'C', true);
-        $pdf->Cell(15, 4.2, utf8_decode("P. Unit"), 1, 0, 'R', true);
-        $pdf->Cell(20, 4.2, utf8_decode("Subtotal"), 1, 1, 'R', true);
+        $pdf->SetTextColor(15, 23, 42);
+        $pdf->Cell(22, 3.8, utf8_decode("Código"), 1, 0, 'C', true);
+        $pdf->Cell(78, 3.8, utf8_decode("Producto"), 1, 0, 'L', true);
+        $pdf->Cell(45, 3.8, utf8_decode("Categoría"), 1, 0, 'L', true);
+        $pdf->Cell(20, 3.8, utf8_decode("Cantidad"), 1, 0, 'C', true);
+        $pdf->Cell(25, 3.8, utf8_decode("Subtotal"), 1, 1, 'R', true);
 
         $pdf->SetFont('Arial', '', 6.6);
-        $itemsAMostrar = array_slice($detProds['items'], 0, 10);
+        $itemsAMostrar = array_slice($detProds['items'], 0, 6);
         foreach ($itemsAMostrar as $it) {
-            $pdf->Cell(20, 3.8, utf8_decode(substr($it['codproducto'], 0, 10)), 1, 0, 'C');
-            $pdf->Cell(70, 3.8, utf8_decode(substr($it['producto'], 0, 38)), 1, 0, 'L');
-            $pdf->Cell(45, 3.8, utf8_decode(substr($it['categoria'], 0, 24)), 1, 0, 'L');
+            $pdf->SetTextColor(30, 41, 59);
+            $pdf->Cell(22, 3.6, utf8_decode(substr($it['codproducto'], 0, 10)), 1, 0, 'C');
+            $pdf->Cell(78, 3.6, utf8_decode(substr($it['producto'], 0, 40)), 1, 0, 'L');
+            $pdf->Cell(45, 3.6, utf8_decode(substr($it['categoria'], 0, 24)), 1, 0, 'L');
             $pdf->SetFont('Arial', 'B', 6.6);
-            $pdf->Cell(20, 3.8, number_format($it['cantidad'], 0) . " u.", 1, 0, 'C');
+            $pdf->Cell(20, 3.6, number_format($it['cantidad'], 0) . " u.", 1, 0, 'C');
             $pdf->SetFont('Arial', '', 6.6);
-            $pdf->Cell(15, 3.8, number_format($it['precioventa'], 2), 1, 0, 'R');
-            $pdf->Cell(20, 3.8, "Bs. " . number_format($it['valortotal'], 2), 1, 1, 'R');
+            $pdf->Cell(25, 3.6, "Bs. " . number_format($it['valortotal'], 2), 1, 1, 'R');
         }
 
-        if (count($detProds['items']) > 10) {
-            $restantes = count($detProds['items']) - 10;
-            $pdf->SetFont('Arial', 'I', 6.5);
-            $pdf->SetTextColor(100, 116, 139);
-            $pdf->Cell(190, 3.6, utf8_decode("... y {$restantes} productos adicionales detallados en el libro de ventas POS."), 1, 1, 'C');
-            $pdf->SetTextColor(0, 0, 0);
-        }
+        $pdf->Ln(2.0);
 
-        $pdf->Ln(2.5);
+        // 5. Dictamen y Firmas
+        $dictamenBadge = ($diferencia == 0 && empty($discrepancias['faltantes'])) ? "100% CUADRADO Y CONFORME" : "AUDITADO CON OBSERVACIONES";
+        $dictamenColor = ($diferencia == 0 && empty($discrepancias['faltantes'])) ? [22, 101, 52] : [185, 28, 28];
+        $pdf->TituloBloque("5", "DICTAMEN PERICIAL Y CONFORMIDAD ADMINISTRATIVA", $dictamenBadge, $dictamenColor);
+        $pdf->SetFont('Arial', '', 6.8);
+        $pdf->SetTextColor(71, 85, 105);
+        $pdf->MultiCell(190, 3.2, utf8_decode("Validado mediante conciliación cruzada de registros en BD, ventas por comanda, conteo ciego de relevo y declaraciones de cierre. Cualquier inconsistencia debe ser representada en un plazo máximo de 12 horas hábiles."), 0, 'J');
 
-        // 4. Dictamen y Firmas
-        $dictamenBadge = (count($anomalias) == 0 && $diferencia == 0) ? "100% CUADRADO Y CONFORME" : "AUDITADO CON OBSERVACIONES OPERATIVAS";
-        $dictamenColor = (count($anomalias) == 0 && $diferencia == 0) ? [16, 185, 129] : [220, 38, 38];
-        $pdf->TituloBloque("4", "DICTAMEN PERICIAL Y CONFORMIDAD ADMINISTRATIVA", $dictamenBadge, $dictamenColor);
-        $pdf->SetFont('Arial', '', 7);
-        $pdf->MultiCell(190, 3.6, utf8_decode("El presente informe ha sido validado mediante conciliación cruzada de registros transaccionales en base de datos, ventas por comanda, desglose de inventario y declaraciones de cierre. Cualquier inconsistencia debe ser representada en un plazo máximo de 12 horas hábiles."), 0, 'J');
+        $pdf->Ln(6);
 
-        $pdf->Ln(8);
-
-        // Cuadro de firmas
+        // Cuadro de firmas con texto oscuro
         $yFirma = $pdf->GetY();
-        if ($yFirma > 260) {
-            $pdf->AddPage();
-            $yFirma = 30;
+        if ($yFirma > 268) {
+            $yFirma = 265;
         }
+        $pdf->SetDrawColor(100, 116, 139);
         $pdf->Line(20, $yFirma, 85, $yFirma);
         $pdf->Line(125, $yFirma, 190, $yFirma);
 
         $pdf->SetFont('Arial', 'B', 7.5);
-        $pdf->SetXY(20, $yFirma + 1.5);
-        $pdf->Cell(65, 4, utf8_decode("FIRMA CAJERO SALIENTE"), 0, 1, 'C');
+        $pdf->SetTextColor(15, 23, 42);
+        $pdf->SetXY(20, $yFirma + 1.2);
+        $pdf->Cell(65, 3.8, utf8_decode("FIRMA CAJERO SALIENTE"), 0, 1, 'C');
         $pdf->SetFont('Arial', '', 6.8);
-        $pdf->SetXY(20, $yFirma + 5.5);
-        $pdf->Cell(65, 3.5, utf8_decode("Declaración Jurada de Entrega"), 0, 1, 'C');
+        $pdf->SetTextColor(100, 116, 139);
+        $pdf->SetXY(20, $yFirma + 4.8);
+        $pdf->Cell(65, 3.2, utf8_decode("Declaración Jurada de Entrega"), 0, 1, 'C');
 
         $pdf->SetFont('Arial', 'B', 7.5);
-        $pdf->SetXY(125, $yFirma + 1.5);
-        $pdf->Cell(65, 4, utf8_decode("ADMINISTRACIÓN / CONTROL INTERNO"), 0, 1, 'C');
+        $pdf->SetTextColor(15, 23, 42);
+        $pdf->SetXY(125, $yFirma + 1.2);
+        $pdf->Cell(65, 3.8, utf8_decode("ADMINISTRACIÓN / CONTROL INTERNO"), 0, 1, 'C');
         $pdf->SetFont('Arial', '', 6.8);
-        $pdf->SetXY(125, $yFirma + 5.5);
-        $pdf->Cell(65, 3.5, utf8_decode("Certificación de Arqueo Joker POS"), 0, 1, 'C');
+        $pdf->SetTextColor(100, 116, 139);
+        $pdf->SetXY(125, $yFirma + 4.8);
+        $pdf->Cell(65, 3.2, utf8_decode("Certificación de Arqueo Joker POS"), 0, 1, 'C');
 
         $pdf->Output('F', $outputPath);
         return file_exists($outputPath);

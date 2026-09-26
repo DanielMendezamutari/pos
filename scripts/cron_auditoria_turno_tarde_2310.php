@@ -47,29 +47,46 @@ foreach ($sucursales as $suc) {
     $resumenTexto .= "  • Ventas: Bs. " . number_format($efectivo + $qr, 2) . " (EF: " . number_format($efectivo, 2) . " | QR: " . number_format($qr, 2) . ")\n";
     $resumenTexto .= "  • Diferencia de Caja: " . ($dif == 0 ? "Cuadrado exacto ✅" : "Bs. " . number_format($dif, 2)) . "\n";
 
-    // 1. Generar PDF de Cuadre
-    $pdfCuadrePath = $dirSalida . "/{$slug}_cuadre_tarde.pdf";
+    // Control de Stock y Productos a Cuadrar
+    $disc = $service->obtenerDiscrepanciasStockYProductos($cod, $arq['codarqueo'] ?? 0, $fechaIso);
+    if ($disc['estado'] === 'DISCREPANCIAS_DETECTADAS') {
+        $resumenTexto .= "  🔍 *Mermas / Productos a cuadrar:*\n";
+        if (!empty($disc['faltantes'])) {
+            $totalF = count($disc['faltantes']);
+            $mostrados = array_slice($disc['faltantes'], 0, 5);
+            foreach ($mostrados as $f) {
+                $resumenTexto .= "     🔴 Faltante: " . trim($f['producto']) . " (" . number_format($f['diferencia'], 0) . " u.) - Bs. " . number_format($f['costo_total'], 2) . "\n";
+            }
+            if ($totalF > 5) {
+                $resumenTexto .= "     _... y " . ($totalF - 5) . " mermas menores más (ver informe PDF)._\n";
+            }
+        }
+        if (!empty($disc['sobrantes'])) {
+            foreach (array_slice($disc['sobrantes'], 0, 2) as $s) {
+                $resumenTexto .= "     🟡 Sobrante: " . trim($s['producto']) . " (+" . number_format($s['diferencia'], 0) . " u.)\n";
+            }
+        }
+    } elseif ($disc['estado'] === 'CUADRADO_EXACTO') {
+        $resumenTexto .= "  📦 Stock: Cuadrado exacto (Sin faltantes) ✅\n";
+    } else {
+        $resumenTexto .= "  📦 Stock: ⏳ Sin conteo físico registrado en este turno\n";
+    }
+
+    // 1. Generar ÚNICO PDF de Cuadre y Mermas
+    $pdfCuadrePath = $dirSalida . "/{$slug}_auditoria_tarde.pdf";
     $service->generarPdfCuadre($suc, 'Tarde', $fechaHoy, $pdfCuadrePath);
 
-    // 2. Generar PDF de Stock Inicio Noche
-    $pdfStockPath = $dirSalida . "/{$slug}_stock_inicio_noche.pdf";
-    $service->generarPdfStock($suc, 'Noche', $fechaHoy, $pdfStockPath);
+    echo "✅ [{$nombre}] Generado informe de auditoría: " . basename($pdfCuadrePath) . "\n";
 
-    echo "✅ [{$nombre}] Generados:\n   - Cuadre: " . basename($pdfCuadrePath) . "\n   - Stock: " . basename($pdfStockPath) . "\n";
-
-    // Preparar para cola de envíos
+    // Preparar para cola de envíos (Solo 1 PDF ejecutivo por casa)
     $enviosQueue[] = [
         'pdfPath' => $pdfCuadrePath,
-        'caption' => "📄 {$nombre} - Cuadre Económico Turno Tarde ({$fechaHoy})"
-    ];
-    $enviosQueue[] = [
-        'pdfPath' => $pdfStockPath,
-        'caption' => "📦 {$nombre} - Planilla Oficial Stock para Turno Noche ({$fechaHoy})"
+        'caption' => "📄 {$nombre} - Cuadre y Control de Mermas Turno Tarde ({$fechaHoy})"
     ];
 }
 
 $resumenTexto .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
-$resumenTexto .= "📎 _A continuación se adjuntan los 8 reportes oficiales en PDF (2 por cada casa: Cuadre Financiero + Planilla de Stock para inicio del Turno Noche)._";
+$resumenTexto .= "📎 _A continuación se adjuntan los 4 reportes oficiales en PDF (1 por cada casa: Cuadre Financiero y Control de Mermas)._";
 
 // 1. Encolar el Mensaje Resumen Ejecutivo
 $datosMensaje = [
@@ -79,7 +96,7 @@ $datosMensaje = [
 file_put_contents($colaLocal . '/envio_01_resumen_' . time() . '.json', json_encode($datosMensaje, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 echo "\n📤 Mensaje resumen consolidado encolado para WhatsApp.\n";
 
-// 2. Encolar los 8 PDFs
+// 2. Encolar los 4 PDFs
 $idx = 2;
 foreach ($enviosQueue as $env) {
     $prefijo = str_pad($idx, 2, '0', STR_PAD_LEFT);
@@ -92,5 +109,5 @@ foreach ($enviosQueue as $env) {
     $idx++;
 }
 
-echo "📄 8 Documentos PDF encolados exitosamente en la cola de WhatsApp ({$colaLocal}).\n";
+echo "📄 4 Documentos PDF encolados exitosamente en la cola de WhatsApp ({$colaLocal}).\n";
 echo "🚀 El bot despachará todos los informes al grupo 'Reportes Auditoría Joker'.\n";

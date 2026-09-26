@@ -83,33 +83,29 @@ foreach ($sucursales as $suc) {
         $resumenTexto .= "📦 *Productos Vendidos:*\n" . implode("\n", $lineasProds) . "\n";
     }
 
-    // Auditoría Visual: Cruce de fotos de cuadre manual y gastos
-    try {
-        $resVision = $service->auditarFotosSucursalConIA($suc, $arq['codarqueo'] ?? 0, $fechaIso);
-        if (!empty($resVision['tiene_analisis'])) {
-            $evMan = $resVision['evaluacion_manual'] ?? [];
-            if (!empty($evMan['tiene_cuadre'])) {
-                $resumenTexto .= "📝 *Cuadre Manual:* {$evMan['estado_cuadre']}\n";
-                if (!empty($evMan['hubo_gastos'])) {
-                    $resumenTexto .= "💸 *Gastos en hoja:* {$evMan['linea_gastos']}\n";
-                } else {
-                    $resumenTexto .= "💸 *Gastos en hoja:* Sin gastos anotados\n";
-                }
-            } else {
-                $resumenTexto .= "📝 *Cuadre Manual:* Cuadra con el sistema ✅\n";
-                $resumenTexto .= "💸 *Gastos en hoja:* Sin gastos anotados\n";
+    // Control de Stock y Productos a Cuadrar
+    $disc = $service->obtenerDiscrepanciasStockYProductos($cod, $arq['codarqueo'] ?? 0, $fechaIso);
+    if ($disc['estado'] === 'DISCREPANCIAS_DETECTADAS') {
+        $resumenTexto .= "🔍 *PRODUCTOS A CUADRAR / MERMAS:*\n";
+        if (!empty($disc['faltantes'])) {
+            $totalF = count($disc['faltantes']);
+            $mostrados = array_slice($disc['faltantes'], 0, 5);
+            foreach ($mostrados as $f) {
+                $resumenTexto .= "   🔴 *FALTANTE:* " . trim($f['producto']) . " (" . number_format($f['diferencia'], 0) . " u.) - Costo: Bs. " . number_format($f['costo_total'], 2) . "\n";
             }
-
-            if (!empty($resVision['cruce_inventario']['discrepancias'])) {
-                foreach (array_slice($resVision['cruce_inventario']['discrepancias'], 0, 1) as $dInv) {
-                    $resumenTexto .= "📦 *Diferencia en foto de stock:* {$dInv}\n";
-                }
+            if ($totalF > 5) {
+                $resumenTexto .= "   _... y " . ($totalF - 5) . " mermas menores más (ver informe PDF)._\n";
             }
-        } else {
-            $resumenTexto .= "📝 *Cuadre Manual:* ⏳ Sin foto de cuadre recibida aún\n";
         }
-    } catch (Exception $eVision) {
-        $resumenTexto .= "📝 *Cuadre Manual:* ⏳ Pendiente de verificación\n";
+        if (!empty($disc['sobrantes'])) {
+            foreach (array_slice($disc['sobrantes'], 0, 2) as $s) {
+                $resumenTexto .= "   🟡 *Sobrante:* " . trim($s['producto']) . " (+" . number_format($s['diferencia'], 0) . " u.)\n";
+            }
+        }
+    } elseif ($disc['estado'] === 'CUADRADO_EXACTO') {
+        $resumenTexto .= "📦 *Stock:* Cuadrado exacto (Sin faltantes ni mermas) ✅\n";
+    } else {
+        $resumenTexto .= "📦 *Stock:* ⏳ Sin conteo físico registrado en este turno\n";
     }
 
     // Alertas de auditoría operativa
@@ -123,28 +119,20 @@ foreach ($sucursales as $suc) {
     $resumenTexto .= "────────────────────────────\n";
     $num++;
 
-    // 1. Generar PDF de Cuadre Noche
-    $pdfCuadrePath = $dirSalida . "/{$slug}_cuadre_noche.pdf";
+    // Generar ÚNICO PDF de Auditoría y Cuadre por sucursal
+    $pdfCuadrePath = $dirSalida . "/{$slug}_auditoria_noche.pdf";
     $service->generarPdfCuadre($suc, 'Noche', $fechaHoy, $pdfCuadrePath);
 
-    // 2. Generar PDF de Stock Inicio Tarde
-    $pdfStockPath = $dirSalida . "/{$slug}_stock_inicio_tarde.pdf";
-    $service->generarPdfStock($suc, 'Tarde', $fechaHoy, $pdfStockPath);
+    echo "✅ [{$nombre}] Generado informe de auditoría: " . basename($pdfCuadrePath) . "\n";
 
-    echo "✅ [{$nombre}] Generados:\n   - Cuadre Noche: " . basename($pdfCuadrePath) . "\n   - Stock Inicio Tarde: " . basename($pdfStockPath) . "\n";
-
-    // Preparar para cola de envíos
+    // Preparar para cola de envíos (Solo 1 PDF ejecutivo por casa)
     $enviosQueue[] = [
         'pdfPath' => $pdfCuadrePath,
-        'caption' => "📄 {$nombre} - Cuadre y Auditoría Turno Noche ({$fechaHoy})"
-    ];
-    $enviosQueue[] = [
-        'pdfPath' => $pdfStockPath,
-        'caption' => "📦 {$nombre} - Planilla Oficial Stock para Turno Tarde ({$fechaHoy})"
+        'caption' => "📄 {$nombre} - Auditoría de Caja y Mermas Turno Noche ({$fechaHoy})"
     ];
 }
 
-$resumenTexto .= "\n📎 _Se adjuntan los reportes oficiales en PDF (Cuadre Económico + Planilla de Stock) de cada sucursal._";
+$resumenTexto .= "\n📎 _Se adjunta 1 reporte oficial en PDF por sucursal (Auditoría de Caja y Mermas de Stock)._";
 
 // 1. Encolar el Mensaje Resumen Ejecutivo
 $datosMensaje = [
@@ -154,7 +142,7 @@ $datosMensaje = [
 file_put_contents($colaLocal . '/envio_01_resumen_' . time() . '.json', json_encode($datosMensaje, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
 echo "\n📤 Mensaje resumen consolidado encolado para WhatsApp.\n";
 
-// 2. Encolar los 8 PDFs
+// 2. Encolar los 4 PDFs (1 por sucursal)
 $idx = 2;
 foreach ($enviosQueue as $env) {
     $prefijo = str_pad($idx, 2, '0', STR_PAD_LEFT);
@@ -167,5 +155,5 @@ foreach ($enviosQueue as $env) {
     $idx++;
 }
 
-echo "📄 8 Documentos PDF encolados exitosamente en la cola de WhatsApp ({$colaLocal}).\n";
+echo "📄 4 Documentos PDF encolados exitosamente en la cola de WhatsApp ({$colaLocal}).\n";
 echo "🚀 El bot despachará todos los informes al grupo 'Reportes Auditoría Joker'.\n";
