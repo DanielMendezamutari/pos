@@ -131,6 +131,27 @@ if ($accion === 'ver_cola') {
     exit;
 }
 
+if ($accion === 'solicitar_diagnostico_grupos') {
+    header('Content-Type: application/json; charset=utf-8');
+    $colaDir = dirname(__DIR__) . '/whatsapp_bot/cola_envios';
+    if (!is_dir($colaDir)) @mkdir($colaDir, 0777, true);
+    $diagCmd = ['comando' => 'diagnostico_grupos', 'timestamp' => time()];
+    file_put_contents($colaDir . '/envio_00_diag_' . time() . '.json', json_encode($diagCmd));
+    echo json_encode(['status' => 'solicitado', 'mensaje' => 'Comando de diagnóstico encolado']);
+    exit;
+}
+
+if ($accion === 'ver_grupos') {
+    header('Content-Type: application/json; charset=utf-8');
+    $infoFile = dirname(__DIR__) . '/whatsapp_bot/grupos_info.json';
+    if (!file_exists($infoFile)) {
+        echo json_encode(['error' => 'Aún no se ha generado grupos_info.json. Ejecuta solicitar_diagnostico_grupos primero.']);
+        exit;
+    }
+    echo file_get_contents($infoFile);
+    exit;
+}
+
 if ($accion === 'fotos_recientes') {
     header('Content-Type: application/json; charset=utf-8');
     $archivos = [];

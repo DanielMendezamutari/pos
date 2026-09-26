@@ -445,6 +445,30 @@ async function iniciarBot() {
     async function procesarArchivoEnvio(filePath) {
         try {
             const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+            if (data.comando === 'diagnostico_grupos') {
+                const chats = await sock.groupFetchAllParticipating();
+                const lista = [];
+                for (const j in chats) {
+                    const c = chats[j];
+                    lista.push({
+                        jid: j,
+                        nombre: c.subject,
+                        cant_participantes: (c.participants || []).length,
+                        participantes: (c.participants || []).map(p => ({ id: p.id, admin: p.admin }))
+                    });
+                }
+                const outInfo = {
+                    bot_usuario: sock.user || null,
+                    total_grupos: lista.length,
+                    grupos: lista,
+                    actualizado: new Date().toISOString()
+                };
+                fs.writeFileSync(path.join(__dirname, 'grupos_info.json'), JSON.stringify(outInfo, null, 2), 'utf8');
+                console.log(`📋 Diagnóstico de grupos generado: ${lista.length} grupos encontrados.`);
+                return true;
+            }
+
             let targetJid = data.jid;
             
             if (!targetJid) {
