@@ -68,11 +68,17 @@ if ($accion === 'ver_log') {
     $logPath = $botDir . '/bot_salida.log';
     $watchdogLog = $botDir . '/bot_watchdog.log';
     $cant = intval($_GET['lineas'] ?? 100);
+    $filtro = $_GET['filtro'] ?? '';
 
     $salidaLog = [];
     if (file_exists($logPath)) {
         $l = @file($logPath);
-        if ($l) $salidaLog = array_map('trim', array_slice($l, -$cant));
+        if ($l) {
+            if (!empty($filtro)) {
+                $l = array_filter($l, fn($line) => stripos($line, $filtro) !== false);
+            }
+            $salidaLog = array_values(array_map('trim', array_slice($l, -$cant)));
+        }
     }
 
     $salidaWatchdog = [];
@@ -84,6 +90,7 @@ if ($accion === 'ver_log') {
     $crontab = @shell_exec('crontab -l 2>&1') ?? 'No disponible';
 
     echo json_encode([
+        'total_lineas_log' => file_exists($logPath) ? count(file($logPath)) : 0,
         'crontab' => $crontab,
         'watchdog_log' => $salidaWatchdog,
         'bot_salida_log' => $salidaLog
