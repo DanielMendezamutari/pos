@@ -284,7 +284,7 @@ if ($accion === 'consultar_arqueos') {
         class InfoArqueos extends Db {
             public function getArqueos() {
                 parent::__construct();
-                $stmt = $this->dbh->query("SELECT a.codarqueo, c.codsucursal, c.nomcaja, a.fechaapertura, a.fechacierre, a.montocierre, a.efectivocaja, a.dineroefectivo, a.diferencia, a.comentarios, a.statusarqueo, a.es_entrenamiento
+                $stmt = $this->dbh->query("SELECT a.*, c.codsucursal, c.nomcaja 
                                            FROM arqueocaja a 
                                            JOIN cajas c ON a.codcaja = c.codcaja 
                                            ORDER BY a.codarqueo DESC LIMIT 25");
