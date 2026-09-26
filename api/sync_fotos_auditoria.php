@@ -279,18 +279,23 @@ if ($accion === 'ejecutar_migracion') {
 
 if ($accion === 'consultar_arqueos') {
     header('Content-Type: application/json; charset=utf-8');
-    require_once __DIR__ . '/../class/classconexion.php';
-    class InfoArqueos extends Db {
-        public function getArqueos() {
-            $stmt = $this->dbh->query("SELECT a.codarqueo, c.codsucursal, c.nomcaja, a.fechaapertura, a.fechacierre, a.montocierre, a.efectivocaja, a.dineroefectivo, a.diferencia, a.comentarios, a.statusarqueo, a.es_entrenamiento
-                                       FROM arqueocaja a 
-                                       JOIN cajas c ON a.codcaja = c.codcaja 
-                                       ORDER BY a.codarqueo DESC LIMIT 25");
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    try {
+        require_once __DIR__ . '/../class/classconexion.php';
+        class InfoArqueos extends Db {
+            public function getArqueos() {
+                parent::__construct();
+                $stmt = $this->dbh->query("SELECT a.codarqueo, c.codsucursal, c.nomcaja, a.fechaapertura, a.fechacierre, a.montocierre, a.efectivocaja, a.dineroefectivo, a.diferencia, a.comentarios, a.statusarqueo, a.es_entrenamiento
+                                           FROM arqueocaja a 
+                                           JOIN cajas c ON a.codcaja = c.codcaja 
+                                           ORDER BY a.codarqueo DESC LIMIT 25");
+                return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            }
         }
+        $ia = new InfoArqueos();
+        echo json_encode(['status' => 'success', 'arqueos' => $ia->getArqueos()], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        echo json_encode(['status' => 'error', 'mensaje' => $e->getMessage()], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     }
-    $ia = new InfoArqueos();
-    echo json_encode(['status' => 'success', 'arqueos' => $ia->getArqueos()], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
 }
 
