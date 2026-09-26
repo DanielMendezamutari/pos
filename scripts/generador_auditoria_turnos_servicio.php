@@ -443,6 +443,154 @@ class AuditoriaService extends Db {
     }
 
     /**
+     * Construye un mensaje ejecutivo completo, altamente estructurado y con cruces
+     * para enviar individualmente por sucursal a WhatsApp (1 mensaje por sucursal y por cierre).
+     */
+    public function generarMensajeAuditoriaSucursal($sucursal, $turno, $fechaHoy, $fechaIso) {
+        $cod = $sucursal['codsucursal'];
+        $nombre = strtoupper(trim($sucursal['nomsucursal']));
+        
+        $arq = $this->obtenerUltimoArqueo($cod);
+        $pagos = $arq ? $this->obtenerPagosPorMedio($arq['codarqueo']) : ['efectivo' => 0, 'qr' => 0, 'otros' => 0, 'total' => 0];
+        $detProds = $this->obtenerDetalleProductosArqueo($arq['codarqueo'] ?? 0);
+        $anomalias = $this->detectarAnomaliasTurno($arq, $detProds);
+        $disc = $this->obtenerDiscrepanciasStockYProductos($cod, $arq['codarqueo'] ?? 0, $fechaIso);
+
+        $dif = $arq ? floatval($arq['diferencia']) : 0;
+        $efectivo = $pagos['efectivo'];
+        $qr = $pagos['qr'];
+        $otros = $pagos['otros'];
+        $totalRecaudado = $efectivo + $qr + $otros;
+        $dineroCajaDeclarado = $arq ? floatval($arq['dineroefectivo']) : $efectivo;
+        $egresos = $arq ? floatval($arq['egresos']) : 0;
+        $nomCaja = $arq['nomcaja'] ?? 'Caja';
+        $codArqueo = $arq['codarqueo'] ?? 'N/A';
+        $apertura = !empty($arq['fechaapertura']) ? date('d/m H:i', strtotime($arq['fechaapertura'])) : 'N/A';
+        $cierre = !empty($arq['fechacierre']) ? date('d/m H:i', strtotime($arq['fechacierre'])) : 'N/A';
+
+        $iconoTurno = (stripos($turno, 'Noche') !== false) ? '🌙' : '☀️';
+        $relevoTurno = (stripos($turno, 'Noche') !== false) ? 'Turno Tarde' : 'Turno Noche';
+
+        $msg = "🏢 *{$nombre} - AUDITORÍA Y CRUCE DE CIERRE*\n";
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $msg .= "{$iconoTurno} *Turno:* {$turno} (Relevo {$relevoTurno})\n";
+        $msg .= "📅 *Fecha:* {$fechaHoy} | *Hora Emisión:* " . date('H:i') . "\n";
+        $msg .= "👤 *Caja:* {$nomCaja} | *Arqueo:* #{$codArqueo}\n";
+        $msg .= "🕒 *Período:* {$apertura} ➔ {$cierre}\n\n";
+
+        // 1. Balance Económico
+        $msg .= "💰 *BALANCE ECONÓMICO Y FORMAS DE PAGO:*\n";
+        $msg .= "  • Efectivo declarado en caja: Bs. " . number_format($dineroCajaDeclarado, 2) . "\n";
+        $msg .= "  • Cobros verificados por QR: Bs. " . number_format($qr, 2) . "\n";
+        if ($otros > 0) {
+            $msg .= "  • Otros medios de pago: Bs. " . number_format($otros, 2) . "\n";
+        }
+        if ($egresos > 0) {
+            $msg .= "  • Gastos / Egresos autorizados: Bs. " . number_format($egresos, 2) . "\n";
+        }
+        $msg .= "  • Total Recaudado (Ventas): Bs. " . number_format($totalRecaudado, 2) . "\n";
+
+        if ($dif == 0) {
+            $msg .= "  💵 *Diferencia de Caja:* Cuadrado exacto (Sin faltantes) ✅\n";
+        } elseif ($dif < 0) {
+            $msg .= "  💵 *Diferencia de Caja:* 🔴 *FALTANTE DE Bs. " . number_format(abs($dif), 2) . "* (Cajero debe justificar/reponer)\n";
+        } else {
+            $msg .= "  💵 *Diferencia de Caja:* 🟡 *SOBRANTE DE +Bs. " . number_format($dif, 2) . "*\n";
+        }
+
+        // 2. Mesas de Billar
+        if (!empty($detProds['total_billar_bs']) && $detProds['total_billar_bs'] > 0) {
+            $msg .= "\n🎱 *MESAS DE BILLAR:*\n";
+            $msg .= "  • Tiempo de juego cobrado: Bs. " . number_format($detProds['total_billar_bs'], 2) . "\n";
+        }
+
+        // 3. Venta de Productos
+        $lineasProds = [];
+        foreach ($detProds['resumen_categorias'] as $cat => $val) {
+            if ($cat === 'MESAS DE BILLAR') continue;
+            if ($cat === 'CERVEZAS Y COMBOS') {
+                $lineasProds[] = "  • Cervezas y Combos: " . number_format($val['unidades'], 0) . " botellas (Bs. " . number_format($val['total_bs'], 2) . ")";
+            } elseif ($cat === 'SODAS Y AGUAS') {
+                $lineasProds[] = "  • Sodas y Aguas: " . number_format($val['unidades'], 0) . " botellas (Bs. " . number_format($val['total_bs'], 2) . ")";
+            } elseif ($cat === 'GUANTES DE BILLAR') {
+                $lineasProds[] = "  • Guantes de billar: " . number_format($val['unidades'], 0) . " pares (Bs. " . number_format($val['total_bs'], 2) . ")";
+            } elseif ($cat === 'SNACKS Y TABACO') {
+                $lineasProds[] = "  • Snacks y Cigarros: " . number_format($val['unidades'], 0) . " unidades (Bs. " . number_format($val['total_bs'], 2) . ")";
+            } else {
+                $lineasProds[] = "  • " . ucfirst(strtolower($cat)) . ": " . number_format($val['unidades'], 0) . " unidades (Bs. " . number_format($val['total_bs'], 2) . ")";
+            }
+        }
+        if (!empty($lineasProds)) {
+            $msg .= "\n📦 *VENTA DE PRODUCTOS EN EL TURNO:*\n" . implode("\n", $lineasProds) . "\n";
+        }
+
+        // 4. Cruce de Stock Físico vs Sistema (Mermas, Faltantes y Sobrantes)
+        $msg .= "\n🔍 *CRUCE DE STOCK FÍSICO VS SISTEMA (CONTEO A CIEGAS):*\n";
+        if ($disc['estado'] === 'DISCREPANCIAS_DETECTADAS') {
+            if (!empty($disc['faltantes'])) {
+                $cantF = count($disc['faltantes']);
+                $msg .= "  🔴 *FALTANTES DETECTADOS / MERMAS ({$cantF} productos):*\n";
+                $topF = array_slice($disc['faltantes'], 0, 8);
+                foreach ($topF as $f) {
+                    $prodNom = trim($f['producto']);
+                    $cantU = number_format(abs($f['diferencia']), 0);
+                    $costoTot = number_format($f['costo_total'], 2);
+                    $stockSis = number_format($f['stock_sistema'], 0);
+                    $stockFis = number_format($f['cantidad_fisica'], 0);
+                    $msg .= "    • {$prodNom}: -{$cantU} u. (Sis: {$stockSis} | Fís: {$stockFis}) ➔ Pérdida: Bs. {$costoTot}\n";
+                }
+                if ($cantF > 8) {
+                    $msg .= "    _... y " . ($cantF - 8) . " faltantes menores más (ver PDF adjunto)._\n";
+                }
+                $msg .= "  📉 *Pérdida Total en Faltantes:* Bs. " . number_format($disc['costo_total_perdida'], 2) . "\n";
+            }
+
+            if (!empty($disc['sobrantes'])) {
+                $cantS = count($disc['sobrantes']);
+                $msg .= "  🟡 *SOBRANTES DETECTADOS ({$cantS} productos):*\n";
+                $topS = array_slice($disc['sobrantes'], 0, 5);
+                foreach ($topS as $s) {
+                    $prodNom = trim($s['producto']);
+                    $cantU = number_format($s['diferencia'], 0);
+                    $stockSis = number_format($s['stock_sistema'], 0);
+                    $stockFis = number_format($s['cantidad_fisica'], 0);
+                    $msg .= "    • {$prodNom}: +{$cantU} u. (Sis: {$stockSis} | Fís: {$stockFis})\n";
+                }
+                if ($cantS > 5) {
+                    $msg .= "    _... y " . ($cantS - 5) . " sobrantes más (ver PDF adjunto)._\n";
+                }
+            }
+        } elseif ($disc['estado'] === 'CUADRADO_EXACTO') {
+            $msg .= "  ✅ *Stock 100% Cuadrado:* Conteo físico coincide exactamente con el sistema (Sin mermas ni faltantes).\n";
+        } else {
+            $msg .= "  ⏳ *Stock:* Sin conteo físico registrado en este turno.\n";
+        }
+
+        // 5. Comentarios y Observaciones
+        $notas = [];
+        if (!empty($arq['comentarios'])) {
+            $notas[] = "Nota del Cajero: \"" . trim($arq['comentarios']) . "\"";
+        }
+        if (!empty($anomalias)) {
+            foreach ($anomalias as $anom) {
+                if (stripos($anom, 'Faltante de efectivo') !== false || stripos($anom, 'Sobrante de efectivo') !== false) continue;
+                $notas[] = $anom;
+            }
+        }
+        if (!empty($notas)) {
+            $msg .= "\n⚠️ *OBSERVACIONES / ALERTAS:*\n";
+            foreach ($notas as $n) {
+                $msg .= "  • {$n}\n";
+            }
+        }
+
+        $msg .= "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $msg .= "📎 _Se adjunta el Informe Oficial de Auditoría de {$nombre} en PDF (Pág. 1 de 1)._";
+
+        return $msg;
+    }
+
+    /**
      * Genera el PDF Oficial de Cuadre de Caja y Control de Mermas de Productos (1 sola hoja, alto contraste)
      */
     public function generarPdfCuadre($sucursal, $turno, $fecha, $outputPath) {
