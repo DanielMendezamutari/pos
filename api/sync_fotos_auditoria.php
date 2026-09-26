@@ -190,16 +190,42 @@ if ($accion === 'guardar_gemini_key') {
     exit;
 }
 
-if ($accion === 'ejecutar_cron_auditoria') {
+if ($accion === 'instalar_crontab') {
     header('Content-Type: application/json; charset=utf-8');
-    $script = dirname(__DIR__) . '/scripts/cron_auditoria_turno_noche_1000.php';
+    $phpBin = '/opt/cpanel/ea-php82/root/usr/bin/php';
+    if (!file_exists($phpBin)) $phpBin = trim(@shell_exec('which php 2>/dev/null') ?? 'php');
+    $repoDir = dirname(__DIR__);
+
+    $cronWatchdog = "*/5 * * * * cd {$repoDir}/whatsapp_bot && bash verificar_y_levantar.sh >/dev/null 2>&1";
+    $cronNoche = "0 10 * * * {$phpBin} {$repoDir}/scripts/cron_auditoria_turno_noche_1000.php >/dev/null 2>&1";
+    $cronTarde = "10 23 * * * {$phpBin} {$repoDir}/scripts/cron_auditoria_turno_tarde_2310.php >/dev/null 2>&1";
+
+    $currentCron = @shell_exec('crontab -l 2>/dev/null') ?? '';
+    $lineas = array_filter(explode("\n", $currentCron), function($l) {
+        return !empty(trim($l)) && stripos($l, 'joker.ribersoft.com') === false;
+    });
+
+    $lineas[] = "# --- JOKER POS AUDITORIA WHATSAPP AUTOMATICA ---";
+    $lineas[] = $cronWatchdog;
+    $lineas[] = $cronNoche;
+    $lineas[] = $cronTarde;
+
+    $nuevoCrontab = implode("\n", $lineas) . "\n";
+    $tmpFile = tempnam(sys_get_temp_dir(), 'cron_');
+    file_put_contents($tmpFile, $nuevoCrontab);
+
     $salida = [];
     $ret = 0;
-    exec("php " . escapeshellarg($script) . " 2>&1", $salida, $ret);
+    exec("crontab " . escapeshellarg($tmpFile) . " 2>&1", $salida, $ret);
+    @unlink($tmpFile);
+
+    $verificacion = @shell_exec('crontab -l 2>&1') ?? '';
+
     echo json_encode([
         'status' => ($ret === 0 ? 'success' : 'error'),
+        'mensaje' => ($ret === 0 ? 'Crontab instalado con éxito' : 'Error instalando crontab'),
         'salida' => $salida,
-        'codigo' => $ret
+        'crontab_actualizado' => $verificacion
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
 }
