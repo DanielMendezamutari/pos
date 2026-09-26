@@ -9,12 +9,11 @@
 BOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$BOT_DIR" || exit 1
 
-# Verificar si bot.js está corriendo
-PID=$(pgrep -f "bot.js" | head -n 1)
+# Verificar si node bot.js está corriendo
+PID=$(ps aux | grep -v grep | grep -E "node.*bot\.js" | awk '{print $2}' | head -n 1)
 
 if [ -n "$PID" ]; then
     # El bot ya está corriendo normalmente
-    # echo "Bot activo (PID: $PID)"
     exit 0
 else
     # Auto-detección del binario de Node.js en cPanel / CloudLinux

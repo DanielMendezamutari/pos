@@ -32,7 +32,12 @@ if ($accion === 'status') {
     $logPath = $botDir . '/bot_salida.log';
     $watchdogLog = $botDir . '/bot_watchdog.log';
 
-    $pid = trim(@shell_exec('pgrep -f "bot.js" | head -n 1') ?? '');
+    $nodePid = trim(@shell_exec('pgrep -f "node.*bot\.js" | head -n 1') ?? '');
+    if (empty($nodePid)) {
+        // Alternativa: buscar proceso que contenga node y bot.js
+        $psCheck = @shell_exec('ps aux | grep -v grep | grep "node.*bot\.js" | awk \'{print $2}\' | head -n 1') ?? '';
+        $nodePid = trim($psCheck);
+    }
     $tieneSesion = is_dir($authDir) && count(glob($authDir . '/*')) > 2;
     $tieneQr = file_exists($qrPath);
 
@@ -50,8 +55,8 @@ if ($accion === 'status') {
     $procs = @shell_exec('ps aux | grep -E "node|bot" 2>&1') ?? '';
 
     echo json_encode([
-        'bot_corriendo' => !empty($pid),
-        'pid' => $pid ?: null,
+        'bot_corriendo' => !empty($nodePid),
+        'pid' => $nodePid ?: null,
         'procesos_ps' => array_values(array_filter(explode("\n", trim($procs)))),
         'sesion_vinculada' => $tieneSesion,
         'qr_disponible' => $tieneQr,
@@ -91,9 +96,12 @@ if ($accion === 'ver_log') {
     }
 
     $crontab = @shell_exec('crontab -l 2>&1') ?? 'No disponible';
+    $serverDate = trim(@shell_exec('date 2>&1') ?? '');
 
     echo json_encode([
         'total_lineas_log' => file_exists($logPath) ? count(file($logPath)) : 0,
+        'servidor_hora_os' => $serverDate,
+        'servidor_hora_php' => date('Y-m-d H:i:s T'),
         'crontab' => $crontab,
         'watchdog_log' => $salidaWatchdog,
         'bot_salida_log' => $salidaLog

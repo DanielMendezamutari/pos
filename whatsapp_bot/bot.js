@@ -44,6 +44,8 @@ console.log('====================================================');
 
 // Mapa dinámico de JIDs a sucursal
 let grupoMap = new Map(); // jid -> { nombre, sucursal, codsucursal }
+let cachedGrupoReportesJid = null;
+let intervalCola = null;
 
 function limpiarTexto(str) {
     if (!str) return '';
@@ -302,12 +304,18 @@ async function iniciarBot() {
                             codsucursal: match.codsucursal
                         });
                         console.log(`✅ [VINCULADO] "${c.subject}" ➡️ SUCURSAL: ${match.sucursal} (ID: ${match.codsucursal})`);
-                    } else {
-                        // console.log(`   [Otro] "${c.subject}"`);
+                    }
+                    const cleanS = limpiarTexto(c.subject || '');
+                    if (cleanS.includes('reportes auditoria') || cleanS.includes('auditoria joker')) {
+                        cachedGrupoReportesJid = jid;
+                        console.log(`🎯 [DESTINO REPORTES CACHEADO] "${c.subject}" (${jid})`);
                     }
                 }
                 console.log('----------------------------------------------------');
-                console.log(`Total grupos de auditoría monitoreados: ${grupoMap.size} de 5`);
+                console.log(`Total grupos de auditoría monitoreados: ${grupoMap.size}`);
+                if (cachedGrupoReportesJid) {
+                    console.log(`🎯 Canal de reportes listo: ${cachedGrupoReportesJid}`);
+                }
             } catch (e) {
                 console.log('Aviso al listar grupos:', e.message);
             }
@@ -402,16 +410,29 @@ async function iniciarBot() {
     // =========================================================================
     // COLA DE ENVÍO DE REPORTES Y PDFs A WHATSAPP
     // =========================================================================
+    // =========================================================================
+    // COLA DE ENVÍO DE REPORTES Y PDFs A WHATSAPP
+    // =========================================================================
     const COLA_DIR = path.join(__dirname, 'cola_envios');
     if (!fs.existsSync(COLA_DIR)) fs.mkdirSync(COLA_DIR, { recursive: true });
 
+    // Recuperar archivos que hayan quedado en .processing por reinicio abrupto
+    try {
+        const procFiles = fs.readdirSync(COLA_DIR).filter(f => f.endsWith('.processing'));
+        for (const pf of procFiles) {
+            fs.renameSync(path.join(COLA_DIR, pf), path.join(COLA_DIR, pf.replace(/\.processing$/, '.json')));
+        }
+    } catch (e) {}
+
     async function buscarGrupoReportes() {
+        if (cachedGrupoReportesJid) return cachedGrupoReportesJid;
         try {
             const chats = await sock.groupFetchAllParticipating();
             for (const jid in chats) {
                 const s = chats[jid].subject || '';
-                const cleanS = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-                if (cleanS.includes('reportes auditoria') || cleanS.includes('reportes auditoría') || cleanS.includes('auditoria joker')) {
+                const cleanS = limpiarTexto(s);
+                if (cleanS.includes('reportes auditoria') || cleanS.includes('auditoria joker')) {
+                    cachedGrupoReportesJid = jid;
                     return jid;
                 }
             }
@@ -438,22 +459,28 @@ async function iniciarBot() {
                 return false;
             }
 
-            // 1. Enviar texto si existe
+            // 1. Enviar texto si existe con timeout de 30 segundos
             if (data.texto) {
-                await sock.sendMessage(targetJid, { text: data.texto });
+                await Promise.race([
+                    sock.sendMessage(targetJid, { text: data.texto }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 30s enviando texto')), 30000))
+                ]);
                 console.log(`📤 Reporte de texto enviado a ${targetJid}`);
             }
 
-            // 2. Enviar PDF adjunto si existe
+            // 2. Enviar PDF adjunto si existe con timeout de 45 segundos
             if (data.pdfPath && fs.existsSync(data.pdfPath)) {
                 const buffer = fs.readFileSync(data.pdfPath);
                 const fileName = path.basename(data.pdfPath);
-                await sock.sendMessage(targetJid, {
-                    document: buffer,
-                    mimetype: 'application/pdf',
-                    fileName: fileName,
-                    caption: data.caption || '📎 ' + fileName
-                });
+                await Promise.race([
+                    sock.sendMessage(targetJid, {
+                        document: buffer,
+                        mimetype: 'application/pdf',
+                        fileName: fileName,
+                        caption: data.caption || '📎 ' + fileName
+                    }),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout de 45s enviando PDF ${fileName}`)), 45000))
+                ]);
                 console.log(`📄 Documento PDF enviado con éxito: ${fileName}`);
             }
 
@@ -465,8 +492,12 @@ async function iniciarBot() {
     }
 
     // Bucle vigilante de la cola de envíos (cada 2 segundos) con protección anti-duplicados (Mutex)
+    if (intervalCola) {
+        clearInterval(intervalCola);
+        intervalCola = null;
+    }
     let procesandoCola = false;
-    setInterval(async () => {
+    intervalCola = setInterval(async () => {
         if (procesandoCola) return;
         try {
             if (!fs.existsSync(COLA_DIR)) return;
@@ -478,7 +509,7 @@ async function iniciarBot() {
                 const p = path.join(COLA_DIR, f);
                 if (!fs.existsSync(p)) continue;
 
-                // Renombrar a .processing inmediatamente para evitar que otro ciclo lo tome
+                // Renombrar a .processing inmediatamente para evitar colisiones
                 const processingPath = p.replace(/\.json$/, '.processing');
                 try {
                     fs.renameSync(p, processingPath);
