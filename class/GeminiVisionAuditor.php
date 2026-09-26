@@ -3,7 +3,7 @@ require_once __DIR__ . '/classconexion.php';
 
 class GeminiVisionAuditor extends Db {
     private $apiKey;
-    private $model = 'gemini-3.5-flash-lite';
+    private $model = 'gemini-3.1-flash-lite';
 
     public function __construct($apiKey = null) {
         parent::__construct();
@@ -38,8 +38,12 @@ La fotografía puede ser:
 1. "LIBRETA_VENTAS": Cuaderno manuscrito o libreta cuadriculada con anotaciones de mesas, consumos de cerveza, sodas, tragos y vales.
 2. "INVENTARIO_FISICO": Planilla manuscrita o impresa de control de stock donde se cuenta la cantidad física de botellas/latas en heladeras.
 3. "SOBRE_DINERO": Sobre o papel con el arqueo manual de efectivo (billetes, monedas, total recaudado).
-4. "TICKET_POS": Ticket térmico emitido por la impresora de la caja.
-5. "OTRO": Cualquier otra evidencia.
+4. "TICKET_POS": Ticket térmico emitido por la impresora de la caja con anotaciones manuscritas.
+5. "OTRO": Cualquier otra evidencia fotográfica de cierre.
+
+INSTRUCCIÓN CRÍTICA DE GASTOS Y PAGOS:
+Presta ATENCIÓN MÁXIMA a cualquier anotación manuscrita de restas, pagos a personal, adelantos, vales o compras menores (ej: "300 pago personal", "100 adelanto", "se pagó 100", "pago limpieza", "hielo", "taxi", "1411-300=1111").
+Debes extraer OBLIGATORIAMENTE en "gastos_o_vales" cada uno de esos montos y conceptos con exactitud matemática.
 
 IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdown ```json, solo el JSON puro) con esta estructura exacta:
 {
@@ -67,12 +71,12 @@ IMPORTANTE: Responde ÚNICAMENTE con un objeto JSON válido (sin formato markdow
   "total_qr_declarado": 0.0,
   "gastos_o_vales": [
     {
-      "concepto": "descripción del gasto (ej: pago personal, hielo, taxi, etc.)",
+      "concepto": "descripción del gasto (ej: pago personal, adelanto, hielo, taxi, etc.)",
       "monto": 0.0
     }
   ],
   "alertas_visuales": [
-    "observación relevante como tachones, números ilegibles, o frases como 'productos demás', 'vale cliente', etc."
+    "observación relevante como tachones, números ilegibles, o frases como 'productos demás', 'vale cliente', 'se pagó a X', etc."
   ]
 }
 PROMPT;
@@ -97,7 +101,7 @@ PROMPT;
             ]
         ];
 
-        $models = [$this->model, 'gemini-3.5-flash-lite', 'gemini-flash-latest'];
+        $models = [$this->model, 'gemini-3.1-flash-lite', 'gemini-2.5-pro', 'gemini-3.8-flash'];
         $response = null;
 
         foreach ($models as $m) {
@@ -107,7 +111,8 @@ PROMPT;
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
-            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 40);
             $resp = curl_exec($ch);
             $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
             curl_close($ch);

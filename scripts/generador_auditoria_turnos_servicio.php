@@ -133,6 +133,7 @@ class PDF_Stock_Inicio extends FPDF {
 // =========================================================================
 class AuditoriaService extends Db {
     public $ultimoDescartesPrueba = [];
+    public $cacheAnalisisFotos = [];
 
     public function obtenerSucursalesAuditables() {
         $stmt = $this->dbh->query("SELECT codsucursal, nomsucursal FROM sucursales WHERE codsucursal IN (1, 2, 3, 4) ORDER BY codsucursal ASC");
@@ -495,6 +496,52 @@ class AuditoriaService extends Db {
             $msg .= "  💵 *Diferencia de Caja:* 🟡 *SOBRANTE DE +Bs. " . number_format($dif, 2) . "*\n";
         }
 
+        // Cruce forense con fotos de cierre e IA Vision (Detección de pagos a personal, adelantos y vales)
+        $analisisFotos = $this->auditarFotosSucursalConIA($sucursal, $arq['codarqueo'] ?? 0, $fechaIso);
+        $totalGastosFoto = floatval($analisisFotos['total_gastos'] ?? 0);
+        $detallesGastos = [];
+        if (!empty($analisisFotos['gastos_o_vales'])) {
+            foreach ($analisisFotos['gastos_o_vales'] as $gv) {
+                $montoG = floatval($gv['monto'] ?? 0);
+                if ($montoG > 0) {
+                    $detallesGastos[] = "• " . ucfirst($gv['concepto']) . ": Bs. " . number_format($montoG, 2);
+                }
+            }
+        }
+
+        if ($dif < 0) {
+            $faltanteAbs = abs($dif);
+            $msg .= "\n📸 *CRUCE DE FOTO Y COMPROBANTES DE CIERRE (IA VISION):*\n";
+            if ($analisisFotos['tiene_analisis'] && $totalGastosFoto > 0) {
+                $msg .= "  🧾 *Gastos / Pagos registrados en planilla física:*\n";
+                foreach ($detallesGastos as $dg) {
+                    $msg .= "    {$dg}\n";
+                }
+                $msg .= "    💰 Total descargos en foto: Bs. " . number_format($totalGastosFoto, 2) . "\n";
+                
+                if (abs($faltanteAbs - $totalGastosFoto) <= 5) {
+                    $msg .= "  💡 *Dictamen:* El faltante de Bs. " . number_format($faltanteAbs, 2) . " queda *JUSTIFICADO AL 100%* por el pago anotado en la foto de cierre. No constituye pérdida ni falta del cajero. Saldo real cuadrado. ✅\n";
+                } elseif ($totalGastosFoto < $faltanteAbs) {
+                    $saldoPendiente = $faltanteAbs - $totalGastosFoto;
+                    $msg .= "  ⚠️ *Dictamen:* Se justifican Bs. " . number_format($totalGastosFoto, 2) . " con la foto. Queda un saldo *PENDIENTE POR JUSTIFICAR de Bs. " . number_format($saldoPendiente, 2) . "* no respaldado.\n";
+                } else {
+                    $msg .= "  💡 *Dictamen:* Los descargos en foto cubren el faltante de Bs. " . number_format($faltanteAbs, 2) . ". ✅\n";
+                }
+            } elseif ($analisisFotos['tiene_analisis']) {
+                $msg .= "  🔍 Se revisaron las fotos de planilla/ticket de cierre enviadas al grupo ({$analisisFotos['fotos_analizadas']} fotos analizadas).\n";
+                $msg .= "  ⚠️ *SIN COMPROBANTE DE PAGO:* En las fotos enviadas por el cajero *NO figura ningún vale, adelanto ni pago a personal* que justifique la diferencia de Bs. " . number_format($faltanteAbs, 2) . ".\n";
+                $msg .= "  🔴 *Dictamen:* Cargo salarial directo atribuible al cajero por faltante injustificado.\n";
+            } else {
+                $msg .= "  ⚠️ *SIN FOTO ENVIADA:* El cajero *NO ha subido al grupo la foto del ticket o planilla física de cierre*. Imposible verificar si pagó algo a personal o tuvo gastos de caja.\n";
+                $msg .= "  🔴 *Dictamen:* Faltante de Bs. " . number_format($faltanteAbs, 2) . " pendiente de respaldo fotográfico.\n";
+            }
+        } elseif ($analisisFotos['tiene_analisis'] && $totalGastosFoto > 0) {
+            $msg .= "\n📸 *PAGOS/VALES DETECTADOS EN FOTO DE CIERRE (IA VISION):*\n";
+            foreach ($detallesGastos as $dg) {
+                $msg .= "  {$dg}\n";
+            }
+        }
+
         // 2. Mesas de Billar
         if (!empty($detProds['total_billar_bs']) && $detProds['total_billar_bs'] > 0) {
             $msg .= "\n🎱 *MESAS DE BILLAR:*\n";
@@ -712,11 +759,31 @@ class AuditoriaService extends Db {
         $pdf->Ln(2.0);
 
         // 2. Información del Arqueo y Comentarios
-        $pdf->TituloBloque("2", "DATOS DEL ARQUEO Y NOTAS DE CIERRE", "ARQUEO #" . ($arq['codarqueo'] ?? 'N/A'), [2, 132, 199]);
+        $pdf->TituloBloque("2", "DATOS DEL ARQUEO, COMPROBANTES Y CRUCE DE FOTOS", "ARQUEO #" . ($arq['codarqueo'] ?? 'N/A'), [2, 132, 199]);
         $pdf->SetFont('Arial', '', 7.0);
         $pdf->SetTextColor(30, 41, 59);
-        $comentario = !empty($arq['comentarios']) ? $arq['comentarios'] : "Sin notas especiales registradas por el cajero al momento del cierre.";
-        $pdf->MultiCell(190, 3.6, utf8_decode("[-] Caja: " . ($arq['nomcaja'] ?? 'Caja Principal') . " | Apertura: " . ($arq['fechaapertura'] ?? 'N/A') . " | Cierre: " . ($arq['fechacierre'] ?? 'N/A') . "\n[-] Comentarios del Cajero: " . $comentario), 1, 'L');
+        $comentario = !empty($arq['comentarios']) ? $arq['comentarios'] : "Sin notas registradas en el POS.";
+
+        $analisisFotosPdf = $this->auditarFotosSucursalConIA($sucursal, $arq['codarqueo'] ?? 0, $fechaIso);
+        $notaIA = "";
+        if (!empty($analisisFotosPdf['gastos_o_vales'])) {
+            $descG = [];
+            foreach ($analisisFotosPdf['gastos_o_vales'] as $gv) {
+                if (floatval($gv['monto'] ?? 0) > 0) {
+                    $descG[] = ucfirst($gv['concepto']) . " (Bs. " . number_format($gv['monto'], 2) . ")";
+                }
+            }
+            $notaIA = "\n[-] IA Vision (Fotos Cierre): Pagos/Gastos detectados en foto: " . implode(', ', $descG) . " (Total: Bs. " . number_format($analisisFotosPdf['total_gastos'], 2) . ").";
+            if ($diferencia < 0 && abs(abs($diferencia) - $analisisFotosPdf['total_gastos']) <= 5) {
+                $notaIA .= " -> Faltante POS 100% justificado por descargo manuscrito en foto.";
+            }
+        } elseif ($analisisFotosPdf['tiene_analisis']) {
+            $notaIA = "\n[-] IA Vision (Fotos Cierre): Se revisaron las fotos del grupo. NO figuran notas de vales ni pagos a personal manuscritos.";
+        } else {
+            $notaIA = "\n[-] IA Vision: Sin fotografía de planilla/ticket de cierre enviada al grupo.";
+        }
+
+        $pdf->MultiCell(190, 3.5, utf8_decode("[-] Caja: " . ($arq['nomcaja'] ?? 'Caja Principal') . " | Apertura: " . ($arq['fechaapertura'] ?? 'N/A') . " | Cierre: " . ($arq['fechacierre'] ?? 'N/A') . "\n[-] Comentario POS: " . $comentario . $notaIA), 1, 'L');
 
         $pdf->Ln(2.0);
 
@@ -977,38 +1044,84 @@ class AuditoriaService extends Db {
      */
     public function auditarFotosSucursalConIA($sucursal, $codarqueo, $fechaIso = null) {
         if (!$fechaIso) $fechaIso = date('Y-m-d');
+        $codsucursal = intval($sucursal['codsucursal'] ?? 0);
+        $cacheKey = $codsucursal . '_' . ($codarqueo ?: '0') . '_' . $fechaIso;
+        if (isset($this->cacheAnalisisFotos[$cacheKey])) {
+            return $this->cacheAnalisisFotos[$cacheKey];
+        }
+
         require_once dirname(__DIR__) . '/class/GeminiVisionAuditor.php';
         $auditor = new GeminiVisionAuditor();
 
         $nombreSucursal = strtoupper($sucursal['nomsucursal'] ?? '');
-        $codsucursal = intval($sucursal['codsucursal'] ?? 0);
         $carpetaSuc = 'CENTRAL';
         if (strpos($nombreSucursal, 'MEGA') !== false) $carpetaSuc = 'MEGA';
         elseif (strpos($nombreSucursal, 'ULTRA') !== false) $carpetaSuc = 'ULTRA';
         elseif (strpos($nombreSucursal, 'EXPRESS') !== false) $carpetaSuc = 'EXPRESS';
 
         $baseFotos = dirname(__DIR__) . '/auditoria_fotos';
-        $dirSuc = $baseFotos . '/' . $fechaIso . '/' . $carpetaSuc;
+        $dirSucHoy = $baseFotos . '/' . $fechaIso . '/' . $carpetaSuc;
+        $fechaSig = date('Y-m-d', strtotime($fechaIso . ' +1 day'));
+        $dirSucSig = $baseFotos . '/' . $fechaSig . '/' . $carpetaSuc;
+
         $fotos = [];
-        if (is_dir($dirSuc)) {
-            $fotos = glob($dirSuc . '/*.{jpg,jpeg,png,webp}', GLOB_BRACE) ?: [];
+        if (is_dir($dirSucSig)) {
+            $fSig = glob($dirSucSig . '/*.{jpg,jpeg,png,webp}', GLOB_BRACE) ?: [];
+            $fotos = array_merge($fotos, $fSig);
+        }
+        if (is_dir($dirSucHoy)) {
+            $fHoy = glob($dirSucHoy . '/*.{jpg,jpeg,png,webp}', GLOB_BRACE) ?: [];
+            $fotos = array_merge($fotos, $fHoy);
+        }
+
+        // 1. Extraer posibles gastos declarados en los captions de WhatsApp registrados en registro_fotos.json
+        $gastosCaptions = [];
+        foreach ([$dirSucSig, $dirSucHoy] as $d) {
+            $metaFile = $d . '/registro_fotos.json';
+            if (file_exists($metaFile)) {
+                $rawMeta = @json_decode(file_get_contents($metaFile), true);
+                if (is_array($rawMeta)) {
+                    foreach ($rawMeta as $item) {
+                        $cap = trim($item['caption'] ?? '');
+                        if (!empty($cap) && preg_match('/(pago|adelanto|vale|gasto|hielo|taxi|personal|limpieza)[^\d]*(\d+(?:\.\d+)?)/i', $cap, $mGasto)) {
+                            $gastosCaptions[] = [
+                                'concepto' => trim($mGasto[1]),
+                                'monto' => floatval($mGasto[2])
+                            ];
+                        }
+                    }
+                }
+            }
         }
 
         if (empty($fotos)) {
-            return [
+            $resVacio = [
                 'tiene_analisis' => false,
+                'fotos_disponibles' => 0,
+                'gastos_o_vales' => $gastosCaptions,
+                'total_gastos' => array_sum(array_column($gastosCaptions, 'monto')),
                 'mensaje' => 'Sin fotografías subidas para esta sucursal en la fecha.'
             ];
+            $this->cacheAnalisisFotos[$cacheKey] = $resVacio;
+            return $resVacio;
         }
 
-        // Analizar las fotos de cierre disponibles (hasta 2 fotos para consolidar cuaderno de mesas + sobre de dinero/gastos)
-        rsort($fotos);
-        $fotosAnalizar = array_slice($fotos, 0, 2);
+        // Ordenar fotos priorizando las de cierre/mañana (05-, 06-, 07-, 04-, 23-)
+        usort($fotos, function($a, $b) {
+            $nameA = basename($a);
+            $nameB = basename($b);
+            $prioA = (preg_match('/(04-|05-|06-|07-|23-|cierre|arqueo|ticket)/i', $nameA)) ? 2 : 1;
+            $prioB = (preg_match('/(04-|05-|06-|07-|23-|cierre|arqueo|ticket)/i', $nameB)) ? 2 : 1;
+            if ($prioA !== $prioB) return $prioB <=> $prioA;
+            return filemtime($b) <=> filemtime($a);
+        });
+
+        $fotosAnalizar = array_slice($fotos, 0, 1);
 
         $extraccionConsolidada = [
             'productos_anotados' => [],
             'stock_fisico_contado' => [],
-            'gastos_o_vales' => [],
+            'gastos_o_vales' => $gastosCaptions,
             'total_declarado' => 0,
             'total_efectivo_declarado' => 0,
             'total_qr_declarado' => 0,
@@ -1045,27 +1158,26 @@ class AuditoriaService extends Db {
             }
         }
 
-        if (!$algunaAnalizada) {
-            return [
-                'tiene_analisis' => false,
-                'mensaje' => 'No se pudo decodificar las fotos con Gemini Vision.'
-            ];
+        $totalGastos = 0;
+        foreach ($extraccionConsolidada['gastos_o_vales'] as $gv) {
+            $totalGastos += floatval($gv['monto'] ?? 0);
         }
 
-        $cruceCuaderno = $auditor->cruzarCuadernoVsPos($codarqueo, $extraccionConsolidada);
-        $cruceInventario = $auditor->cruzarInventarioVsSistema($codsucursal, $extraccionConsolidada);
-
-        $pagos = $codarqueo ? $this->obtenerPagosPorMedio($codarqueo) : ['total' => 0, 'efectivo' => 0, 'qr' => 0];
-        $evaluacionManual = $auditor->evaluarCuadreManualVsPos($codarqueo, $extraccionConsolidada, $pagos['total'], $pagos['efectivo'], $pagos['qr']);
-
-        return [
-            'tiene_analisis' => true,
-            'foto' => basename($fotosAnalizar[0]),
+        $resultado = [
+            'tiene_analisis' => ($algunaAnalizada || !empty($gastosCaptions)),
+            'fotos_disponibles' => count($fotos),
+            'fotos_analizadas' => count($fotosAnalizar),
+            'fotos_nombres' => array_map('basename', $fotosAnalizar),
+            'gastos_o_vales' => $extraccionConsolidada['gastos_o_vales'],
+            'total_gastos' => $totalGastos,
+            'alertas_visuales' => array_values(array_unique($extraccionConsolidada['alertas_visuales'])),
             'tipo_documento' => $extraccionConsolidada['tipo_documento'],
-            'cruce_cuaderno' => $cruceCuaderno,
-            'cruce_inventario' => $cruceInventario,
-            'evaluacion_manual' => $evaluacionManual,
-            'alertas_visuales' => $extraccionConsolidada['alertas_visuales']
+            'total_declarado' => $extraccionConsolidada['total_declarado'],
+            'total_efectivo_declarado' => $extraccionConsolidada['total_efectivo_declarado'],
+            'total_qr_declarado' => $extraccionConsolidada['total_qr_declarado']
         ];
+
+        $this->cacheAnalisisFotos[$cacheKey] = $resultado;
+        return $resultado;
     }
 }
