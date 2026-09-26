@@ -277,15 +277,38 @@ if ($accion === 'ejecutar_migracion') {
     exit;
 }
 
+if ($accion === 'consultar_arqueos') {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../class/classconexion.php';
+    class InfoArqueos extends Db {
+        public function getArqueos() {
+            $stmt = $this->dbh->query("SELECT a.codarqueo, c.codsucursal, c.nomcaja, a.fechaapertura, a.fechacierre, a.montocierre, a.efectivocaja, a.dineroefectivo, a.diferencia, a.comentarios, a.statusarqueo, a.es_entrenamiento
+                                       FROM arqueocaja a 
+                                       JOIN cajas c ON a.codcaja = c.codcaja 
+                                       ORDER BY a.codarqueo DESC LIMIT 25");
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
+    }
+    $ia = new InfoArqueos();
+    echo json_encode(['status' => 'success', 'arqueos' => $ia->getArqueos()], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($accion === 'ejecutar_cron_auditoria') {
     header('Content-Type: application/json; charset=utf-8');
     $turno = $_GET['turno'] ?? 'noche';
+    $fecha = $_GET['fecha'] ?? '';
     $script = ($turno === 'tarde') ? (dirname(__DIR__) . '/scripts/cron_auditoria_turno_tarde_2310.php') : (dirname(__DIR__) . '/scripts/cron_auditoria_turno_noche_1000.php');
     $salida = [];
     $ret = 0;
-    exec("php " . escapeshellarg($script) . " 2>&1", $salida, $ret);
+    $cmd = "php " . escapeshellarg($script);
+    if (!empty($fecha)) {
+        $cmd .= " " . escapeshellarg($fecha);
+    }
+    exec($cmd . " 2>&1", $salida, $ret);
     echo json_encode([
         'status' => ($ret === 0 ? 'success' : 'error'),
+        'cmd' => $cmd,
         'salida' => $salida,
         'codigo' => $ret
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
