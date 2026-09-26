@@ -357,6 +357,22 @@ exit;
         </div>
     </div>
 
+    <div class="row">
+        <div class="col-md-12">
+            <div class="p-3 mb-3 border border-warning rounded" style="background-color: #fffbeb;">
+                <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="es_entrenamiento" name="es_entrenamiento" value="1">
+                    <label class="custom-control-label font-weight-bold text-dark" for="es_entrenamiento" style="cursor: pointer;">
+                        🎓 Marcar como Sesión de Prueba / Capacitación a Cajera Nueva
+                    </label>
+                </div>
+                <small class="text-muted d-block mt-1">
+                    <i class="fa fa-info-circle text-warning"></i> Si este arqueo se abrió y cerró para enseñar al personal, marca esta casilla para que la auditoría automática y los reportes de WhatsApp <strong>NO</strong> lo consideren como un turno oficial ni generen falsas alarmas de diferencias.
+                </small>
+            </div>
+        </div>
+    </div>
+
             <div class="text-right">
 <?php if(decrypt($_GET['proceso']) == 'save'){ ?>
 <button type="submit" name="btn-submit" id="btn-submit" class="btn btn-danger"><span class="fa fa-save"></span> Guardar</button>

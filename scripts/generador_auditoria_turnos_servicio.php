@@ -7,6 +7,7 @@
  */
 
 require_once __DIR__ . '/../class/classconexion.php';
+require_once __DIR__ . '/../class/class.entrenamiento_cajas_service.php';
 require_once __DIR__ . '/../fpdf/fpdf.php';
 
 // =========================================================================
@@ -131,6 +132,7 @@ class PDF_Stock_Inicio extends FPDF {
 // 3. SERVICIO DE AUDITORÍA
 // =========================================================================
 class AuditoriaService extends Db {
+    public $ultimoDescartesPrueba = [];
 
     public function obtenerSucursalesAuditables() {
         $stmt = $this->dbh->query("SELECT codsucursal, nomsucursal FROM sucursales WHERE codsucursal IN (1, 2, 3, 4) ORDER BY codsucursal ASC");
@@ -140,15 +142,12 @@ class AuditoriaService extends Db {
     public function obtenerUltimoArqueo($codsucursal, $fecha = null) {
         if (!$fecha) $fecha = date('Y-m-d');
         
-        $sql = "SELECT a.*, c.nrocaja, c.nomcaja 
-                FROM arqueocaja a
-                JOIN cajas c ON a.codcaja = c.codcaja
-                WHERE c.codsucursal = :codsucursal
-                ORDER BY a.codarqueo DESC LIMIT 1";
-        
-        $stmt = $this->dbh->prepare($sql);
-        $stmt->execute([':codsucursal' => $codsucursal]);
-        return $stmt->fetch(PDO::FETCH_ASSOC);
+        $entrenService = new EntrenamientoCajasService($this->dbh);
+        $res = $entrenService->obtenerUltimoArqueoOperativoReal($codsucursal);
+        if (!empty($res['descartes_prueba'])) {
+            $this->ultimoDescartesPrueba[$codsucursal] = $res['descartes_prueba'];
+        }
+        return $res['arqueo'];
     }
 
     public function obtenerPagosPorMedio($codarqueo) {
@@ -581,6 +580,26 @@ class AuditoriaService extends Db {
             $msg .= "\n⚠️ *OBSERVACIONES / ALERTAS:*\n";
             foreach ($notas as $n) {
                 $msg .= "  • {$n}\n";
+            }
+        }
+
+        // 6. Análisis Inteligente: Cruce de Marcas en Combos de Cerveza
+        $entrenService = new EntrenamientoCajasService($this->dbh);
+        $crucesMarcas = $entrenService->analizarCruceDeMarcas($disc['faltantes'] ?? [], $disc['sobrantes'] ?? []);
+        if (!empty($crucesMarcas)) {
+            foreach ($crucesMarcas as $cm) {
+                $msg .= "\n💡 *CRUCE DE MARCAS DETECTADO (IA):*\n";
+                $msg .= "  • {$cm['explicacion']}\n";
+                $msg .= "  • Faltan: {$cm['detalle_faltantes']}\n";
+                $msg .= "  • Sobran: {$cm['detalle_sobrantes']}\n";
+            }
+        }
+
+        // 7. Sesiones de Prueba / Capacitación Descartadas
+        if (!empty($this->ultimoDescartesPrueba[$cod])) {
+            $msg .= "\n🎓 *SESIONES DE PRUEBA EXCLUIDAS (IA):*\n";
+            foreach ($this->ultimoDescartesPrueba[$cod] as $dp) {
+                $msg .= "  • Arqueo #{$dp['codarqueo']} ({$dp['caja']}): {$dp['motivo']}\n";
             }
         }
 

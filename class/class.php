@@ -26493,7 +26493,8 @@ public function CerrarArqueoCaja()
 		." diferencia = ?, "
 		." comentarios = ?, "
 		." fechacierre = ?, "
-		." statusarqueo = ? "
+		." statusarqueo = ?, "
+		." es_entrenamiento = ? "
 		." WHERE "
 		." codarqueo = ?;
 		";
@@ -26504,7 +26505,8 @@ public function CerrarArqueoCaja()
 		$stmt->bindParam(4, $comentarios);
 		$stmt->bindParam(5, $fechacierre);
 		$stmt->bindParam(6, $statusarqueo);
-		$stmt->bindParam(7, $codarqueo);
+		$stmt->bindParam(7, $es_entrenamiento);
+		$stmt->bindParam(8, $codarqueo);
 
 		$efectivocaja = limpiar($_POST["efectivocaja"]);
 		$dineroefectivo = limpiar($_POST["dineroefectivo"]);
@@ -26512,6 +26514,7 @@ public function CerrarArqueoCaja()
 		$comentarios = limpiar($_POST['comentarios']);
 		$fechacierre = limpiar(date("Y-m-d H:i:s",strtotime($_POST['fecharegistro'])));
 		$statusarqueo = limpiar("0");
+		$es_entrenamiento = (isset($_POST["es_entrenamiento"]) && $_POST["es_entrenamiento"] == "1") ? 1 : 0;
 		$codarqueo = limpiar(decrypt($_POST["codarqueo"]));
 		$stmt->execute();
 

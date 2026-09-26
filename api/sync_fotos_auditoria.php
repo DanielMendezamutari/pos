@@ -251,6 +251,32 @@ if ($accion === 'instalar_crontab') {
     exit;
 }
 
+if ($accion === 'ejecutar_migracion') {
+    header('Content-Type: application/json; charset=utf-8');
+    require_once __DIR__ . '/../class/classconexion.php';
+    class RemoteMigrator extends Db {
+        public function run() {
+            $res = [];
+            $queries = [
+                "ALTER TABLE `arqueocaja` ADD COLUMN IF NOT EXISTS `es_entrenamiento` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=Turno Operativo Real, 1=Sesion de Prueba' AFTER `statusarqueo`",
+                "ALTER TABLE `ventas` ADD COLUMN IF NOT EXISTS `es_entrenamiento` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=Venta Real, 1=Venta de Prueba' AFTER `statusventa`"
+            ];
+            foreach ($queries as $q) {
+                try {
+                    $this->dbh->exec($q);
+                    $res[] = "OK: $q";
+                } catch (PDOException $e) {
+                    $res[] = (strpos($e->getMessage(), 'Duplicate column') !== false) ? "Ya existe columna" : ("Aviso: " . $e->getMessage());
+                }
+            }
+            return $res;
+        }
+    }
+    $m = new RemoteMigrator();
+    echo json_encode(['status' => 'success', 'resultado' => $m->run()], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 if ($accion === 'ejecutar_cron_auditoria') {
     header('Content-Type: application/json; charset=utf-8');
     $turno = $_GET['turno'] ?? 'noche';
