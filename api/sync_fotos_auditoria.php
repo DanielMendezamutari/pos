@@ -47,9 +47,12 @@ if ($accion === 'status') {
     $archivosCola = is_dir($colaDir) ? glob($colaDir . '/*.json') : [];
     $archivosProc = is_dir($colaDir) ? glob($colaDir . '/*.processing') : [];
 
+    $procs = @shell_exec('ps aux | grep -E "node|bot" 2>&1') ?? '';
+
     echo json_encode([
         'bot_corriendo' => !empty($pid),
         'pid' => $pid ?: null,
+        'procesos_ps' => array_values(array_filter(explode("\n", trim($procs)))),
         'sesion_vinculada' => $tieneSesion,
         'qr_disponible' => $tieneQr,
         'url_qr' => 'https://joker.ribersoft.com/whatsapp_bot/qr.html',
