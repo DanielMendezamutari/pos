@@ -36,10 +36,11 @@ if ($accion === 'status') {
     $tieneSesion = is_dir($authDir) && count(glob($authDir . '/*')) > 2;
     $tieneQr = file_exists($qrPath);
 
+    $cantLineas = intval($_GET['lineas'] ?? 20);
     $ultimasLineas = [];
     if (file_exists($logPath)) {
         $lineas = @file($logPath);
-        if ($lineas) $ultimasLineas = array_map('trim', array_slice($lineas, -15));
+        if ($lineas) $ultimasLineas = array_map('trim', array_slice($lineas, -$cantLineas));
     }
 
     $colaDir = $botDir . '/cola_envios';
@@ -58,6 +59,57 @@ if ($accion === 'status') {
         'en_proceso_cola' => count($archivosProc),
         'ultimas_lineas_log' => $ultimasLineas
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($accion === 'ver_log') {
+    header('Content-Type: application/json; charset=utf-8');
+    $botDir = dirname(__DIR__) . '/whatsapp_bot';
+    $logPath = $botDir . '/bot_salida.log';
+    $watchdogLog = $botDir . '/bot_watchdog.log';
+    $cant = intval($_GET['lineas'] ?? 100);
+
+    $salidaLog = [];
+    if (file_exists($logPath)) {
+        $l = @file($logPath);
+        if ($l) $salidaLog = array_map('trim', array_slice($l, -$cant));
+    }
+
+    $salidaWatchdog = [];
+    if (file_exists($watchdogLog)) {
+        $l = @file($watchdogLog);
+        if ($l) $salidaWatchdog = array_map('trim', array_slice($l, -30));
+    }
+
+    $crontab = @shell_exec('crontab -l 2>&1') ?? 'No disponible';
+
+    echo json_encode([
+        'crontab' => $crontab,
+        'watchdog_log' => $salidaWatchdog,
+        'bot_salida_log' => $salidaLog
+    ], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if ($accion === 'ver_cola') {
+    header('Content-Type: application/json; charset=utf-8');
+    $colaDir = dirname(__DIR__) . '/whatsapp_bot/cola_envios';
+    $archivos = is_dir($colaDir) ? glob($colaDir . '/*') : [];
+    $detalle = [];
+    foreach ($archivos as $a) {
+        $contenido = null;
+        if (is_file($a) && (str_ends_with($a, '.json') || str_ends_with($a, '.processing'))) {
+            $raw = @file_get_contents($a);
+            $contenido = @json_decode($raw, true) ?: $raw;
+        }
+        $detalle[] = [
+            'nombre' => basename($a),
+            'tamano' => is_file($a) ? filesize($a) : 0,
+            'modificado' => date('Y-m-d H:i:s', filemtime($a)),
+            'contenido' => $contenido
+        ];
+    }
+    echo json_encode(['total' => count($detalle), 'archivos' => $detalle], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     exit;
 }
 
