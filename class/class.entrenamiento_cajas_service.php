@@ -83,11 +83,14 @@ class EntrenamientoCajasService {
 
         if (!empty($fecha)) {
             $fechaSig = date('Y-m-d', strtotime($fecha . ' +1 day'));
-            $sqlFecha = $sql . " AND (DATE(a.fechacierre) = :fecha OR DATE(a.fechaapertura) = :fecha OR DATE(a.fechacierre) = :fechaSig) 
+            $sqlFecha = $sql . " AND (DATE(a.fechacierre) = :fechaCierre OR DATE(a.fechaapertura) = :fechaApertura OR DATE(a.fechacierre) = :fechaSig) 
                                  ORDER BY a.codarqueo DESC LIMIT 8";
-            $paramsFecha = $params;
-            $paramsFecha[':fecha'] = $fecha;
-            $paramsFecha[':fechaSig'] = $fechaSig;
+            $paramsFecha = [
+                ':codsucursal' => $codsucursal,
+                ':fechaCierre' => $fecha,
+                ':fechaApertura' => $fecha,
+                ':fechaSig' => $fechaSig
+            ];
             $stmt = $this->dbh->prepare($sqlFecha);
             $stmt->execute($paramsFecha);
             $candidatos = $stmt->fetchAll(PDO::FETCH_ASSOC);
