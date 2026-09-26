@@ -9,8 +9,18 @@ require_once __DIR__ . '/generador_auditoria_turnos_servicio.php';
 $service = new AuditoriaService();
 $sucursales = $service->obtenerSucursalesAuditables();
 
-$fechaHoy = date('d/m/Y');
-$fechaIso = date('Y-m-d');
+$paramFecha = $argv[1] ?? ($_GET['fecha'] ?? null);
+if ($paramFecha === 'ayer') {
+    $fechaIso = date('Y-m-d', strtotime('-1 day'));
+    $fechaHoy = date('d/m/Y', strtotime('-1 day'));
+} elseif ($paramFecha && preg_match('/^\d{4}-\d{2}-\d{2}$/', $paramFecha)) {
+    $fechaIso = $paramFecha;
+    $fechaHoy = date('d/m/Y', strtotime($paramFecha));
+} else {
+    $fechaHoy = date('d/m/Y');
+    $fechaIso = date('Y-m-d');
+}
+
 $dirSalida = __DIR__ . '/reportes_generados/' . $fechaIso . '_noche';
 if (!is_dir($dirSalida)) @mkdir($dirSalida, 0777, true);
 
@@ -19,7 +29,7 @@ if (!is_dir($colaLocal)) @mkdir($colaLocal, 0777, true);
 
 echo "========================================================\n";
 echo "☀️ AUDITORÍA AUTOMÁTICA TURNO NOCHE (1 MENSAJE POR SUCURSAL)\n";
-echo "📅 Fecha: {$fechaHoy} | Hora: " . date('H:i') . "\n";
+echo "📅 Fecha Auditoría: {$fechaHoy} ({$fechaIso}) | Hora: " . date('H:i') . "\n";
 echo "========================================================\n\n";
 
 $num = 1;
@@ -30,7 +40,7 @@ foreach ($sucursales as $suc) {
 
     // 1. Generar ÚNICO PDF de Auditoría de 1 página para la sucursal
     $pdfCuadrePath = $dirSalida . "/{$slug}_auditoria_noche.pdf";
-    $service->generarPdfCuadre($suc, 'Noche', $fechaHoy, $pdfCuadrePath);
+    $service->generarPdfCuadre($suc, 'Noche', $fechaHoy, $pdfCuadrePath, $fechaIso);
     echo "✅ [{$nombre}] Generado PDF de auditoría: " . basename($pdfCuadrePath) . "\n";
 
     // 2. Generar Mensaje Completo e Individual para esta sucursal (Cruce, Caja, Stock, Faltantes/Sobrantes)
@@ -45,6 +55,7 @@ foreach ($sucursales as $suc) {
         'texto' => $textoMensaje,
         'pdfPath' => realpath($pdfCuadrePath),
         'caption' => "📄 {$nombre} - Auditoría y Control de Mermas Turno Noche ({$fechaHoy})",
+        'enviar_admin' => true,
         'creado' => date('Y-m-d H:i:s')
     ];
 

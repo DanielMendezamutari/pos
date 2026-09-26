@@ -73,16 +73,34 @@ class EntrenamientoCajasService {
      * @param int $codsucursal
      * @return array ['arqueo' => array, 'descartes_prueba' => array]
      */
-    public function obtenerUltimoArqueoOperativoReal(int $codsucursal): array {
+    public function obtenerUltimoArqueoOperativoReal(int $codsucursal, ?string $fecha = null): array {
         $sql = "SELECT a.*, c.nrocaja, c.nomcaja 
                 FROM arqueocaja a
                 JOIN cajas c ON a.codcaja = c.codcaja
                 WHERE c.codsucursal = :codsucursal
-                ORDER BY a.codarqueo DESC LIMIT 6";
+                  AND a.statusarqueo = 0";
+        $params = [':codsucursal' => $codsucursal];
 
-        $stmt = $this->dbh->prepare($sql);
-        $stmt->execute([':codsucursal' => $codsucursal]);
-        $candidatos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!empty($fecha)) {
+            $fechaSig = date('Y-m-d', strtotime($fecha . ' +1 day'));
+            $sqlFecha = $sql . " AND (DATE(a.fechacierre) = :fecha OR DATE(a.fechaapertura) = :fecha OR DATE(a.fechacierre) = :fechaSig) 
+                                 ORDER BY a.codarqueo DESC LIMIT 8";
+            $paramsFecha = $params;
+            $paramsFecha[':fecha'] = $fecha;
+            $paramsFecha[':fechaSig'] = $fechaSig;
+            $stmt = $this->dbh->prepare($sqlFecha);
+            $stmt->execute($paramsFecha);
+            $candidatos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } else {
+            $candidatos = [];
+        }
+
+        if (empty($candidatos)) {
+            $sqlDefault = $sql . " ORDER BY a.codarqueo DESC LIMIT 8";
+            $stmt = $this->dbh->prepare($sqlDefault);
+            $stmt->execute($params);
+            $candidatos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        }
 
         if (empty($candidatos)) {
             return ['arqueo' => null, 'descartes_prueba' => []];

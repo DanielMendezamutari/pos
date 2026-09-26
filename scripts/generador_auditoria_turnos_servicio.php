@@ -140,10 +140,8 @@ class AuditoriaService extends Db {
     }
 
     public function obtenerUltimoArqueo($codsucursal, $fecha = null) {
-        if (!$fecha) $fecha = date('Y-m-d');
-        
         $entrenService = new EntrenamientoCajasService($this->dbh);
-        $res = $entrenService->obtenerUltimoArqueoOperativoReal($codsucursal);
+        $res = $entrenService->obtenerUltimoArqueoOperativoReal($codsucursal, $fecha);
         if (!empty($res['descartes_prueba'])) {
             $this->ultimoDescartesPrueba[$codsucursal] = $res['descartes_prueba'];
         }
@@ -449,7 +447,7 @@ class AuditoriaService extends Db {
         $cod = $sucursal['codsucursal'];
         $nombre = strtoupper(trim($sucursal['nomsucursal']));
         
-        $arq = $this->obtenerUltimoArqueo($cod);
+        $arq = $this->obtenerUltimoArqueo($cod, $fechaIso);
         $pagos = $arq ? $this->obtenerPagosPorMedio($arq['codarqueo']) : ['efectivo' => 0, 'qr' => 0, 'otros' => 0, 'total' => 0];
         $detProds = $this->obtenerDetalleProductosArqueo($arq['codarqueo'] ?? 0);
         $anomalias = $this->detectarAnomaliasTurno($arq, $detProds);
@@ -612,12 +610,12 @@ class AuditoriaService extends Db {
     /**
      * Genera el PDF Oficial de Cuadre de Caja y Control de Mermas de Productos (1 sola hoja, alto contraste)
      */
-    public function generarPdfCuadre($sucursal, $turno, $fecha, $outputPath) {
-        $arq = $this->obtenerUltimoArqueo($sucursal['codsucursal']);
+    public function generarPdfCuadre($sucursal, $turno, $fecha, $outputPath, $fechaIso = null) {
+        $arq = $this->obtenerUltimoArqueo($sucursal['codsucursal'], $fechaIso);
         $pagos = $arq ? $this->obtenerPagosPorMedio($arq['codarqueo']) : ['efectivo' => 0, 'qr' => 0, 'otros' => 0, 'total' => 0];
         $detProds = $this->obtenerDetalleProductosArqueo($arq['codarqueo'] ?? 0);
         $anomalias = $this->detectarAnomaliasTurno($arq, $detProds);
-        $discrepancias = $this->obtenerDiscrepanciasStockYProductos($sucursal['codsucursal'], $arq['codarqueo'] ?? 0);
+        $discrepancias = $this->obtenerDiscrepanciasStockYProductos($sucursal['codsucursal'], $arq['codarqueo'] ?? 0, $fechaIso);
 
         $pdf = new PDF_Cuadre_Caja('P', 'mm', 'A4');
         $pdf->sucursal = $sucursal['nomsucursal'];

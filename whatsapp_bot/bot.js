@@ -469,46 +469,65 @@ async function iniciarBot() {
                 return true;
             }
 
-            let targetJid = data.jid;
-            
-            if (!targetJid) {
-                targetJid = await buscarGrupoReportes();
-            }
-            if (!targetJid && config.admin_phone) {
-                targetJid = `${config.admin_phone}@s.whatsapp.net`;
+            let targetJids = [];
+            if (Array.isArray(data.destinatarios) && data.destinatarios.length > 0) {
+                targetJids = data.destinatarios;
+            } else if (data.jid) {
+                targetJids = [data.jid];
+            } else {
+                const grpJid = await buscarGrupoReportes();
+                if (grpJid) targetJids.push(grpJid);
+                if (data.enviar_admin && config.admin_phone) {
+                    const adminJid = `${config.admin_phone}@s.whatsapp.net`;
+                    if (!targetJids.includes(adminJid)) targetJids.push(adminJid);
+                }
+                if (targetJids.length === 0 && config.admin_phone) {
+                    targetJids.push(`${config.admin_phone}@s.whatsapp.net`);
+                }
             }
 
-            if (!targetJid) {
+            if (targetJids.length === 0) {
                 console.error('❌ No se encontró grupo ni número destino para enviar reporte');
                 return false;
             }
 
-            // 1. Enviar texto si existe con timeout de 30 segundos
-            if (data.texto) {
-                await Promise.race([
-                    sock.sendMessage(targetJid, { text: data.texto }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 30s enviando texto')), 30000))
-                ]);
-                console.log(`📤 Reporte de texto enviado a ${targetJid}`);
+            let exitoGeneral = false;
+            for (const targetJid of targetJids) {
+                try {
+                    // 1. Enviar texto si existe con timeout de 30 segundos
+                    if (data.texto) {
+                        await Promise.race([
+                            sock.sendMessage(targetJid, { text: data.texto }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de 30s enviando texto')), 30000))
+                        ]);
+                        console.log(`📤 Reporte de texto enviado a ${targetJid}`);
+                    }
+
+                    // 2. Enviar PDF adjunto si existe con timeout de 45 segundos
+                    if (data.pdfPath && fs.existsSync(data.pdfPath)) {
+                        const buffer = fs.readFileSync(data.pdfPath);
+                        const fileName = path.basename(data.pdfPath);
+                        await Promise.race([
+                            sock.sendMessage(targetJid, {
+                                document: buffer,
+                                mimetype: 'application/pdf',
+                                fileName: fileName,
+                                caption: data.caption || '📎 ' + fileName
+                            }),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout de 45s enviando PDF ${fileName}`)), 45000))
+                        ]);
+                        console.log(`📄 Documento PDF enviado con éxito a ${targetJid}: ${fileName}`);
+                    }
+                    exitoGeneral = true;
+                    if (targetJids.length > 1) {
+                        await new Promise(r => setTimeout(r, 1200));
+                    }
+                } catch (envErr) {
+                    console.error(`❌ Error enviando reporte a ${targetJid}:`, envErr.message);
+                }
             }
 
-            // 2. Enviar PDF adjunto si existe con timeout de 45 segundos
-            if (data.pdfPath && fs.existsSync(data.pdfPath)) {
-                const buffer = fs.readFileSync(data.pdfPath);
-                const fileName = path.basename(data.pdfPath);
-                await Promise.race([
-                    sock.sendMessage(targetJid, {
-                        document: buffer,
-                        mimetype: 'application/pdf',
-                        fileName: fileName,
-                        caption: data.caption || '📎 ' + fileName
-                    }),
-                    new Promise((_, reject) => setTimeout(() => reject(new Error(`Timeout de 45s enviando PDF ${fileName}`)), 45000))
-                ]);
-                console.log(`📄 Documento PDF enviado con éxito: ${fileName}`);
-            }
-
-            return true;
+            return exitoGeneral;
         } catch (err) {
             console.error('❌ Error enviando reporte:', err.message);
             return false;
