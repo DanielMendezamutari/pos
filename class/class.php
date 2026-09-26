@@ -26196,7 +26196,7 @@ public function RegistrarArqueoCaja()
 	$num = $stmt->rowCount();
 	if($num == 0)
 	{
-		$query = "INSERT INTO arqueocaja values (null, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); ";
+		$query = "INSERT INTO arqueocaja (codcaja, montoinicial, ingresos, ingresos2, egresos, creditos, abonos, efectivocaja, dineroefectivo, diferencia, comentarios, fechaapertura, fechacierre, statusarqueo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?); ";
 		$stmt = $this->dbh->prepare($query);
 		$stmt->bindParam(1, $codcaja);
 		$stmt->bindParam(2, $montoinicial);

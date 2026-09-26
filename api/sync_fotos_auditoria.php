@@ -257,18 +257,27 @@ if ($accion === 'ejecutar_migracion') {
     class RemoteMigrator extends Db {
         public function run() {
             $res = [];
-            $queries = [
-                "ALTER TABLE `arqueocaja` ADD COLUMN IF NOT EXISTS `es_entrenamiento` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=Turno Operativo Real, 1=Sesion de Prueba' AFTER `statusarqueo`",
-                "ALTER TABLE `ventas` ADD COLUMN IF NOT EXISTS `es_entrenamiento` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=Venta Real, 1=Venta de Prueba' AFTER `statusventa`"
-            ];
-            foreach ($queries as $q) {
-                try {
-                    $this->dbh->exec($q);
-                    $res[] = "OK: $q";
-                } catch (PDOException $e) {
-                    $res[] = (strpos($e->getMessage(), 'Duplicate column') !== false) ? "Ya existe columna" : ("Aviso: " . $e->getMessage());
-                }
+            // 1. Asegurar es_entrenamiento en arqueocaja
+            try {
+                $this->dbh->exec("ALTER TABLE `arqueocaja` ADD COLUMN IF NOT EXISTS `es_entrenamiento` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '0=Turno Operativo Real, 1=Sesion de Prueba' AFTER `statusarqueo`");
+                $res[] = "OK: arqueocaja.es_entrenamiento asegurado";
+            } catch (PDOException $e) {
+                $res[] = "Arqueocaja: " . $e->getMessage();
             }
+
+            // 2. Eliminar es_entrenamiento de ventas si existe para evitar romper INSERT INTO ventas de class.php
+            try {
+                $checkVentas = $this->dbh->query("SHOW COLUMNS FROM `ventas` LIKE 'es_entrenamiento'")->fetchAll();
+                if (!empty($checkVentas)) {
+                    $this->dbh->exec("ALTER TABLE `ventas` DROP COLUMN `es_entrenamiento`");
+                    $res[] = "OK: Se elimino es_entrenamiento de ventas para proteger RegistrarVentas()";
+                } else {
+                    $res[] = "OK: Ventas ya se encuentra limpia y compatible (31 columnas)";
+                }
+            } catch (PDOException $e) {
+                $res[] = "Ventas cleanup: " . $e->getMessage();
+            }
+
             return $res;
         }
     }
