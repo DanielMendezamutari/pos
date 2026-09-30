@@ -40,3 +40,6 @@ whatsapp_bot/qr.html
 *.docx
 
 
+
+# Cola de envios temporales WhatsApp
+whatsapp_bot/cola_envios/
